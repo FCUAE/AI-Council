@@ -13,13 +13,17 @@ async function syncClerkUser(userId: string) {
 
   const clerkUser = await clerkClient.users.getUser(userId);
 
-  await authStorage.upsertUser({
+  const result = await authStorage.upsertUser({
     id: userId,
     email: clerkUser.emailAddresses?.[0]?.emailAddress || null,
     firstName: clerkUser.firstName || null,
     lastName: clerkUser.lastName || null,
     profileImageUrl: clerkUser.imageUrl || null,
   });
+
+  if (result.status === "email_collision_blocked") {
+    throw new Error("Email address is already associated with another account");
+  }
 }
 
 export const isAuthenticated: RequestHandler = async (req: Request, res: Response, next: NextFunction) => {
@@ -33,7 +37,10 @@ export const isAuthenticated: RequestHandler = async (req: Request, res: Respons
 
   try {
     await syncClerkUser(userId);
-  } catch (error) {
+  } catch (error: any) {
+    if (error?.message?.includes("Email address is already associated")) {
+      return res.status(409).json({ message: "This email is already linked to another account. Please contact support." });
+    }
     console.error("Error syncing Clerk user:", error);
     return res.status(500).json({ message: "Authentication error" });
   }

@@ -14,6 +14,7 @@ import { conversations } from '@shared/schema';
 import { users, creditTransactions } from '@shared/models/auth';
 import { startCreditExpirationCron } from './cron';
 import { storage } from './storage';
+import { securityLog } from './securityLogger';
 
 if (process.env.NODE_ENV === "production") {
   if (process.env.CLERK_PROD_SECRET_KEY) {
@@ -53,7 +54,61 @@ declare module "http" {
 }
 
 app.use(helmet({
-  contentSecurityPolicy: false,
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: [
+        "'self'",
+        "https://*.clerk.accounts.dev",
+        "https://js.stripe.com",
+        "https://scripts.refgrowcdn.com",
+        "https://refgrowcdn.com",
+        "'unsafe-inline'",
+      ],
+      styleSrc: [
+        "'self'",
+        "'unsafe-inline'",
+        "https://fonts.googleapis.com",
+        "https://*.clerk.accounts.dev",
+      ],
+      imgSrc: [
+        "'self'",
+        "data:",
+        "blob:",
+        "https://*.clerk.com",
+        "https://img.clerk.com",
+        "https://*.clerk.accounts.dev",
+        "https://*.gravatar.com",
+        "https://*.googleusercontent.com",
+      ],
+      connectSrc: [
+        "'self'",
+        "https://*.clerk.accounts.dev",
+        "https://clerk.com",
+        "https://api.stripe.com",
+        "https://openrouter.ai",
+        "https://refgrowcdn.com",
+        "https://scripts.refgrowcdn.com",
+        "wss://*.pike.replit.dev",
+        "wss://*.replit.dev",
+      ],
+      frameSrc: [
+        "'self'",
+        "https://js.stripe.com",
+        "https://*.clerk.accounts.dev",
+      ],
+      fontSrc: [
+        "'self'",
+        "https://fonts.gstatic.com",
+        "data:",
+      ],
+      objectSrc: ["'none'"],
+      baseUri: ["'self'"],
+      frameAncestors: ["'self'"],
+      formAction: ["'self'"],
+      workerSrc: ["'self'", "blob:"],
+    },
+  },
   crossOriginEmbedderPolicy: false,
 }));
 
@@ -103,6 +158,36 @@ export function log(message: string, source = "express") {
 }
 
 app.use("/api/", apiLimiter);
+
+function getAllowedOrigins(): string[] {
+  const origins: string[] = [];
+  if (process.env.REPLIT_DOMAINS) {
+    origins.push(...process.env.REPLIT_DOMAINS.split(",").map(d => `https://${d.trim()}`).filter(Boolean));
+  }
+  if (process.env.REPLIT_DEV_DOMAIN) {
+    origins.push(`https://${process.env.REPLIT_DEV_DOMAIN}`);
+  }
+  return origins;
+}
+
+const STATE_CHANGING_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
+
+app.use("/api/", (req: Request, res: Response, next: NextFunction) => {
+  if (!STATE_CHANGING_METHODS.has(req.method)) return next();
+  if (req.path === "/api/stripe/webhook") return next();
+
+  const origin = req.headers.origin;
+  if (!origin) return next();
+
+  const allowed = getAllowedOrigins();
+  if (allowed.length === 0) return next();
+
+  if (!allowed.includes(origin)) {
+    securityLog.csrfOriginMismatch({ route: req.path, origin, method: req.method });
+    return res.status(403).json({ message: "Forbidden" });
+  }
+  next();
+});
 
 app.use((req, res, next) => {
   const start = Date.now();
@@ -186,6 +271,16 @@ async function runAppMigrations() {
       ALTER TABLE conversations ADD COLUMN IF NOT EXISTS context_summary TEXT;
 
       ALTER TABLE council_responses ADD COLUMN IF NOT EXISTS substituted_for TEXT;
+
+      CREATE TABLE IF NOT EXISTS file_uploads (
+        id SERIAL PRIMARY KEY,
+        filename VARCHAR NOT NULL UNIQUE,
+        user_id VARCHAR NOT NULL,
+        purpose VARCHAR(20) NOT NULL DEFAULT 'debate',
+        created_at TIMESTAMP DEFAULT NOW()
+      );
+      CREATE INDEX IF NOT EXISTS idx_file_uploads_filename ON file_uploads(filename);
+      CREATE INDEX IF NOT EXISTS idx_file_uploads_user_id ON file_uploads(user_id);
 
       CREATE TABLE IF NOT EXISTS support_messages (
         id SERIAL PRIMARY KEY,

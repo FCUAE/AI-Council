@@ -212,9 +212,15 @@ export default function Profile() {
     },
   });
 
+  const [deleteConfirmation, setDeleteConfirmation] = useState("");
+
   const deleteAccountMutation = useMutation({
     mutationFn: async () => {
-      const res = await authFetch("/api/user", { method: "DELETE" });
+      const res = await authFetch("/api/user", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ confirmation: "DELETE" }),
+      });
       if (!res.ok) {
         const data = await res.json().catch(() => ({ message: "Failed to delete account." }));
         throw new Error(data.message || "Failed to delete account.");
@@ -717,15 +723,30 @@ export default function Profile() {
       </div>
 
       {showDeleteDialog && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => !deleteAccountMutation.isPending && setShowDeleteDialog(false)}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => { if (!deleteAccountMutation.isPending) { setShowDeleteDialog(false); setDeleteConfirmation(""); } }}>
           <div className="bg-white rounded-2xl shadow-xl max-w-md w-full mx-4 p-6" onClick={(e) => e.stopPropagation()} data-testid="dialog-delete-account">
             <h3 className="text-[17px] font-semibold text-[#1a1a1a] mb-2">Delete Account</h3>
             <p className="text-[14px] text-[#737373] mb-1">
               Are you sure you want to delete your account? This action is <span className="font-semibold text-red-600">permanent and cannot be undone</span>.
             </p>
-            <p className="text-[13px] text-[#a3a3a3] mb-6">
+            <p className="text-[13px] text-[#a3a3a3] mb-4">
               All your conversations, messages, and credit history will be permanently removed.
             </p>
+
+            <div className="mb-4">
+              <label className="block text-[13px] text-[#737373] mb-1.5">
+                Type <span className="font-mono font-semibold text-red-600">DELETE</span> to confirm
+              </label>
+              <input
+                type="text"
+                value={deleteConfirmation}
+                onChange={(e) => setDeleteConfirmation(e.target.value)}
+                placeholder="Type DELETE here"
+                className="w-full px-3 py-2 text-[13px] border border-[#eaeaea] rounded-lg focus:outline-none focus:ring-2 focus:ring-red-200 focus:border-red-400"
+                data-testid="input-delete-confirmation"
+                autoComplete="off"
+              />
+            </div>
 
             {deleteAccountMutation.isError && (
               <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-[13px] text-red-700" data-testid="text-delete-error">
@@ -735,7 +756,7 @@ export default function Profile() {
 
             <div className="flex gap-3 justify-end">
               <button
-                onClick={() => setShowDeleteDialog(false)}
+                onClick={() => { setShowDeleteDialog(false); setDeleteConfirmation(""); }}
                 disabled={deleteAccountMutation.isPending}
                 className="px-4 py-2 bg-white border border-[#eaeaea] rounded-lg text-[13px] font-medium text-[#1a1a1a] hover:bg-[#fafafa] transition-colors cursor-pointer disabled:opacity-50"
                 data-testid="button-cancel-delete"
@@ -744,7 +765,7 @@ export default function Profile() {
               </button>
               <button
                 onClick={() => deleteAccountMutation.mutate()}
-                disabled={deleteAccountMutation.isPending}
+                disabled={deleteAccountMutation.isPending || deleteConfirmation !== "DELETE"}
                 className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-[13px] font-medium transition-colors border-0 cursor-pointer disabled:opacity-50 flex items-center gap-2"
                 data-testid="button-confirm-delete"
               >

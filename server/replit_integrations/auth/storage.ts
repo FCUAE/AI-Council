@@ -2,11 +2,16 @@ import { users, type User, type UpsertUser, creditTransactions } from "@shared/m
 import { conversations, messages, councilResponses } from "@shared/schema";
 import { db } from "../../db";
 import { eq, inArray, and, ne } from "drizzle-orm";
+import { securityLog } from "../../securityLogger";
+
+export type UpsertUserResult =
+  | { status: "success"; user: User }
+  | { status: "email_collision_blocked"; existingUserId: string };
 
 export interface IAuthStorage {
   getUser(id: string): Promise<User | undefined>;
   getUserByEmail(email: string): Promise<User | undefined>;
-  upsertUser(user: UpsertUser): Promise<User>;
+  upsertUser(user: UpsertUser): Promise<UpsertUserResult>;
   deleteUser(id: string): Promise<void>;
   updateUserProfile(userId: string, data: { firstName: string; lastName: string; email: string }): Promise<{ user?: User; error?: string }>;
 }
@@ -22,7 +27,7 @@ class AuthStorage implements IAuthStorage {
     return user;
   }
 
-  async upsertUser(userData: UpsertUser): Promise<User> {
+  async upsertUser(userData: UpsertUser): Promise<UpsertUserResult> {
     try {
       const [user] = await db
         .insert(users)
@@ -30,28 +35,25 @@ class AuthStorage implements IAuthStorage {
         .onConflictDoUpdate({
           target: users.id,
           set: {
-            ...userData,
+            email: userData.email,
+            firstName: userData.firstName,
+            lastName: userData.lastName,
+            profileImageUrl: userData.profileImageUrl,
             updatedAt: new Date(),
           },
         })
         .returning();
-      return user;
+      return { status: "success", user };
     } catch (error: any) {
       if (error?.code === '23505' && error?.constraint === 'users_email_unique' && userData.email) {
         const existing = await this.getUserByEmail(userData.email);
-        if (existing) {
-          const [user] = await db
-            .update(users)
-            .set({
-              id: userData.id,
-              firstName: userData.firstName,
-              lastName: userData.lastName,
-              profileImageUrl: userData.profileImageUrl,
-              updatedAt: new Date(),
-            })
-            .where(eq(users.email, userData.email))
-            .returning();
-          return user;
+        if (existing && existing.id !== userData.id) {
+          securityLog.authCollisionBlocked({
+            email: userData.email,
+            existingId: existing.id,
+            newId: userData.id,
+          });
+          return { status: "email_collision_blocked", existingUserId: existing.id };
         }
       }
       throw error;

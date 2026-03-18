@@ -22,6 +22,7 @@ import { db } from "./db";
 import { sql, eq } from "drizzle-orm";
 import { conversations, messages } from "@shared/schema";
 import { creditTransactions } from "@shared/models/auth";
+import { securityLog } from "./securityLogger";
 
 const conversationLimiter = rateLimit({
   windowMs: 60 * 1000,
@@ -70,6 +71,29 @@ const accountDeleteLimiter = rateLimit({
   legacyHeaders: false,
   message: { message: "Too many requests. Please try again shortly." },
 });
+
+const perUserBuckets = new Map<string, { count: number; resetAt: number }>();
+
+function checkPerUserLimit(userId: string, maxPerWindow: number, windowMs: number = 60_000): boolean {
+  const now = Date.now();
+  const bucket = perUserBuckets.get(userId);
+  if (!bucket || now >= bucket.resetAt) {
+    perUserBuckets.set(userId, { count: 1, resetAt: now + windowMs });
+    return true;
+  }
+  if (bucket.count >= maxPerWindow) {
+    return false;
+  }
+  bucket.count++;
+  return true;
+}
+
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, bucket] of perUserBuckets) {
+    if (now >= bucket.resetAt) perUserBuckets.delete(key);
+  }
+}, 5 * 60_000);
 
 function getUserId(req: Request): string | undefined {
   return getAuth(req).userId ?? undefined;
@@ -1680,6 +1704,13 @@ export async function registerRoutes(
     const userId = getUserId(req);
     if (!userId) return res.status(401).json({ message: "Unauthorized" });
 
+    const confirmation = req.body?.confirmation;
+    if (confirmation !== "DELETE") {
+      return res.status(400).json({ message: "Please confirm account deletion by typing DELETE." });
+    }
+
+    securityLog.destructiveAction({ action: "account_deletion", userId });
+
     try {
       const user = await storage.getUserById(userId);
 
@@ -1795,9 +1826,27 @@ export async function registerRoutes(
 
   app.post("/api/uploads/extract-text", extractTextLimiter, isAuthenticated, async (req, res) => {
     try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
+
       const { fileUrl, fileType } = req.body;
       if (!fileUrl || typeof fileUrl !== "string") {
         return res.status(400).json({ message: "Missing fileUrl" });
+      }
+
+      if (fileUrl.includes("/uploads/")) {
+        const rawFilename = fileUrl.split("/uploads/").pop();
+        if (rawFilename) {
+          const filename = path.basename(decodeURIComponent(rawFilename));
+          const ownerResult = await db.execute(
+            sql`SELECT user_id FROM file_uploads WHERE filename = ${filename}`
+          );
+          const ownerRow = (ownerResult as any).rows?.[0];
+          if (ownerRow && ownerRow.user_id !== userId && !isAdmin(req)) {
+            securityLog.fileAccessDenied({ route: "/api/uploads/extract-text", userId, reason: "not_owner" });
+            return res.status(403).json({ message: "Access denied" });
+          }
+        }
       }
 
       const mimeType = fileType || "application/octet-stream";
@@ -2179,6 +2228,11 @@ export async function registerRoutes(
     try {
       const userId = getUserId(req);
       if (!userId) return res.status(401).json({ message: "Unauthorized" });
+
+      if (!checkPerUserLimit(userId, 5)) {
+        securityLog.rateLimitHit({ route: "conversations.create", userId });
+        return res.status(429).json({ message: "You're creating debates too quickly. Please wait a moment." });
+      }
       
       const user = await storage.getUserById(userId);
       if (!user) return res.status(404).json({ message: "User not found" });
@@ -2295,6 +2349,12 @@ export async function registerRoutes(
 
   app.post(api.conversations.addMessage.path, conversationLimiter, isAuthenticated, async (req, res) => {
     try {
+      const userId = getUserId(req);
+      if (userId && !checkPerUserLimit(userId, 5)) {
+        securityLog.rateLimitHit({ route: "conversations.addMessage", userId });
+        return res.status(429).json({ message: "You're sending messages too quickly. Please wait a moment." });
+      }
+
       const conversationId = Number(req.params.id);
       const { prompt, attachments, expectedCost } = api.conversations.addMessage.input.parse(req.body);
 
@@ -2307,8 +2367,7 @@ export async function registerRoutes(
           return res.status(400).json({ message: "Total attachment size exceeds the 50MB limit." });
         }
       }
-      
-      const userId = getUserId(req);
+
       if (!userId) return res.status(401).json({ message: "Unauthorized" });
       
       const conversation = await storage.getConversation(conversationId);

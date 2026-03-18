@@ -133,10 +133,86 @@
 
 ---
 
+---
+
+## Phase 2 Hardening (March 18, 2026)
+
+### Critical — Fixed
+
+**20. Auth identity collision / account takeover**
+- **Risk:** When a new user signed in with an email already in use by a different account, `upsertUser` would silently reassign the existing account's `id` to the new identity — enabling full account takeover.
+- **Fix:** `upsertUser` now uses `onConflictDoUpdate` on `id` only. Email uniqueness violations (Postgres `23505`) return `{ status: "email_collision_blocked" }` instead of overwriting. The auth middleware returns HTTP 409 with a support-contact message. All collisions are logged.
+- **File:** `server/replit_integrations/auth/storage.ts`
+
+### High — Fixed
+
+**21. Upload and object storage access control**
+- **Risk:** `/uploads/:filename` served any uploaded file publicly. `/api/support/upload` had no auth. `/objects/` bypassed ACL checks.
+- **Fix:** 
+  - New `file_uploads` table tracks ownership (user_id, filename, purpose).
+  - `/uploads/:filename` checks requester against file owner; unauthenticated requests to owned files return 403.
+  - `/api/support/upload` now requires `isAuthenticated`.
+  - `/objects/` now enforces `canAccessObjectEntity` ACL.
+  - 404s replaced with 403s to prevent information disclosure.
+- **File:** `server/replit_integrations/object_storage/routes.ts`
+
+### Medium — Fixed
+
+**22. Content Security Policy enabled**
+- **Risk:** CSP was fully disabled (`contentSecurityPolicy: false`), leaving the app open to XSS/data exfiltration.
+- **Fix:** Strict CSP configured with allowlists for Clerk, Stripe, RefGrow, Google Fonts, and Replit WebSocket domains. `object-src: 'none'`, `base-uri: 'self'`, `frame-ancestors: 'self'`, `form-action: 'self'`.
+- **Note:** `'unsafe-inline'` is required for scripts/styles due to Clerk SDK. Tighten to nonce-based when Clerk supports it.
+- **File:** `server/index.ts`
+
+**23. File upload validation hardened**
+- **Risk:** File validation relied only on browser-reported MIME type (trivially spoofable). No magic-byte checks, no extension blocklist, no filename sanitization.
+- **Fix:** Magic-byte verification for PNG, JPEG, GIF, WebP, PDF, DOCX, DOC. Extension blocklist blocks executables, scripts, and HTML variants. Multi-extension filenames (e.g., `file.pdf.exe`) are detected. Null bytes in filenames are rejected. `Content-Disposition: attachment` for non-image/PDF types.
+- **File:** `server/replit_integrations/object_storage/routes.ts`
+
+**24. CSRF / Origin validation**
+- **Risk:** No Origin header validation on state-changing API requests, enabling cross-site request forgery.
+- **Fix:** Middleware validates `Origin` header on POST/PUT/PATCH/DELETE to `/api/` against known Replit domains. Mismatched origins return 403 and are logged. Stripe webhook is excluded.
+- **File:** `server/index.ts`
+
+**25. Account deletion hardened**
+- **Risk:** Account deletion only required a modal click — no typed confirmation.
+- **Fix:** Backend requires `{ confirmation: "DELETE" }` in request body. Frontend shows a text input requiring the user to type "DELETE" before the button activates. All deletions are logged via security logger.
+- **Files:** `server/routes.ts`, `client/src/pages/Profile.tsx`
+
+**26. Per-user rate limiting**
+- **Risk:** Rate limiters were IP-based only, allowing abuse via proxies and incorrect attribution on shared IPs.
+- **Fix:** In-memory per-user rate limiter supplements IP-based limits. Debate creation: 5/user/min. Stale buckets cleaned every 5 minutes. Rate limit hits logged.
+- **File:** `server/routes.ts`
+
+**27. Structured security logging**
+- **Fix:** Centralized `securityLog` module with structured JSON logging for: auth collisions, file access denials, destructive actions, CSRF mismatches, upload validation failures, and rate limit hits. PII is redacted. All events prefixed with `[SECURITY]` for easy grep/filter.
+- **File:** `server/securityLogger.ts`
+
+---
+
+## Updated Security Scorecard
+
+| Category | Rating | Notes |
+|---|---|---|
+| **Authentication** | ✅ Strong | Clerk auth; identity collision attack blocked; email uniqueness enforced |
+| **Authorization** | ✅ Strong | File ownership tracking; ACL enforcement on objects; admin checks |
+| **Secrets Management** | ✅ Good | Secrets via env vars; `.env` gitignored |
+| **Input Validation** | ✅ Strong | Zod schemas; magic-byte file validation; extension blocklist |
+| **API Security** | ✅ Strong | IP + per-user rate limiting; CSRF origin checks; body size limits |
+| **File Upload/Serving** | ✅ Strong | Type allowlists; magic-byte checks; ownership ACL; nosniff; Content-Disposition |
+| **Security Headers** | ✅ Strong | Helmet + full CSP; frame-ancestors; form-action |
+| **SSRF Prevention** | ✅ Strong | IP/hostname allowlist; no arbitrary fetch |
+| **Error Handling** | ✅ Good | Generic 5xx errors; sanitized logging |
+| **Business Logic** | ✅ Good | Credit transactions with WHERE guards; typed deletion confirmation |
+| **Monitoring** | ✅ Good | Structured security event logging with PII redaction |
+
+---
+
 ## Recommendations (Require Product Decisions)
 
-1. **CAPTCHA on support form** — The support form and upload endpoints are publicly accessible. Consider adding CAPTCHA to prevent automated abuse.
-2. **Auth on support upload** — Currently anonymous to support non-logged-in users. Consider requiring auth if abuse becomes an issue.
-3. **CSP headers** — Content Security Policy is currently disabled to avoid breaking inline scripts. Consider adding a policy once all inline scripts are moved to external files.
-4. **Dependency upgrades** — The `@google-cloud/storage` dependency chain has 5 low-severity issues requiring a major version change. Schedule evaluation during next major upgrade cycle.
-5. **DNS-level SSRF protection** — While the SSRF check now uses an allowlist (only Replit domains and GCS), DNS rebinding attacks are theoretically possible if an attacker compromises a DNS record for an allowed domain. Full mitigation would require a custom HTTP agent that validates resolved IPs before connecting.
+1. **CAPTCHA on support form** — Consider adding CAPTCHA to prevent automated abuse.
+2. **Dependency upgrades** — `@google-cloud/storage` chain has low-severity issues requiring major version change.
+3. **DNS-level SSRF protection** — Full mitigation would require a custom HTTP agent that validates resolved IPs before connecting.
+4. **Redis-backed rate limiting** — For horizontal scaling, move per-user buckets to Redis.
+5. **CSP nonces** — Replace `'unsafe-inline'` with nonce-based script loading when Clerk supports it.
+6. **File ownership backfill** — Files uploaded before the `file_uploads` table exists have no ownership record. Consider a migration to backfill from conversation attachment metadata.

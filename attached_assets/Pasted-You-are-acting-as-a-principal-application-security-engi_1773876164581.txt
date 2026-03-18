@@ -1,0 +1,380 @@
+You are acting as a principal application security engineer and senior full-stack hardening lead.
+
+Repository:
+FCUAE/AI-Council
+
+Goal:
+Implement the security fixes for tasks #64 to #70 in a production-safe way. Do not only make minimal changes that satisfy surface acceptance criteria. Fix the root cause cleanly, preserve normal app behavior, and fail closed when uncertain.
+
+Important execution rules
+
+1. Security first
+- When unsure, deny access safely.
+- Do not leave partial protections that look fixed but are bypassable.
+- Do not trust client-supplied ownership, role, file type, or origin data without server validation.
+
+2. Preserve product behavior
+- Normal signups, returning users, uploads, chat flows, Stripe flows, and support flows should still work.
+- If behavior must change for security, keep UX smooth and document it.
+
+3. Fix root causes, not just symptoms
+- Do not patch around the issue with logging only.
+- Do not keep dangerous fallback behavior.
+
+4. Validate thoroughly
+- Run typecheck, build, and any tests available.
+- Add tests for core security-sensitive changes where feasible.
+- If a fix cannot be completed safely, document exactly why in SECURITY_AUDIT.md.
+
+5. Logging discipline
+- Add structured security logging, but never log secrets, tokens, raw sensitive file paths, file contents, or full user payloads.
+- Redact identifiers where appropriate.
+
+Execution order
+Implement in this order:
+1. #64 identity collision safety
+2. #65 file access control and support upload auth
+3. #66 CSP and header hardening
+4. #67 file validation and parsing hardening
+5. #68 CSRF and destructive action hardening
+6. #69 per-user abuse prevention and concurrency controls
+7. #70 structured security logging and SECURITY_AUDIT.md
+
+Task #64
+Title:
+Security: Fix dangerous account reassignment on email collision
+
+Problem:
+The current auth sync path can overwrite ownership by rewriting the primary user id on email collision.
+
+Required fix:
+- In server/replit_integrations/auth/storage.ts, remove any logic that updates an existing user's primary key based on email collision.
+- Never transfer credits, conversations, Stripe customer linkage, or billing state between identities automatically.
+- Safe behavior must be:
+  - Same Clerk user id: normal upsert/update
+  - Same email but different Clerk user id: fail closed, do not merge, do not rewrite ids
+- Do not silently continue as if sync succeeded.
+
+Implementation detail:
+- Return a typed result from upsertUser, such as:
+  - success
+  - email_collision_blocked
+  - user_not_found
+- Do not return a normal success object for a blocked collision
+- In server/replit_integrations/auth/replitAuth.ts, update syncClerkUser to explicitly handle blocked collision state
+- Log a structured security event for collisions with:
+  - event type
+  - email
+  - old id prefix
+  - new id prefix
+- Do not log full ids or sensitive data
+
+Acceptance details:
+- Existing user row ownership is never reassigned
+- Same-id returning users still work
+- New legitimate users still work
+- Email collision cannot take over another user's data
+- Collision handling is explicit and safe
+
+Task #65
+Title:
+Security: Protect uploads and object storage with auth and ACL
+
+Problem:
+Sensitive debate attachments and support uploads are publicly accessible or insufficiently protected.
+
+Required fix for /uploads:
+- Stop treating /uploads/:filename as a public file host for sensitive user content
+- Debate attachments and support images must be private by default
+- Require authentication before serving sensitive uploaded files
+- Enforce server-side ownership checks before serving
+- Unauthorized access must return generic 403 without disclosing file existence details
+
+Important implementation requirement:
+Do not implement ownership checks by scanning all conversations inefficiently on each request if it can be avoided.
+Prefer a durable server-side ownership model such as:
+- a file metadata table, or
+- explicit attachment-to-owner mapping, or
+- object ACL-based ownership persisted at upload time
+
+Required fix for /objects:
+- In the /objects route, resolve user identity
+- Enforce ACL through canAccessObjectEntity before download
+- Public objects may be served if ACL allows public read
+- Private objects must require auth plus ACL validation
+- Do not call downloadObject before access control passes
+
+Support upload hardening:
+- POST /api/support/upload must require authentication
+- Support uploads should be private by default
+- Support file access must be bound to authenticated ownership or admin access only
+
+Do not:
+- Leave a public fallback route for old sensitive files
+- Leak object paths or upload filenames in denial logs
+
+Acceptance details:
+- Unauthenticated users cannot access private uploads or private objects
+- Authorized owners still can
+- ACL is actually enforced, not just checked superficially
+- Support uploads are no longer an unauthenticated public file host
+
+Task #66
+Title:
+Security: Enable CSP and harden security headers
+
+Problem:
+CSP is disabled, leaving the app exposed if any rendering issue appears later.
+
+Required fix:
+- Re-enable CSP in server/index.ts
+- Start with a correct allowlist based on actual app needs
+- Include only required sources for:
+  - self
+  - Clerk
+  - Stripe
+  - Refgrow if actually used
+  - OpenRouter and any real API connect targets
+  - fonts or styles only if genuinely required
+- Add explicit directives as needed:
+  - default-src
+  - script-src
+  - style-src
+  - img-src
+  - connect-src
+  - frame-src
+  - font-src
+  - object-src
+  - base-uri
+  - frame-ancestors
+
+Important requirement:
+- Do not stop at Report-Only unless there is a real blocker
+- Preferred end state is enforced CSP
+- If temporary relaxation is necessary, document exact reason and scope
+
+Also do:
+- Add Cache-Control: no-store to sensitive authenticated JSON endpoints where appropriate
+- Ensure private file routes are not publicly cacheable
+- Keep Helmet protections strong
+- Ensure production errors do not leak stack traces to clients
+
+Acceptance details:
+- App still loads correctly
+- Clerk, Stripe, and any required integrations still work
+- CSP is enabled in enforce mode unless a real blocker is documented
+- Sensitive responses have safer cache behavior
+
+Task #67
+Title:
+Security: Strengthen file upload validation
+
+Problem:
+Upload validation currently relies too much on MIME and extension and not enough on actual file content.
+
+Required fix:
+- Implement magic-byte or file-signature validation for allowed upload types
+- Validate extension, MIME, and content signature together
+- Reject mismatches
+- Reject suspicious filenames including:
+  - double extensions
+  - control characters
+  - null-byte style tricks
+  - dangerous active-content extensions
+- Explicitly block:
+  - svg
+  - html
+  - exe
+  - js
+  - shell scripts
+  - any active or executable content
+- TXT should only be accepted if it does not look binary
+- DOCX validation should acknowledge that ZIP header confirms container type, not full semantic validity
+- Keep the allowed file type list as narrow as possible
+
+Document parsing hardening:
+- Tighten error handling in server/documentParser.ts
+- Ensure all temp files are cleaned in try/finally
+- Add timeouts and size or page limits where needed
+- Limit extracted text length safely
+- Avoid parser crashes from bubbling sensitive internals to clients
+
+Serving behavior:
+- Non-image downloads should use attachment disposition
+- Sensitive files should not be inline-served unless explicitly safe and intended
+
+Acceptance details:
+- Renamed malicious files are rejected
+- Mismatched extension, MIME, and signature are rejected
+- Active content is blocked
+- Legitimate supported files still upload successfully
+- Parsing failures fail safely without leaking internals
+
+Task #68
+Title:
+Security: CSRF protection and destructive action hardening
+
+Problem:
+State-changing routes lack strong CSRF protections and destructive actions are too easy.
+
+Required fix:
+- Add Origin validation middleware for browser-facing state-changing routes
+- Use an allowlist derived from trusted domains
+- Reject cross-origin attempts
+- Log CSRF-like attempts safely
+
+Important nuance:
+- Do not blindly reject every missing Origin if some legitimate non-browser or same-environment flows may omit it
+- Apply strict validation to browser session backed sensitive routes
+- Design the middleware so it is secure and does not break legitimate app behavior
+
+Account deletion hardening:
+- DELETE /api/user must require server-side confirmation
+- Preferred confirmation:
+  - typed confirmation value such as DELETE or the user email
+  - plus recent-auth check if feasible with Clerk
+- Plain authenticated request is not enough
+- Add rate limit and optional cooldown if appropriate
+
+Also review:
+- Stripe-related POST routes
+- profile update
+- support submission if authenticated
+- any retry, cancel, or billing mutation routes
+
+Acceptance details:
+- Cross-origin forged state-changing requests are blocked
+- Account deletion requires meaningful server-side confirmation
+- CSRF-like attempts are logged
+- Legitimate app flows still work
+
+Task #69
+Title:
+Security: Enhanced rate limiting and abuse prevention
+
+Problem:
+The app uses mostly IP-based limits, which is not enough for an authenticated paid AI product.
+
+Required fix:
+- Add per-user rate limiting on sensitive and expensive routes:
+  - conversation creation
+  - add message
+  - retry
+  - upload direct
+  - extract text
+  - support
+  - support upload
+  - stripe recovery
+  - stripe sync
+- Key authenticated limits on user id, not only IP
+- Keep IP-based fallback for unauthenticated routes if any remain
+
+Concurrency and spend protection:
+- Add max concurrent active debates per user
+- Add retry cooldown to stop spam
+- Reject or delay new expensive operations when user already has too many active debates
+- Prefer a control that works safely even if the app scales beyond one process
+- If using in-memory only for now, document the limitation clearly
+
+Support channel hardening:
+- Add sane daily caps for support messages per user
+- Prevent support upload from becoming free persistent storage
+- Add cleanup or expiration policy for support attachments if feasible
+
+Implementation caution:
+- Do not make limits so aggressive that normal real users break immediately
+- Tune for realistic usage
+
+Acceptance details:
+- One user cannot rapidly spam expensive routes
+- Retry abuse is controlled
+- Concurrent debate amplification is controlled
+- Support spam is reduced
+- Normal usage still works
+
+Task #70
+Title:
+Security: Structured security logging and SECURITY_AUDIT.md
+
+Required fix:
+- Add server/securityLogger.ts for structured security events
+- Centralize allowed event types, formatting, and redaction
+- Use helper methods so future logs do not accidentally include secrets
+
+Log these event classes:
+- denied file access
+- auth identity collision
+- destructive actions
+- admin route access
+- csrf-like origin mismatch
+- billing anomalies
+- upload validation failures
+- rate limit hits on sensitive routes
+
+Logging rules:
+- Never log raw tokens
+- Never log secret values
+- Never log full sensitive file paths
+- Never log file contents
+- Redact ids and email details where possible
+
+SECURITY_AUDIT.md:
+Update it after all code changes are complete.
+It must include:
+- fixed issues
+- partially fixed issues
+- deferred issues
+- exact files changed
+- deployment or env changes needed
+- manual testing checklist
+- residual risks
+- follow-up recommendations
+
+Cross-cutting requirements
+
+Testing
+Add tests where practical for:
+- email collision blocked path
+- unauthorized file access
+- authorized file access
+- ACL enforcement on object storage
+- upload validation failures
+- account deletion confirmation enforcement
+- Origin validation behavior
+- per-user rate limiting behavior
+
+Do not leave hidden regressions
+After each major change, verify:
+- auth still works
+- returning users still work
+- new signups still work
+- uploads still work for legitimate files
+- debate creation still works for authorized users
+- Stripe routes still work
+- support flow still works under new auth model
+
+Documentation
+At the end provide:
+1. files changed
+2. summary of each security fix
+3. any migrations or data model changes
+4. any deployment steps
+5. any CSP allowlist decisions
+6. known limitations
+
+Definition of done
+The repository should end in a materially safer state where:
+- account ownership cannot be reassigned by email collision
+- private files are not publicly accessible
+- object ACL is enforced
+- CSP is enabled and useful
+- uploads are validated more safely
+- CSRF protections are materially improved
+- authenticated abuse is better controlled
+- security logging and audit documentation are in place
+
+Begin now by:
+1. tracing exact code paths for auth sync, uploads, file serving, destructive actions, and expensive routes
+2. implementing the highest-risk fixes first
+3. validating each major change
+4. updating SECURITY_AUDIT.md last

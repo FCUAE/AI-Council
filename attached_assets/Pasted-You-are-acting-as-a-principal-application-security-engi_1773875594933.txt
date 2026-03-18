@@ -1,0 +1,266 @@
+You are acting as a principal application security engineer, senior full-stack engineer, and production hardening lead. Your task is to FIX the security issues in this repository, not just report them.
+
+Repository
+FCUAE/AI-Council
+
+Mission
+Implement production-grade fixes for the confirmed and likely security issues in this codebase while preserving existing product behavior as much as possible. The app handles user accounts, paid credits, Stripe billing, uploads, support messages, and expensive multi-model AI workflows. Treat this as a serious pre-launch hardening pass.
+
+Core rule
+Do not only describe issues. Make safe code changes, update architecture where needed, and add tests or validation where appropriate. If something is too risky to auto-fix, document it clearly in SECURITY_AUDIT.md with exact reasoning and a recommended manual remediation path.
+
+High priority issues to fix
+
+1. Broken access control on object storage
+Current issue:
+The /objects/* route serves files without enforcing ACL or ownership checks.
+What to do:
+- Fix server/replit_integrations/object_storage/routes.ts so object downloads enforce access control
+- For every /objects/* request:
+  - resolve the current authenticated user if present
+  - load the object
+  - read ACL policy
+  - if object is public and read access is allowed, serve it
+  - otherwise require auth and call canAccessObjectEntity before download
+  - return 403 on unauthorized access
+- Do not allow private object reads without ACL validation
+- Add logging for denied access attempts without leaking sensitive paths
+
+2. Public exposure of local uploads
+Current issue:
+Files under /uploads/:filename are public and include sensitive debate attachments and support images.
+What to do:
+- Eliminate public unauthenticated access to private user files
+- Redesign upload serving so debate and support attachments are private by default
+- Strongly prefer moving all user-generated uploads to private object storage
+- If immediate migration is too large, then at minimum:
+  - protect file downloads behind authenticated routes
+  - verify resource ownership or support-message authorization before serving
+  - disable public direct serving of user files
+- Remove or deprecate the raw /uploads/:filename public route for sensitive content
+- Add a migration note if existing stored files need remapping
+
+3. Dangerous account reassignment on email collision
+Current issue:
+Auth sync can rewrite an existing app user row to a new Clerk identity when emails collide.
+What to do:
+- Fix server/replit_integrations/auth/storage.ts
+- Never rewrite the primary user id of an existing database user on email collision
+- Remove unsafe merging logic that updates users.id based on email
+- Replace with a safe approach:
+  - if same id, upsert normally
+  - if different id but same email, do NOT merge automatically
+  - fail safely and log a security warning
+  - optionally create an explicit manual-linking path only if fully verified and safe
+- Ensure syncClerkUser cannot transfer credits, conversations, or billing state to another identity
+
+4. CSP disabled
+Current issue:
+Helmet CSP is disabled globally.
+What to do:
+- Re-enable Content Security Policy in server/index.ts
+- Build a practical strict CSP for this app
+- Allow only the minimum sources actually required for:
+  - self
+  - Clerk
+  - Stripe if needed
+  - required images, styles, fonts, and connect endpoints
+- Prefer nonce or hash-based strategy where realistic
+- Avoid unsafe-inline and unsafe-eval unless absolutely necessary
+- If some third-party integration requires temporary relaxation, document exactly why
+- If needed, first implement Report-Only mode, verify breakage, then enforce
+
+5. Weak file validation and document handling
+Current issue:
+Upload security relies mainly on MIME type and size checks. Files are parsed by PDF and DOCX tooling.
+What to do:
+- Strengthen upload validation in server/replit_integrations/object_storage/routes.ts
+- Do content-based validation, not just MIME
+- Verify extension, MIME, and magic bytes where possible
+- Reject malformed or ambiguous files
+- Restrict accepted types to the minimum truly needed
+- For documents:
+  - isolate parsing risk where possible
+  - add tighter error handling and limits
+  - make sure temp files are cleaned up reliably
+- If feasible, add a quarantine or private-storage-first flow
+- Ensure no executable or active-content files can be uploaded
+- Ensure SVG is not accidentally allowed anywhere
+- Add tests for bad file types, renamed files, and oversized files
+
+6. CSRF and destructive action hardening
+Current issue:
+Sensitive state-changing routes rely on auth but do not visibly implement CSRF defenses or re-auth for destructive actions.
+What to do:
+- Review all state-changing authenticated routes
+- Add CSRF protection or strict Origin and SameSite enforcement appropriate to the Clerk auth model used here
+- At minimum validate Origin or Referer on sensitive state-changing routes where appropriate
+- Add recent-auth or re-auth requirements for destructive actions like account deletion
+- Account deletion must require stronger assurance than a plain authenticated request
+- Preserve usability but prioritize safety
+
+7. Abuse prevention and cost control
+Current issue:
+The app has basic IP rate limits but not enough per-user and per-plan protection for a public paid AI SaaS.
+What to do:
+- Add stronger abuse controls to expensive and sensitive endpoints:
+  - /api/conversations
+  - /api/conversations/:id/retry
+  - /api/uploads/direct
+  - /api/uploads/extract-text
+  - /api/support
+  - /api/support/upload
+  - Stripe credit recovery and sync routes
+- Add layered throttling by:
+  - IP
+  - authenticated user id
+  - account age if available
+  - route sensitivity
+- Add request burst and sustained limits
+- Add protections against repeated expensive retries
+- Add better quotas or concurrency ceilings for AI-heavy routes
+- Add server-side spend-protection mindset and backpressure
+- Document any additional protections that should be added later such as CAPTCHA, anomaly scoring, or bot detection
+
+8. Support channel hardening
+Current issue:
+Support upload and message endpoints can be abused for spam and storage growth.
+What to do:
+- Tighten validation on support upload and support message flows
+- Keep support uploads private
+- Add stronger throttling
+- Sanitize and validate all support payloads
+- Prevent support upload URLs from being public forever
+- Consider adding expiration or cleanup for support attachments
+- Ensure no one can use support upload as a generic free file host
+
+9. Logging and auditability
+Current issue:
+There is operational logging but limited structured security logging.
+What to do:
+- Add structured logs for security-relevant events:
+  - denied file access
+  - suspicious auth collisions
+  - destructive actions
+  - admin route access
+  - billing sync anomalies
+  - repeated upload failures or abuse patterns
+- Do not log secrets, raw tokens, or full sensitive payloads
+- Keep logs privacy-conscious
+
+10. Production hardening and safe defaults
+What to do:
+- Review security headers beyond CSP
+- Ensure safe cache behavior for sensitive routes and private files
+- Ensure user-specific files are never publicly cacheable
+- Ensure error responses do not leak internals
+- Keep existing secure behavior that already looks good:
+  - transactional credit deduction patterns
+  - ownership checks on conversations
+  - safe markdown rendering
+  - webhook raw-body flow
+
+Implementation rules
+
+A. Fix, do not just describe
+Make the code changes directly wherever safe and justified.
+
+B. Preserve product behavior
+Do not break core chat, billing, uploads, or auth flows unnecessarily. When behavior must change for security, keep the user experience as smooth as possible.
+
+C. Be conservative with auth and access control
+When uncertain, deny access safely.
+
+D. Avoid insecure shortcuts
+Do not disable checks just to get tests passing.
+
+E. Keep architecture clean
+Refactor when needed, but avoid unnecessary churn.
+
+F. Add tests where valuable
+Especially for:
+- unauthorized file access
+- object ACL enforcement
+- account sync collision safety
+- upload validation
+- CSRF or origin enforcement behavior
+- destructive route protections
+
+G. Update documentation
+Create or update SECURITY_AUDIT.md at the repo root with:
+- what was fixed
+- what could not be safely fixed now
+- residual risks
+- recommended next steps
+- any required env vars or deployment changes
+
+Files and areas likely involved
+- server/index.ts
+- server/routes.ts
+- server/storage.ts
+- server/replit_integrations/auth/replitAuth.ts
+- server/replit_integrations/auth/storage.ts
+- server/replit_integrations/auth/routes.ts
+- server/replit_integrations/object_storage/routes.ts
+- server/replit_integrations/object_storage/objectStorage.ts
+- server/replit_integrations/object_storage/objectAcl.ts
+- server/documentParser.ts
+- server/email.ts
+- client/src/pages/Chat.tsx
+- client/src/components/SupportWidget.tsx
+- any middleware, helpers, config, or tests needed
+
+Concrete expectations for output
+
+1. Implement code changes
+Modify the repository with the fixes.
+
+2. Produce a fix summary
+At the end, provide:
+- list of files changed
+- short explanation of each change
+- any migrations or deployment steps
+- any env var or CSP updates needed
+- any breaking changes or user-visible changes
+
+3. Produce SECURITY_AUDIT.md
+Include:
+- fixed issues by severity
+- remaining issues
+- manual testing checklist
+- recommended follow-up items
+
+4. Validate the result
+Run available checks such as:
+- typecheck
+- tests
+- build
+- lint if practical
+Report failures honestly and fix them where possible.
+
+Preferred fix direction for the two biggest issues
+
+For file access:
+- Best option is private object storage plus authenticated or signed reads
+- Do not leave sensitive files on an unauthenticated public route
+
+For auth identity collision:
+- Best option is immutable external identity mapping and no automatic email-based account takeover or reassignment
+- If a collision occurs, fail closed and surface an admin/manual resolution path
+
+Important constraints
+- Do not remove essential app features without replacement
+- Do not introduce security theater
+- Do not assume frontend checks are enough
+- Do not trust client-provided ownership or role data
+- Do not trust file MIME alone
+- Do not trust email equality as proof of identity equivalence
+
+Definition of done
+The repository should be materially safer after your changes, with the major access control and identity risks fixed, browser hardening improved, upload security tightened, and abuse controls strengthened. The app should still build and core flows should still function.
+
+Begin by:
+1. mapping the exact call paths for uploads, object serving, auth sync, and destructive routes
+2. implementing the highest-risk fixes first
+3. then hardening the surrounding areas
+4. finally documenting all changes in SECURITY_AUDIT.md
