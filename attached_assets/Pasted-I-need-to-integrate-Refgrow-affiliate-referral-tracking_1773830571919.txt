@@ -1,0 +1,78 @@
+I need to integrate Refgrow affiliate/referral tracking into my web application. Here's what needs to be done:
+
+## 1. Add Referral Tracking Script
+
+Add this script tag to every public page (in the <head> or before </body>) — it captures referral codes from URLs and sets tracking cookies:
+
+```html
+<script src="https://scripts.refgrowcdn.com/latest.js" data-project-id="665" async defer></script>
+```
+
+## 2. Create an Affiliate/Referral Dashboard Page
+
+There are two ways to embed the affiliate widget. You can use one or both:
+
+### Option A: Pre-authenticated (recommended if your app has user accounts)
+
+Create a new page/route (e.g. `/affiliates` or `/referral-program`) accessible to logged-in users. Pass the user's email so they see their affiliate dashboard immediately without extra login:
+
+```html
+<div id="refgrow"
+    data-project-id="665"
+    data-project-email="REPLACE_WITH_LOGGED_IN_USER_EMAIL">
+</div>
+<script src="https://scripts.refgrowcdn.com/page.js" async defer></script>
+```
+
+**Important:** Replace `REPLACE_WITH_LOGGED_IN_USER_EMAIL` with the actual logged-in user's email address from your authentication system.
+
+### Option B: Public signup (no auth integration needed)
+
+Place the widget on any public page (e.g. `/affiliate-program`). Affiliates will register and log in through Refgrow's built-in authentication — no integration with your auth system required:
+
+```html
+<div id="refgrow"
+    data-project-id="665">
+</div>
+<script src="https://scripts.refgrowcdn.com/page.js" async defer></script>
+```
+
+Note: without `data-project-email`, the widget shows a login/registration form first.
+
+## 3. Track User Registrations (if your flow is: referral click → signup → purchase)
+
+After a user successfully registers, call this to attribute the signup to the referring affiliate:
+
+```javascript
+Refgrow(0, 'signup', 'newuser@example.com');
+```
+
+Replace the email with the actual new user's email.
+
+## 4. (Optional) Pass Referral Code to Stripe Checkout
+
+If you use Stripe and want reliable attribution for direct purchases, read the `refgrow_ref_code` cookie and pass it in checkout metadata:
+
+```javascript
+const refCode = document.cookie.split('; ').find(c => c.startsWith('refgrow_ref_code='))?.split('=')[1];
+
+// When creating a Stripe Checkout session on your server:
+const session = await stripe.checkout.sessions.create({
+  // ...your other params
+  metadata: {
+    referral_code: refCode || null
+  }
+});
+```
+
+## Summary of what to do:
+1. Add the tracking script (`latest.js`) on all public pages
+2. Create a dedicated page with the widget embed code — choose Option A (pre-authenticated) or Option B (public signup), or use both
+3. For Option A: pass the real user email to `data-project-email`
+4. Optionally track signups with `Refgrow(0, 'signup', email)`
+
+Project details for reference:
+- Project ID: 665
+- Tracking Domain: askaicouncil.com
+- Referral Parameter: ref
+- Cookie Lifetime: 30 days

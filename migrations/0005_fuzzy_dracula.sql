@@ -1,0 +1,1 @@
+ALTER TABLE "users" ADD COLUMN "credits_expiry_final_warned" boolean DEFAULT false NOT NULL;

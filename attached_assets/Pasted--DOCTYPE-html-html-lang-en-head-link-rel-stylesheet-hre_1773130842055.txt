@@ -1,0 +1,299 @@
+<!DOCTYPE html><html lang="en"><head>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI Council - Verdict</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    window.FontAwesomeConfig = { autoReplaceSvg: 'nest' };
+  </script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&amp;display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+          },
+          colors: {
+            sidebar: '#FAFAFA',
+            mainbg: '#FFFFFF',
+            primary: '#2B2B2B',
+            primaryDark: '#1A1A1A',
+            border: '#EAEAEA',
+            textMain: '#1A1A1A',
+            textMuted: '#737373',
+            accent: '#F5F5F5',
+            brandBlue: '#4F46E5',
+            brandBlueLight: '#EEF2FF'
+          },
+          boxShadow: {
+            'soft': '0 2px 8px -2px rgba(0, 0, 0, 0.05)',
+            'card': '0 1px 3px rgba(0,0,0,0.02), 0 4px 12px rgba(0,0,0,0.04)',
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #E5E5E5; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: #D4D4D4; }
+    body { -ms-overflow-style: none; scrollbar-width: thin; background-color: #FAFAFA; padding: 12px; }
+    
+    #app-container {
+      border-radius: 16px;
+      box-shadow: 0 4px 24px rgba(0, 0, 0, 0.06), 0 1px 3px rgba(0, 0, 0, 0.04);
+      overflow: hidden;
+      background: #FFFFFF;
+      border: 1px solid #EAEAEA;
+    }
+    
+    .chat-item { transition: all 0.15s ease; border-radius: 8px; }
+    .chat-item:hover { background: #F5F5F5; }
+    .chat-item.active { background: #F5F5F5; font-weight: 500; }
+    
+    .btn-primary { background-color: #1A1A1A; color: white; transition: background-color 0.2s; }
+    .btn-primary:hover { background-color: #2B2B2B; }
+    .btn-secondary { background-color: white; border: 1px solid #EAEAEA; color: #1A1A1A; transition: all 0.2s; }
+    .btn-secondary:hover { background-color: #FAFAFA; border-color: #D4D4D4; }
+  </style>
+</head>
+
+<body class="font-sans text-textMain antialiased flex h-screen overflow-hidden">
+  <div id="app-container" class="flex w-full h-full">
+    
+    <!-- Sidebar -->
+    <aside id="sidebar" class="w-64 bg-sidebar flex flex-col justify-between hidden lg:flex h-full border-r border-border">
+      <div class="p-4 flex flex-col gap-5 overflow-y-auto h-full">
+        <div class="flex items-center gap-2.5 px-2">
+          <div class="w-8 h-8 bg-primary rounded-lg flex items-center justify-center shadow-sm">
+            <i class="fa-solid fa-layer-group text-white text-xs"></i>
+          </div>
+          <div><span class="font-semibold text-sm tracking-tight text-textMain">AI Council</span></div>
+        </div>
+        
+        <div class="px-2">
+          <button class="w-full btn-secondary text-sm font-medium py-2 px-3 rounded-lg flex items-center justify-start gap-2 shadow-sm">
+            <i class="fa-solid fa-pen-to-square text-xs text-textMuted"></i>
+            <span>New debate</span>
+            <div class="ml-auto text-[10px] text-textMuted bg-gray-100 px-1.5 py-0.5 rounded border border-gray-200">⌘K</div>
+          </button>
+        </div>
+        
+        <div class="flex flex-col gap-4 flex-1 overflow-y-auto px-2 mt-2">
+          <div>
+            <div class="flex items-center justify-between px-2 mb-1.5">
+              <h3 class="text-[11px] font-semibold text-textMuted uppercase tracking-wider">Today</h3>
+            </div>
+            <div class="flex flex-col gap-0.5">
+              <div class="chat-item active px-2.5 py-2 cursor-pointer flex items-center gap-2.5">
+                <i class="fa-regular fa-comments text-textMuted text-[13px] flex-shrink-0"></i>
+                <p class="text-[13px] text-textMain line-clamp-1 flex-1">React performance optimization</p>
+              </div>
+              <div class="chat-item px-2.5 py-2 cursor-pointer flex items-center gap-2.5">
+                <i class="fa-regular fa-comments text-textMuted text-[13px] flex-shrink-0"></i>
+                <p class="text-[13px] text-textMain line-clamp-1 flex-1">Debug async/await pattern</p>
+              </div>
+              <div class="chat-item px-2.5 py-2 cursor-pointer flex items-center gap-2.5">
+                <i class="fa-regular fa-comments text-textMuted text-[13px] flex-shrink-0"></i>
+                <p class="text-[13px] text-textMain line-clamp-1 flex-1">SaaS product launch strategy</p>
+              </div>
+            </div>
+          </div>
+          
+          <div>
+            <div class="flex items-center justify-between px-2 mb-1.5">
+              <h3 class="text-[11px] font-semibold text-textMuted uppercase tracking-wider">Previous 7 Days</h3>
+            </div>
+            <div class="flex flex-col gap-0.5">
+              <div class="chat-item px-2.5 py-2 cursor-pointer flex items-center gap-2.5">
+                <i class="fa-regular fa-comments text-textMuted text-[13px] flex-shrink-0"></i>
+                <p class="text-[13px] text-textMain line-clamp-1 flex-1">Database schema best practices</p>
+              </div>
+              <div class="chat-item px-2.5 py-2 cursor-pointer flex items-center gap-2.5">
+                <i class="fa-regular fa-comments text-textMuted text-[13px] flex-shrink-0"></i>
+                <p class="text-[13px] text-textMain line-clamp-1 flex-1">API rate limiting strategies</p>
+              </div>
+              <div class="chat-item px-2.5 py-2 cursor-pointer flex items-center gap-2.5">
+                <i class="fa-regular fa-comments text-textMuted text-[13px] flex-shrink-0"></i>
+                <p class="text-[13px] text-textMain line-clamp-1 flex-1">Write unit tests for Redux</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="p-4 border-t border-border flex flex-col gap-3 bg-sidebar">
+        <div class="px-3 py-3 bg-white rounded-xl border border-border shadow-soft">
+          <div class="flex items-center justify-between mb-1">
+            <span class="text-[13px] font-medium text-textMain">Credits</span>
+            <div class="bg-brandBlueLight px-1.5 py-0.5 rounded text-[10px] font-semibold text-brandBlue">PRO</div>
+          </div>
+          <div class="flex items-baseline gap-1 mb-3">
+            <span class="text-xl font-semibold text-textMain">53</span>
+            <span class="text-[11px] text-textMuted">remaining</span>
+          </div>
+          <div class="w-full bg-gray-100 rounded-full h-1.5 mb-3">
+            <div class="bg-textMain h-1.5 rounded-full" style="width: 45%"></div>
+          </div>
+          <button class="w-full text-[12px] font-medium text-textMain btn-secondary py-1.5 rounded-lg flex items-center justify-center gap-1.5">Get More Credits</button>
+        </div>
+        
+        <div class="flex items-center justify-between px-2 py-2 cursor-pointer hover:bg-gray-100 rounded-lg transition-all group mt-1">
+          <div class="flex items-center gap-2.5">
+            <img src="https://storage.googleapis.com/uxpilot-auth.appspot.com/avatars/avatar-4.jpg" alt="User" class="w-7 h-7 rounded-full object-cover border border-border">
+            <div><span class="text-[13px] font-medium block text-textMain">Alex Carter</span></div>
+          </div>
+          <i class="fa-solid fa-gear text-textMuted text-xs group-hover:text-textMain transition-colors"></i>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main id="main-content" class="flex-1 flex flex-col relative h-full bg-mainbg">
+      
+      <header class="lg:hidden flex items-center justify-between p-4 border-b border-border bg-white sticky top-0 z-50">
+        <div class="flex items-center gap-2">
+          <div class="w-7 h-7 bg-primary rounded-lg flex items-center justify-center shadow-sm">
+            <i class="fa-solid fa-layer-group text-white text-xs"></i>
+          </div>
+          <span class="font-semibold text-sm">AI Council</span>
+        </div>
+        <button class="text-textMuted hover:text-textMain transition-colors">
+          <i class="fa-solid fa-bars text-lg"></i>
+        </button>
+      </header>
+
+      <div class="flex-1 overflow-y-auto px-4 md:px-6 py-6 pb-48">
+        <div class="max-w-4xl mx-auto w-full space-y-6">
+          
+          <div class="bg-white rounded-2xl border border-border p-6 shadow-card">
+            <div class="flex items-start gap-4">
+              <div class="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center shrink-0">
+                <i class="fa-regular fa-user text-textMain"></i>
+              </div>
+              <div class="flex-1">
+                <div class="text-[13px] font-medium text-textMuted mb-2">Your Question</div>
+                <p class="text-[15px] text-textMain leading-relaxed">What are the best practices for optimizing React performance in large-scale applications?</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="bg-white rounded-2xl border border-border shadow-[0_8px_32px_rgba(0,0,0,0.08),0_2px_8px_rgba(0,0,0,0.04)] overflow-hidden">
+            <div class="px-6 py-5 border-b border-border flex items-center justify-between">
+              <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-full bg-brandBlue flex items-center justify-center shadow-sm">
+                  <i class="fa-solid fa-gavel text-white text-lg"></i>
+                </div>
+                <div>
+                  <h2 class="text-lg font-bold text-textMain">The Verdict</h2>
+                  <p class="text-[12px] text-textMuted">Final answer synthesized by GPT-4o (Lead)</p>
+                </div>
+              </div>
+              <button class="flex items-center gap-2 px-4 py-2 text-[13px] font-medium text-textMain bg-accent border border-border rounded-lg hover:bg-gray-100 transition-colors">
+                <i class="fa-regular fa-copy"></i>
+                Copy
+              </button>
+            </div>
+
+            <div class="p-8">
+              <p id="verdict-text" class="text-[15px] text-textMain leading-relaxed">After reviewing the diverse strategies proposed by the council, the most effective approach for optimizing React performance in large-scale applications relies on a combination of code-splitting, memoization techniques (React.memo, useMemo, useCallback), virtual DOM optimization through proper key usage, lazy loading of components and routes, implementing windowing for large lists (react-window or react-virtualized), avoiding unnecessary re-renders by lifting state appropriately, using production builds, profiling with React DevTools to identify bottlenecks, and leveraging modern bundling strategies with tools like Webpack or Vite to reduce bundle sizes. The council consensus emphasizes that performance optimization should be data-driven rather than premature, focusing measurement efforts on real user metrics and addressing actual bottlenecks rather than hypothetical ones.</p>
+            </div>
+
+            <div class="px-6 pb-6 pt-2">
+              <div class="bg-accent rounded-xl p-4 border border-border">
+                <p class="text-[11px] text-textMuted mb-3 font-semibold uppercase tracking-wider">Council Contributors</p>
+                <div class="flex flex-wrap gap-2">
+                  <span class="inline-flex items-center gap-1.5 bg-green-50 text-green-700 px-3 py-1.5 rounded-full text-[12px] font-medium border border-green-200">
+                    <div class="w-1.5 h-1.5 rounded-full bg-green-500"></div>
+                    UX Pilot 3.5
+                  </span>
+                  <span class="inline-flex items-center gap-1.5 bg-blue-50 text-blue-700 px-3 py-1.5 rounded-full text-[12px] font-medium border border-blue-200">
+                    <div class="w-1.5 h-1.5 rounded-full bg-blue-500"></div>
+                    Gemini Pro
+                  </span>
+                  <span class="inline-flex items-center gap-1.5 bg-purple-50 text-purple-700 px-3 py-1.5 rounded-full text-[12px] font-medium border border-purple-200">
+                    <div class="w-1.5 h-1.5 rounded-full bg-purple-500"></div>
+                    GPT-4o
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <div class="absolute bottom-0 left-0 w-full bg-gradient-to-t from-white via-white to-transparent pt-12 pb-8 px-6 flex justify-center">
+        <div class="w-full max-w-3xl">
+          <div class="rounded-2xl border border-border shadow-card flex flex-col overflow-hidden bg-white">
+            <div class="relative p-4">
+              <textarea placeholder="Reply to the verdict or ask a follow-up question..." rows="2" class="w-full resize-none outline-none text-[15px] placeholder-textMuted min-h-[60px] bg-transparent leading-relaxed pr-12"></textarea>
+              <button class="absolute bottom-4 right-4 w-8 h-8 btn-primary rounded-lg flex items-center justify-center shadow-sm">
+                <i class="fa-solid fa-arrow-up text-sm"></i>
+              </button>
+            </div>
+            <div class="bg-accent/50 px-4 py-3 border-t border-border flex items-center justify-between flex-wrap gap-3">
+              <div class="flex items-center gap-3 flex-wrap">
+                <button class="text-textMuted hover:text-textMain transition-colors flex items-center justify-center w-7 h-7 rounded-md hover:bg-gray-200">
+                  <i class="fa-solid fa-paperclip text-[13px]"></i>
+                </button>
+                <div class="h-4 w-px bg-gray-300"></div>
+                <div class="flex items-center gap-1.5 flex-wrap">
+                  <span class="text-[11px] font-medium text-textMuted uppercase tracking-wider mr-1">Council:</span>
+                  <button class="flex items-center gap-1.5 text-[12px] font-medium text-textMain bg-white border border-border px-2 py-1 rounded-md shadow-sm hover:bg-gray-50">
+                    <div class="w-1.5 h-1.5 rounded-full bg-green-500"></div>
+                    <span>UX Pilot 3.5</span>
+                  </button>
+                  <button class="flex items-center gap-1.5 text-[12px] font-medium text-textMain bg-white border border-border px-2 py-1 rounded-md shadow-sm hover:bg-gray-50">
+                    <div class="w-1.5 h-1.5 rounded-full bg-blue-500"></div>
+                    <span>Gemini Pro</span>
+                  </button>
+                  <button class="flex items-center gap-1.5 text-[12px] font-medium text-textMain bg-white border border-border px-2 py-1 rounded-md shadow-sm hover:bg-gray-50">
+                    <div class="w-1.5 h-1.5 rounded-full bg-purple-500"></div>
+                    <span>GPT-4o</span>
+                  </button>
+                </div>
+              </div>
+              <div class="flex items-center gap-2">
+                <div class="flex items-center gap-1.5 text-[12px] font-medium text-textMain bg-white border border-border px-2.5 py-1 rounded-md shadow-sm">
+                  <i class="fa-solid fa-gavel text-[10px] text-textMuted"></i>
+                  <span>Lead: GPT-4o</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          <p class="text-center text-[11px] text-textMuted mt-4">AI models can make mistakes. Verify important information.</p>
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+  <script>
+    // Auto-resize textarea
+    const textarea = document.querySelector('textarea');
+    textarea.addEventListener('input', function() {
+      this.style.height = 'auto';
+      this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+    });
+
+    // Copy functionality
+    document.querySelector('.fa-copy').parentElement.addEventListener('click', function() {
+      const verdictText = document.getElementById('verdict-text').textContent;
+      navigator.clipboard.writeText(verdictText).then(() => {
+        const btn = this;
+        const originalHTML = btn.innerHTML;
+        btn.innerHTML = '<i class="fa-solid fa-check"></i> Copied!';
+        setTimeout(() => {
+          btn.innerHTML = originalHTML;
+        }, 2000);
+      });
+    });
+  </script>
+
+
+</body></html>

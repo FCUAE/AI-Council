@@ -1,0 +1,100 @@
+## 1. THE CHATBOX — "68 Credits" Button Tooltip/Popover 
+
+
+- **Location / UI Action:** Add a subtle `ⓘ` info icon immediately left of the "8 credits" indicator on the send button. On hover (desktop) or tap (mobile), display a popover tooltip. Max width: 320px. Use your dark brand background with white text. Dismiss on mouseout or tap-away.
+- **Copy:**
+  > **This launches a full Council Session.**
+  > 4 AI models will independently analyze your prompt, debate and challenge each other across 3 rounds, and synthesize a single, unified, highly intelligent answer.
+  >- Label the submit action **"Run Council"** instead of "Send"
+
+---
+
+## 2. THE LEFT SIDEBAR — Credits Remaining Box 
+
+- **Location / UI Action:** Directly below the existing credits number (e.g., "2,040 credits remaining"), add one line of always-visible microcopy in a smaller font (12–13px), secondary text color or `opacity: 0.7`. No hover required. **Also rename the section header from "Credits Remaining" to "Council Debates."**
+- **Copy:**
+  > ≈ **15 to 40 full Council debates** remaining `ⓘ` icon + popover. Same styling.
+- **Copy:**
+  > Varies by model selection. Blend lightweight models for more debates, or deploy premium reasoning models for maximum intelligence.
+  > Use them before [Expiry date]
+---
+
+## 3. THE PRICING PAGE (3 Specific UI/Copy Additions)
+
+**Strategic principle:** This is where you set the category anchor. The user must leave this page understanding they are shopping in the "consulting/advisory" category, not the "AI chatbot" category. Heavy persuasion is appropriate here — this is where users *expect* to be sold to.
+
+---
+
+### Addition 1: "Category Reset" Banner (Above Pricing Tiers)
+
+- **Location / UI Action:** Full-width section placed **directly above** all pricing tier cards. Visually distinct — use a subtle gradient, brand-color wash, or bordered card with ample padding. Center-aligned. Contains headline, 3–4 icon-stat pairs, and a closing anchor line.
+- **Copy:**
+
+ > ### One question. Four AI models. A real argument before you get an answer.
+>
+> Here's what happens every time you hit send:
+>
+>   **4 AI models** each analyze your question independently
+>   **3 rounds of debate** where they challenge each other's thinking
+>   **1 final answer** with the weak points already removed
+>
+> *Think of it as a room full of brilliant minds who disagree by design, all to deliver the smartest possible answer for you.*
+
+---
+
+### Addition 2: "Objection Killer" Accordion/Banner (Between Banner and Tier Cards)
+
+- **Location / UI Action:** Slim, full-width element placed between the category-reset banner and the pricing cards. Implement as either: (a) an always-visible subtle banner, or (b) a clickable accordion with the trigger text as the question. The accordion approach is recommended — it signals confidence and lets curious users self-select.
+- **Copy (Accordion trigger):**
+  > ▸ **"Why does this cost more than ChatGPT or Claude?"**
+- **Copy (Expanded content):**
+  > A single AI gives you its best guess — fast and cheap, but with no second opinion and no built-in challenge.
+  >
+  > AI Council orchestrates **4 independent analyses, a structured adversarial debate, and a forced synthesis** before you see a single word. That's 12+ API calls, 3 processing stages, and a pipeline specifically designed to catch the blind spots that a single model misses.
+  >
+  > **You're comparing a flashlight to a search party.** The cost reflects the orchestration, not a markup.
+- **Psychological Goal:** Directly preempts the #1 objection. By naming it explicitly, you disarm it — the user feels understood, not sold to. The "flashlight vs. search party" metaphor is sticky and instantly communicates the structural difference. The final line ("reflects the orchestration, not a markup") builds trust through radical transparency about your cost structure.
+
+---
+
+### Addition 3: Per-Tier "What You're Buying" Translation
+
+- **Location / UI Action:** On each pricing tier card, replace the **100 Credits** with
+> **[Pack Name]** - [X] credits
+> Around 12-25 debates depending on models chosen.
+
+---
+### 4. FAQ PLACEMENT AND CONTENT — Under the Packages, Not Above
+
+**Decision: The user is right. This belongs under the packages as a proper FAQ section. But also keep ONE pre-price objection callout above the tiers.**
+
+Here's why both placements serve different purposes:
+
+**Above the tier cards (1 single line, not an accordion):**
+This isn't an FAQ. It's a conversion intervention. One sentence that neutralizes the "why is this more expensive than ChatGPT" reaction before they see numbers:
+
+> **Why does this cost more than a regular AI chat?** Because every session runs your question through 4 models and 3 rounds of debate. You're not paying for one answer. You're paying for the process to get the most intelligent answer.
+
+No accordion. No expand/collapse. Just a clean line of text with a subtle background. This is objection-handling, not information architecture.
+
+**Below the tier cards (full FAQ accordion, 6 questions):**
+
+**Q1: Why does one debate use multiple credits?**
+> Each debate isn't one AI call. It's 12+ API calls across 4 models, with multiple rounds where they challenge each other. The credits reflect the actual compute behind every answer you get.
+
+**Q2: Is this worth it for every question?**
+> No, and we'd rather be honest about that. If you need a quick fact or a simple rewrite, a regular AI chat is fine. The Council is for the questions where a shallow answer could actually cost you: a business decision, a strategy call, a complex problem where blind spots matter.
+
+**Q3: What happens to my credits if I don't use them?**
+> Credits are active for 60 days from purchase. We'll remind you 30 days before so nothing goes to waste.
+
+**Q4: Can I pick which AI models are in the debate?**
+> Yes. You can choose your model lineup before each debate. Premium thinking models use more credits per session but go deeper.
+
+**Q5: How is this different from asking the same question to 4 AI tools myself?**
+> Three things you can't do manually: (1) The models respond to each other's arguments, not just your original question. (2) There's a structured challenge round where weak reasoning gets exposed. (3) A final synthesis forces them to either agree or clearly flag where they disagree. Copying your question into 4 tabs gives you 4 separate answers. This gives you one answer that 4 models fought over.
+
+**Q6: Will you offer a monthly subscription?**
+> We're working on it. Right now, credit packs with a 60-day window let you try the product without a recurring commitment. When subscriptions launch, existing users will get first access.
+
+--- 

@@ -1,0 +1,169 @@
+FINAL VERDICT: COMPLETE CREDIT PRICING SYSTEM FOR THE COUNCIL PLATFORM
+
+This synthesis draws on the strongest elements from both analyses and incorporates the critical corrections raised during peer review. I will address every one of your questions directly and provide concrete formulas, tables, and implementation guidance.
+
+FOUNDATIONAL PRINCIPLE
+
+Your current system is calibrated for one scenario only: simple text prompts with budget models. It works there. It fails everywhere else. The core problem is that your pricing uses a fixed token assumption, but your actual costs vary by a factor of 50x or more across use cases. The solution is dynamic estimation based on actual content, with transparency to the user and structural safeguards to protect your margins.
+
+PART 1: REALISTIC TOKEN COUNTS FOR EVERY USE CASE
+
+Before pricing anything, we need accurate token estimates. Two critical corrections that both reviewers flagged:
+
+First, do not use raw file bytes to estimate tokens. A 2MB PDF might contain 5,000 characters of actual text or 200,000 characters. The metadata, fonts, formatting, and embedded images inflate file size enormously. Use extracted character count divided by 4 for text. Use resolution-based tile counting for images. Use page count times a per-page token budget for scanned documents.
+
+Second, output tokens matter enormously and your current model ignores them. Output tokens are typically 3 to 6 times more expensive per token than input tokens. With 3 models each generating responses across 2 stages plus a chairman synthesis, output costs can rival or exceed input costs for simple prompts.
+
+Here are the realistic token estimates per use case. I am defining P as user prompt tokens, D as document and image tokens combined, and R as average output tokens per model response, which I estimate at 3,000 for complex prompts and 2,000 for simple ones.
+
+Use Case 1, Simple text prompt: P equals 50, D equals 0, total content 50 tokens.
+Use Case 2, Medium text prompt: P equals 750, D equals 0, total content 750 tokens.
+Use Case 3, Single small document of 2 pages: P equals 100, D equals 1,000, total content 1,100 tokens.
+Use Case 4, Single large document of 50 pages: P equals 100, D equals 25,000, total content 25,100 tokens.
+Use Case 5, Multiple small documents of 10 files: P equals 100, D equals 10,000, total content 10,100 tokens.
+Use Case 6, Many large documents of 30 files: P equals 200, D equals 225,000, total content 225,200 tokens.
+Use Case 7, Three image attachments: P equals 100, D equals 4,500, total content 4,600 tokens.
+Use Case 8, Scanned PDF of 3 pages rendered as images: P equals 100, D equals 4,500, total content 4,600 tokens.
+Use Case 9, Mixed attachments: P equals 200, D equals 30,000, total content 30,200 tokens.
+Use Case 10, Follow-up turn 3: P equals 200, D equals prior context which grows each turn, total content varies.
+
+Key assumptions behind these numbers: A small document of 2 pages yields about 4,000 characters or 1,000 tokens. A large document of 50 pages yields about 100,000 characters or 25,000 tokens. Thirty large documents averaging 30 pages each yield about 900,000 characters or 225,000 tokens. Images average 1,500 tokens each at high detail based on resolution tile counting.
+
+PART 2: THE FULL PIPELINE MULTIPLIER
+
+This is where costs explode, and both reviewers correctly emphasized that the multi-stage architecture is the real cost driver.
+
+Stage 1, Initial Response, 3 models: Each model receives a system prompt of roughly 500 tokens plus P plus D. Total stage 1 input equals 3 times the quantity 500 plus P plus D. Total stage 1 output equals 3 times R.
+
+Stage 2, Cross-Examination, 3 models: Each model receives the system prompt plus P plus D plus all 3 initial responses. Total stage 2 input equals 3 times the quantity 500 plus P plus D plus 3R. Total stage 2 output equals 3 times R.
+
+Stage 3, Chairman Synthesis, 1 model: The chairman receives the system prompt plus P plus D plus all 6 prior responses, which is 3 initial plus 3 cross-examination. Total stage 3 input equals 500 plus P plus D plus 6R. Total stage 3 output equals R chairman, estimated at 4,000 tokens.
+
+Combined totals across the entire pipeline:
+
+Total input equals 3500 plus 7 times the quantity P plus D, plus 15 times R.
+Total output equals 6R plus R chairman, which is approximately 7R.
+
+This is the formula that drives everything. Notice that the document content P plus D is multiplied by 7 across the pipeline. A 225,000-token document set becomes 1,575,000 tokens of input just from the content multiplication, before adding response tokens.
+
+PART 3: DOLLAR COSTS BY USE CASE
+
+I will model costs using two representative configurations. The budget configuration uses three instances of GPT-4o at $2.50 per million input tokens and $10 per million output tokens. The premium configuration uses a mix of GPT-5.4 and Claude Opus 4.6 with a blended rate of approximately $12 per million input tokens and $40 per million output tokens. These blended rates account for the fact that different models in the council may have different prices.
+
+Using the formula above with R equals 3,000 and R chairman equals 4,000:
+
+Use Case 1, Simple text. Total input approximately 49,000. Total output approximately 22,000. Budget cost $0.34. Premium cost $1.47. Budget credits 7. Premium credits 30.
+
+Use Case 2, Medium text. Total input approximately 54,000. Total output approximately 22,000. Budget cost $0.36. Premium cost $1.53. Budget credits 8. Premium credits 31.
+
+Use Case 3, Small document. Total input approximately 56,000. Total output approximately 22,000. Budget cost $0.36. Premium cost $1.55. Budget credits 8. Premium credits 31.
+
+Use Case 4, Large document 50 pages. Total input approximately 224,000. Total output approximately 22,000. Budget cost $0.78. Premium cost $3.57. Budget credits 16. Premium credits 72.
+
+Use Case 5, Ten small documents. Total input approximately 119,000. Total output approximately 22,000. Budget cost $0.52. Premium cost $2.31. Budget credits 11. Premium credits 47.
+
+Use Case 6, Thirty large documents. Total input approximately 1,626,000. Total output approximately 22,000. Budget cost $4.28. Premium cost $20.39. Budget credits 86. Premium credits 408.
+
+Use Case 7, Three images. Total input approximately 81,000. Total output approximately 22,000. Budget cost $0.42. Premium cost $1.85. Budget credits 9. Premium credits 37.
+
+Use Case 8, Scanned PDF. Total input approximately 81,000. Total output approximately 22,000. Budget cost $0.42. Premium cost $1.85. Budget credits 9. Premium credits 37.
+
+Use Case 9, Mixed attachments. Total input approximately 260,000. Total output approximately 22,000. Budget cost $0.87. Premium cost $4.00. Budget credits 18. Premium credits 80.
+
+Use Case 10, Follow-up turn 3. Adds approximately 7 times the quantity P plus D for accumulated context per turn, plus new content. Cost scales roughly 1.5 to 2 times per additional turn depending on accumulated history size.
+
+The critical takeaway from this table: your current system charges 5 to 7 credits regardless of content. For premium models with large documents, the actual cost should be 72 to 408 credits. You are potentially undercharging by a factor of 10 to 60.
+
+PART 4: THE CONTEXT WINDOW CEILING PROBLEM
+
+Both reviewers flagged this and it is critical. For Use Case 6, the 30 large documents scenario, you are trying to stuff 225,000 tokens of document content into each model call. Many models have context windows of 128,000 or 200,000 tokens. When you add the system prompt and prior responses for cross-examination, the chairman call alone could require 225,000 plus 18,000 tokens of prior responses plus overhead, which exceeds most context windows.
+
+You must implement one of these strategies for oversized inputs:
+
+Option A, Chunking with summarization: Process documents in chunks, have each model summarize, then run the debate on summaries. This adds preprocessing API calls and thus additional cost, but it is the most reliable approach.
+
+Option B, Hard document limits per tier: Cap the total input tokens allowed per debate based on the user's subscription tier. This is simpler to implement and more predictable for pricing.
+
+Option C, Selective document inclusion: Let the user select which documents are most relevant, or use embeddings to retrieve only the most relevant sections.
+
+My recommendation is Option B for now, with Option A as a future premium feature. Set maximum total content tokens as follows: Explorer tier caps at 50,000 tokens. Strategist tier caps at 200,000 tokens. Visionary tier caps at 500,000 tokens. Enterprise or custom tiers are uncapped with confirmation.
+
+This structurally prevents the scenario where an Explorer user submits 30 large PDFs and burns $20 in API costs against a $15 package.
+
+PART 5: ANSWERING YOUR SPECIFIC QUESTIONS
+
+Question 1, how to calculate credits for document-heavy prompts:
+
+Do not use total bytes times 0.25. It is not accurate enough. Instead, use a two-pass approach.
+
+Pass one is a quick estimate at upload time. For text files and markdown, use file size divided by 4 since bytes roughly equal characters for plain text. For DOCX files, use file size in KB times 100 as a rough heuristic since most of the file is XML overhead. For PDFs, do not estimate from file size at all because the correlation is too weak. Instead, trigger text extraction immediately on upload as an async operation. For images, use resolution-based tile counting: 170 base tokens plus 765 tokens per 512 by 512 tile at high detail. For scanned PDFs, use page count times 1,500 tokens per page image.
+
+Pass two is a refined estimate after extraction. Once text extraction completes, which should happen within seconds for most documents, count the extracted characters and divide by 4. Update the displayed estimate in the UI. This is the number you use for pricing.
+
+The formula for total content tokens is: sum of extracted character count divided by 4 for all text documents, plus sum of tile-based token count for all images, plus sum of page count times 1,500 for all scanned PDFs, plus prompt character count divided by 4.
+
+Then apply the pipeline multiplier: total pipeline input equals 3,500 plus 7 times total content tokens plus 15 times estimated response tokens. Total pipeline output equals 7 times estimated response tokens.
+
+Question 2, show cost before or after submission:
+
+Show it before, update it during extraction, and settle on actual cost after. Here is the exact flow:
+
+Step one: User selects models. Display base estimate immediately, such as "Starting at 7 credits with these models."
+
+Step two: User attaches files. Trigger async text extraction. Show a loading indicator on each file. As each file completes extraction, update the estimate in real time. Display it as a range, such as "Estimated cost: 15 to 22 credits."
+
+Step three: User reviews estimate and clicks submit. At this point, reserve the high end of the range from their balance, in this case 22 credits. If they do not have enough credits, prompt them to upgrade or remove files.
+
+Step four: Pipeline executes. Track actual token usage from API responses.
+
+Step five: Settle actual cost. Charge the actual credits used. If actual cost is less than reserved amount, refund the difference. If actual cost exceeds the reserved amount due to unexpectedly verbose model outputs, cap the charge at the reserved amount plus 10 percent. You absorb the remainder. This builds trust and you can tune your estimator over time to minimize losses.
+
+The critical rule: never charge more than the pre-authorized maximum plus a small buffer. Surprise charges destroy user trust.
+
+Question 3, should there be a maximum credit cap per debate:
+
+Yes, but make it tier-based rather than universal. Explorer users should have a maximum of 50 credits per debate. Strategist users should have a maximum of 150 credits per debate. Visionary users should have a maximum of 500 credits per debate. Enterprise users get a configurable cap.
+
+This serves two purposes. It prevents users from accidentally burning their entire credit balance on one debate. It also structurally aligns the maximum possible cost with the package economics. An Explorer user paying $15 for 100 credits can never lose more than half their balance on a single debate.
+
+If a user's content would exceed their cap, show a message explaining the situation and offering three options: remove some attachments to reduce cost, upgrade their tier for a higher cap, or proceed with a summarized or truncated version of their documents.
+
+Question 4, follow-up message pricing:
+
+Follow-up messages should cost more than the original because context accumulates, and this is not a penalty, it reflects the real API cost. Each follow-up includes all prior conversation history in every API call.
+
+Price follow-ups using incremental costing. The cost of follow-up N equals the cost of the new content, which is the new prompt plus any new attachments, processed through the full pipeline, plus a context carry surcharge that reflects the accumulated history being included in every API call.
+
+In practice, the context carry cost for follow-up N equals 7 times the sum of all prior responses in tokens, times the blended input rate. This is because all prior responses are re-sent to every model in every stage.
+
+A reasonable simplification for the user-facing display: "Follow-up messages cost approximately 1.3 to 2 times the original debate cost because prior conversation history must be included." Show the specific estimate before they submit the follow-up, using the same two-pass approach.
+
+To keep follow-up costs manageable, consider implementing a conversation summary mode for long threads. After turn 3 or 4, summarize prior exchanges into a condensed context rather than replaying the full history. This reduces API costs and keeps the experience affordable.
+
+Question 5, handling the cross-examination multiplier:
+
+The cross-examination stage roughly doubles total input because every model re-reads the original content plus all other models' responses. This is already captured in the pipeline formula I provided, where total input equals 3,500 plus 7 times content tokens plus 15 times response tokens. The factor of 7 on content tokens, rather than 3, reflects exactly this doubling: content is sent 3 times in stage 1 and 3 more times in stage 2, plus once to the chairman, totaling 7.
+
+Do not use a flat assumption. Incorporate the full pipeline multiplier into your upfront estimate. The formula is accurate and only requires estimating the content token count, which you can do from extracted text.
+
+For the response token estimate R, use 2,000 for prompts with content under 10,000 tokens, 3,000 for content between 10,000 and 50,000 tokens, and 4,000 for content above 50,000 tokens. Models tend to write longer responses when given more context.
+
+Question 6, pricing image attachments:
+
+Do not charge per image at a flat rate and do not use file size. Use resolution-based tile counting, which matches how OpenAI and Anthropic actually bill for vision.
+
+The formula per image: If both width and height are 512 pixels or less, the token count is 170. Otherwise, calculate tiles as the ceiling of width divided by 512 multiplied by the ceiling of height divided by 512, then multiply tiles by 765 and add 170.
+
+For typical use cases: a small thumbnail is about 170 tokens, a standard photo at 1024 by 1024 is about 3,230 tokens, a high-resolution scan at 2048 by 1536 is about 9,350 tokens.
+
+If you cannot determine image dimensions at upload time, which is rare since most image libraries can read dimensions from headers without loading the full file, use a default of 1,500 tokens per image as a conservative estimate.
+
+For scanned PDFs rendered as page images, charge per rendered page at 1,500 tokens each, and cap at a reasonable number of pages per PDF, such as your current limit of 3 pages. Consider increasing this limit for higher tiers.
+
+Question 7, are your current credit packages sustainable:
+
+Your current packages are sustainable for budget models with simple prompts. They are not sustainable for premium models or document-heavy use cases under the current flat pricing.
+
+Here is the economics breakdown. Each credit costs the user $0.15 on Explorer, $0.12 on Strategist, and $0.099 on Visionary. Each credit represents $0.05 of API cost. This gives you a gross margin of 67 percent on Explorer, 58 percent on Strategist, and 49 percent on Visionary.
+
+These margins are healthy if and only if the credit count

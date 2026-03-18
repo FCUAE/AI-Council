@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Council</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      window.FontAwesomeConfig = {
+        autoReplaceSvg: 'nest'
+      };
+    </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: ['Inter', 'sans-serif'],
+            },
+            colors: {
+              sidebar: '#FAFAFA',
+              mainbg: '#FFFFFF',
+              primary: '#2B2B2B',
+              primaryDark: '#1A1A1A',
+              border: '#EAEAEA',
+              textMain: '#1A1A1A',
+              textMuted: '#737373',
+              accent: '#F5F5F5',
+              brandBlue: '#4F46E5',
+              brandBlueLight: '#EEF2FF'
+            },
+            boxShadow: {
+              'soft': '0 2px 8px -2px rgba(0, 0, 0, 0.05)',
+              'card': '0 1px 3px rgba(0,0,0,0.02), 0 4px 12px rgba(0,0,0,0.04)',
+            }
+          }
+        }
+      }
+    </script>
+    <style>
+      ::-webkit-scrollbar {
+        width: 4px;
+      }
+      ::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: #E5E5E5;
+        border-radius: 4px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: #D4D4D4;
+      }
+      body {
+        -ms-overflow-style: none;
+        scrollbar-width: thin;
+        background-color: #FAFAFA;
+        padding: 12px;
+      }
+      #app-container {
+        border-radius: 16px;
+        box-shadow: 0 4px 24px rgba(0, 0, 0, 0.06), 0 1px 3px rgba(0, 0, 0, 0.04);
+        overflow: hidden;
+        background: #FFFFFF;
+        border: 1px solid #EAEAEA;
+      }
+      .process-card {
+        transition: all 0.2s ease;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+      }
+      .process-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
+      }
+      .btn-primary {
+        background-color: #1A1A1A;
+        color: white;
+        transition: background-color 0.2s;
+      }
+      .btn-primary:hover {
+        background-color: #2B2B2B;
+      }
+      .btn-secondary {
+        background-color: white;
+        border: 1px solid #EAEAEA;
+        color: #1A1A1A;
+        transition: all 0.2s;
+      }
+      .btn-secondary:hover {
+        background-color: #FAFAFA;
+        border-color: #D4D4D4;
+      }
+    </style>
+</head>
+<body class="font-sans text-textMain antialiased flex overflow-hidden">
+    <div id="app-container" class="flex w-full h-full flex-col">
+        <header id="header" class="flex items-center justify-between p-4 lg:px-8 lg:py-5 border-b border-border bg-white sticky top-0 z-50">
+            <div class="flex items-center gap-2.5">
+                <div class="w-8 h-8 bg-primary rounded-lg flex items-center justify-center shadow-sm">
+                    <i class="fa-solid fa-layer-group text-white text-xs"></i>
+                </div>
+                <span class="font-semibold text-sm lg:text-base tracking-tight text-textMain">AI Council</span>
+            </div>
+            <div class="flex items-center gap-3">
+                <button class="btn-secondary text-sm font-medium py-2 px-4 rounded-lg hidden sm:flex items-center justify-center gap-2 shadow-sm">
+                    Log In
+                </button>
+                <button class="btn-primary text-sm font-medium py-2 px-4 lg:px-5 rounded-lg flex items-center justify-center gap-2 shadow-sm">
+                    Get 3 Free Debates
+                </button>
+            </div>
+        </header>
+        
+        <main id="main-content" class="flex-1 flex flex-col relative overflow-y-auto bg-mainbg">
+            <div class="flex-1 flex flex-col items-center pt-12 md:pt-20 lg:pt-28 px-6 pb-64">
+                <div class="max-w-3xl w-full text-center space-y-6">
+                    <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-accent border border-border mb-2">
+                        <span class="flex h-2 w-2 relative">
+                            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-brandBlue opacity-75"></span>
+                            <span class="relative inline-flex rounded-full h-2 w-2 bg-brandBlue"></span>
+                        </span>
+                        <span class="text-xs font-medium text-textMain">AI Council v2.0 is live</span>
+                    </div>
+                    
+                    <div class="space-y-4">
+                        <h1 class="text-3xl sm:text-4xl md:text-5xl font-semibold tracking-tight text-textMain leading-tight">
+                            Ask once, get the best answer after AI Models debate it.
+                        </h1>
+                        <p class="text-base md:text-[17px] text-textMuted max-w-2xl mx-auto leading-relaxed">
+                            Three AIs debate your problem to find the best solution.
+                        </p>
+                    </div>
+                </div>
+                
+                <div class="mt-16 max-w-4xl w-full grid grid-cols-1 md:grid-cols-3 gap-5">
+                    <div class="process-card flex flex-col bg-white p-5 rounded-2xl border border-border">
+                        <div class="w-10 h-10 bg-accent rounded-xl flex items-center justify-center border border-border mb-4">
+                            <i class="fa-solid fa-magnifying-glass-chart text-textMain text-[15px]"></i>
+                        </div>
+                        <h3 class="font-semibold text-[15px] mb-1.5 text-textMain">Think Separately</h3>
+                        <p class="text-[13px] text-textMuted leading-relaxed">Each AI comes up with its own answer first, without copying the others.</p>
+                    </div>
+                    
+                    <div class="process-card flex flex-col bg-white p-5 rounded-2xl border border-border">
+                        <div class="w-10 h-10 bg-accent rounded-xl flex items-center justify-center border border-border mb-4">
+                            <i class="fa-solid fa-arrows-turn-to-dots text-textMain text-[15px]"></i>
+                        </div>
+                        <h3 class="font-semibold text-[15px] mb-1.5 text-textMain">The Debate</h3>
+                        <p class="text-[13px] text-textMuted leading-relaxed">The AIs debate, challenging each other to find the strongest solution.</p>
+                    </div>
+                    
+                    <div class="process-card flex flex-col bg-white p-5 rounded-2xl border border-border">
+                        <div class="w-10 h-10 bg-accent rounded-xl flex items-center justify-center border border-border mb-4">
+                            <i class="fa-solid fa-check-double text-textMain text-[15px]"></i>
+                        </div>
+                        <h3 class="font-semibold text-[15px] mb-1.5 text-textMain">Final Synthesis</h3>
+                        <p class="text-[13px] text-textMuted leading-relaxed">
+                            A <span class="inline-flex items-center gap-1 bg-brandBlueLight px-2 py-0.5 rounded border border-brandBlue/20 font-semibold text-brandBlue">
+                                <i class="fa-solid fa-gavel text-[9px]"></i>Lead
+                            </span> AI takes the best parts of the debate and builds your final result.
+                        </p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="absolute bottom-0 left-0 w-full bg-gradient-to-t from-white via-white to-transparent pt-12 pb-8 px-6 flex justify-center">
+                <div class="w-full max-w-3xl">
+                    <div class="rounded-2xl border border-border shadow-card flex flex-col overflow-hidden bg-white">
+                        <div class="relative p-4">
+                            <textarea placeholder="What problem can the council solve for you today?" rows="2" class="w-full resize-none outline-none text-[15px] placeholder-textMuted min-h-[60px] bg-transparent leading-relaxed pr-12"></textarea>
+                            <button class="absolute bottom-4 right-4 w-8 h-8 btn-primary rounded-lg flex items-center justify-center shadow-sm">
+                                <i class="fa-solid fa-arrow-up text-sm"></i>
+                            </button>
+                        </div>
+                        
+                        <div class="bg-accent/50 px-4 py-3 border-t border-border flex items-center justify-between flex-wrap gap-3">
+                            <div class="flex items-center gap-3 flex-wrap">
+                                <button class="text-textMuted hover:text-textMain transition-colors flex items-center justify-center w-7 h-7 rounded-md hover:bg-gray-200">
+                                    <i class="fa-solid fa-paperclip text-[13px]"></i>
+                                </button>
+                                <div class="h-4 w-px bg-gray-300"></div>
+                                <div class="flex items-center gap-1.5 flex-wrap">
+                                    <span class="text-[11px] font-medium text-textMuted uppercase tracking-wider mr-1">Council:</span>
+                                    <button class="flex items-center gap-1.5 text-[12px] font-medium text-textMain bg-white border border-border px-2 py-1 rounded-md shadow-sm hover:bg-gray-50">
+                                        <div class="w-1.5 h-1.5 rounded-full bg-green-500"></div>
+                                        <span>UX Pilot 3.5</span>
+                                    </button>
+                                    <button class="flex items-center gap-1.5 text-[12px] font-medium text-textMain bg-white border border-border px-2 py-1 rounded-md shadow-sm hover:bg-gray-50">
+                                        <div class="w-1.5 h-1.5 rounded-full bg-blue-500"></div>
+                                        <span>Gemini Pro</span>
+                                    </button>
+                                    <button class="flex items-center gap-1.5 text-[12px] font-medium text-textMain bg-white border border-border px-2 py-1 rounded-md shadow-sm hover:bg-gray-50">
+                                        <div class="w-1.5 h-1.5 rounded-full bg-purple-500"></div>
+                                        <span>GPT-4o</span>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <div class="flex items-center gap-1.5 text-[12px] font-medium text-textMain bg-white border border-border px-2.5 py-1 rounded-md shadow-sm">
+                                    <i class="fa-solid fa-gavel text-[10px] text-textMuted"></i>
+                                    <span>Lead: GPT-4o</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <p class="text-center text-[11px] text-textMuted mt-4">
+                        AI models can make mistakes. Verify important information.
+                    </p>
+                </div>
+            </div>
+        </main>
+    </div>
+</body>
+</html>

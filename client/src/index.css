@@ -1,0 +1,244 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --cgpt-bg: #fafafa;
+    --cgpt-bg-alt: #ffffff;
+    --cgpt-panel: #fafafa;
+    --cgpt-panel-alt: #f5f5f5;
+    --cgpt-border-subtle: #eaeaea;
+    --cgpt-border-strong: #d1d5db;
+    --cgpt-text-primary: #1a1a1a;
+    --cgpt-text-secondary: #4b5563;
+    --cgpt-text-muted: #737373;
+    --cgpt-text-inverse: #ffffff;
+    --cgpt-accent: #4f46e5;
+    --cgpt-accent-soft: rgba(79, 70, 229, 0.08);
+    --cgpt-accent-strong: #4338ca;
+    --cgpt-success: #10b981;
+    --cgpt-danger: #ef4444;
+    --cgpt-warning: #f59e0b;
+    --cgpt-msg-user-bg: #f5f5f5;
+    --cgpt-msg-assistant-bg: #ffffff;
+    --cgpt-input-bg: #ffffff;
+    --cgpt-input-border: #eaeaea;
+    --cgpt-input-placeholder: rgba(26, 26, 26, 0.5);
+    --cgpt-scrollbar-thumb: #d1d5db;
+    --cgpt-radius-sm: 0.25rem;
+    --cgpt-radius-md: 0.5rem;
+    --cgpt-radius-lg: 1rem;
+    --cgpt-hover: #f5f5f5;
+    --cgpt-bg-hover: #f5f5f5;
+    
+    --background: 0 0% 98%;
+    --foreground: 0 0% 10%;
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 10%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 10%;
+    --primary: 243 75% 53%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 0 0% 96%;
+    --secondary-foreground: 0 0% 10%;
+    --muted: 0 0% 96%;
+    --muted-foreground: 0 0% 45%;
+    --accent: 0 0% 96%;
+    --accent-foreground: 0 0% 10%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 0 0% 92%;
+    --input: 0 0% 92%;
+    --ring: 243 75% 53%;
+    --radius: 0.5rem;
+    --chart-1: 243 75% 53%;
+    --chart-2: 280 65% 60%;
+    --chart-3: 188 94% 53%;
+    --chart-4: 38 92% 50%;
+    --chart-5: 217 91% 60%;
+    
+    --font-sans: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+    --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  }
+
+  * {
+    @apply border-border;
+  }
+  
+  body {
+    margin: 0;
+    background-color: var(--cgpt-bg);
+    color: var(--cgpt-text-primary);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    line-height: 1.5;
+  }
+  
+  /* Ensure all text inherits dark color on light background */
+  p, span, div, li, a {
+    color: inherit;
+  }
+  
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-sans);
+    font-weight: 600;
+  }
+}
+
+/* ChatGPT-style Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--cgpt-scrollbar-thumb);
+  border-radius: 999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--cgpt-border-strong);
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* Core Component Utilities */
+@layer components {
+  .glass {
+    background-color: var(--cgpt-panel);
+    border: 1px solid var(--cgpt-border-subtle);
+  }
+  
+  .glass-elevated {
+    background-color: var(--cgpt-panel-alt);
+    border: 1px solid var(--cgpt-border-subtle);
+  }
+  
+  .glass-card {
+    background-color: var(--cgpt-panel);
+    border: 1px solid var(--cgpt-border-subtle);
+    border-radius: var(--cgpt-radius-lg);
+  }
+  
+  .glass-panel {
+    background-color: var(--cgpt-panel);
+    border: 1px solid var(--cgpt-border-subtle);
+  }
+
+  /* Council Seat Card */
+  .council-seat {
+    @apply glass-card p-4 transition-all duration-300;
+  }
+  
+  .council-seat.active {
+    border-color: var(--cgpt-accent);
+  }
+
+  /* Chairman Card */
+  .chairman-card {
+    background-color: var(--cgpt-panel);
+    border: 2px solid var(--cgpt-border-subtle);
+    border-radius: var(--cgpt-radius-lg);
+  }
+
+  /* Serif text for verdicts */
+  .verdict-text {
+    font-family: var(--font-sans);
+  }
+}
+
+/* Animation Utilities */
+@layer utilities {
+  .animate-glow-pulse {
+    animation: glowPulse 2s ease-in-out infinite;
+  }
+  
+  .animate-shimmer {
+    animation: shimmer 2s linear infinite;
+    background: linear-gradient(
+      90deg,
+      hsla(215, 20%, 30%, 0) 0%,
+      hsla(215, 20%, 40%, 0.3) 50%,
+      hsla(215, 20%, 30%, 0) 100%
+    );
+    background-size: 200% 100%;
+  }
+  
+  .animate-typing-cursor {
+    animation: blink 1s step-end infinite;
+  }
+}
+
+@keyframes glowPulse {
+  0%, 100% {
+    box-shadow: 0 0 20px -5px hsla(188, 94%, 53%, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 40px -5px hsla(188, 94%, 53%, 0.5);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+/* Fade in animation */
+.fade-in {
+  animation: fadeIn 0.5s ease-out forwards;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Typewriter effect helper */
+.typewriter-container {
+  position: relative;
+  overflow: hidden;
+}
+
+.typewriter-text {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Stage indicator dots */
+.stage-dot {
+  @apply w-2 h-2 rounded-full transition-all duration-300;
+}
+
+.stage-dot.active {
+  @apply scale-125;
+}
+
+.stage-dot.completed {
+  @apply opacity-50;
+}
+
+/* Evidence vault tabs */
+.evidence-tab {
+  @apply px-4 py-2 text-sm font-medium transition-all duration-200 rounded-lg;
+  @apply text-muted-foreground hover:text-foreground hover:bg-white/5;
+}
+
+.evidence-tab.active {
+  @apply bg-white/10 text-foreground;
+}

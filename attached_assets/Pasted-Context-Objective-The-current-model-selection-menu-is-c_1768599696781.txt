@@ -1,0 +1,87 @@
+Context & Objective: The current model selection menu is confusing. Users don't know which "All-Rounder" to pick, and the categories (like "Deep Reasoning") are too abstract.
+
+Goal: Transform the dropdown into a Role-Based Recommendation Engine.
+
+Rename Categories: Shift from technical features to Job Roles (e.g., "Marketing", "Coding").
+
+Dynamic Labeling: The badges next to the models must change based on the selected category. We need to explicitly rank ALL available models so the user sees a clear "#1 Champion" for their specific task.
+
+Task 1: Refactor User Intent Categories Replace the existing filter tabs with these 5 Outcome-Focused Categories:
+
+Dev & Coding (Replaces 'Coding')
+
+Marketing & Content (Replaces 'Creative Writing')
+
+Logic & Strategy (Replaces 'Deep Reasoning')
+
+Data & Analysis (Replaces 'Vision/Images')
+
+Quick Answers (Replaces 'Fast Chat')
+
+Task 2: The "Champion Matrix" (Dynamic Badging Logic) You must implement specific logic for every model in the list. Do not use generic labels like "High Performance" for everyone. Use the exact badges below based on the user's selected category.
+
+Scenario A: User selects "Dev & Coding"
+
+Claude 3.5 Sonnet: Label as "🏆 #1 Best for Code" (Highlight Gold).
+
+o1 / o3-mini: Label as "Best for Architecture" (Highlight Purple).
+
+GPT-4o: Label as "Reliable All-Rounder".
+
+Claude 3 Opus: Label as "Legacy / Slow".
+
+Gemini 1.5 Pro: Label as "Good for Huge Codebases".
+
+Haiku / Mini: Label as "Good for Scripts".
+
+Scenario B: User selects "Marketing & Content" (Social Media/Blogs)
+
+Claude 3.5 Sonnet: Label as "🏆 Most Human-Like" (Highlight Gold - Best for nuance).
+
+GPT-4o: Label as "🏆 Best for Social Media" (Highlight Gold - Best for punchy/viral).
+
+Gemini 1.5 Pro: Label as "Best for Long Articles" (High context window).
+
+Claude 3 Opus: Label as "Creative Storyteller".
+
+o1 / o3-mini: Label as "Not Recommended" (Overthinking/Too stiff for creative).
+
+Scenario C: User selects "Logic & Strategy" (Legal/Math/Finance)
+
+o1 / o1-pro: Label as "🏆 #1 Deep Thinker" (Highlight Gold - Unbeatable reasoning).
+
+o3-mini: Label as "Smart & Fast".
+
+Claude 3.5 Sonnet: Label as "Strong Logic".
+
+GPT-4o: Label as "Good General Logic".
+
+Gemini 1.5 Pro: Label as "Best for Legal Docs" (Huge context analysis).
+
+Scenario D: User selects "Data & Analysis" (Vision/PDFs)
+
+GPT-4o: Label as "🏆 #1 for Vision/Charts" (Highlight Gold).
+
+Gemini 1.5 Pro: Label as "🏆 #1 for Big Data" (Highlight Gold - 2M context).
+
+Claude 3.5 Sonnet: Label as "Strong Graph Reading".
+
+o1 / o3-mini: Label as "No Vision Support" (Grey out if applicable).
+
+Scenario E: User selects "Quick Answers"
+
+GPT-4o-mini: Label as "🏆 Fastest & Cheapest" (Highlight Gold).
+
+Claude 3.5 Haiku: Label as "Smartest Fast Model".
+
+Gemini Flash: Label as "High Volume Pro".
+
+All Pro Models (GPT-4o/Sonnet): Label as "Overkill / Expensive".
+
+Task 3: Visual Implementation
+
+The Trophy: Whenever a label includes "🏆", render the text in a specific Gold/Amber color (e.g., #D97706) and bold font to catch the eye.
+
+The Others: Render other labels (e.g., "Good for Scripts") in a subtle Slate/Grey (e.g., #64748B) so they don't compete for attention.
+
+The Goal: The user should click "Marketing" and immediately see the two Gold labels (Sonnet and GPT-4o) and ignore the rest.

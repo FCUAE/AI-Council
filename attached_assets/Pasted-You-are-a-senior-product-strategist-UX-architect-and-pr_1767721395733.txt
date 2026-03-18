@@ -1,0 +1,2807 @@
+You are a senior product strategist, UX architect, and prompt engineer working on an existing production website.
+
+Your task is NOT to design a new website.
+Your task is to generate a precise, implementation ready prompt for an AI builder to extend an existing website.
+
+You must respect all constraints below.
+
+CONTEXT
+
+I will provide you with the full website code.
+The website already has a defined design system, layout logic, folder navigation, and visual language.
+
+Current services offered:
+
+Websites
+
+Reel Editing
+
+We are adding a third service:
+3. Community Management
+
+This service belongs to Founder Connects Studio, which is owned by Founder Connects, the fastest growing startup founder community in the MENA region.
+
+The goal is to extend the site to support this new service without redesigning or breaking anything.
+
+ABSOLUTE CONSTRAINTS (DO NOT VIOLATE)
+
+DO NOT change the existing design system
+
+DO NOT introduce new colors, fonts, spacing systems, shadows, or animation styles
+
+DO NOT refactor unrelated components
+
+DO NOT rename existing folders or routes
+
+DO NOT remove existing services
+
+DO NOT add a new pricing model structure
+
+DO NOT add multiple pricing tiers for Community Management
+
+This is an extension, not a redesign.
+
+PART 1: STRATEGIC INTENT YOU MUST UNDERSTAND
+Why Community Management exists
+
+Founder Connects Studio is uniquely qualified to offer Community Management because:
+
+It is owned by Founder Connects
+
+Founder Connects is the fastest growing founder community in MENA
+
+The playbooks, systems, and learnings already exist internally
+
+This is not theoretical consulting, it is operational execution
+
+This service is positioned as:
+
+Founder led
+
+Operator driven
+
+Built from real community scale, not theory
+
+Premium, ongoing, and high touch
+
+Pricing model:
+
+One price only
+
+$6,000 per month
+
+No tiers
+
+No discounts
+
+No self serve checkout
+
+Conversion goal is opt in or call booking
+
+PART 2: REQUIRED OUTPUT FROM YOU (SUPER AI)
+
+You must generate a single clean prompt that I can give directly to my AI builder.
+
+That AI builder prompt must include ALL of the following sections.
+
+SECTION A: SITE STRUCTURE CHANGES
+
+Instruct the AI builder to:
+
+Add a new folder on the homepage alongside existing folders
+
+Folder name: Community Management
+
+Folder must visually behave exactly like existing folders
+
+Same hover behavior
+
+Same layout
+
+Same interaction pattern
+
+Same routing logic
+
+Update homepage logic so:
+
+Services are no longer framed as two offerings
+
+Homepage CTAs no longer reference Websites or Reels individually
+
+Replace multiple CTAs with one clear CTA
+
+CTA copy: “Open folders for each service”
+
+CTA behavior should open the folder navigation experience
+
+Ensure the new folder works across:
+
+Desktop
+
+Tablet
+
+Mobile
+
+Keyboard navigation
+
+Existing breadcrumb logic
+
+SECTION B: COMMUNITY MANAGEMENT PAGE CONTENT
+
+You must write conversion focused copy for the Community Management folder page.
+
+The copy must follow the tone and structure of the existing service pages.
+
+Page sections required
+
+Hero section
+
+Clear statement that this is community management for founders
+
+Emphasize Founder Connects credibility
+
+Avoid generic agency language
+
+No marketing buzzwords
+
+Why this exists
+
+Explain that this service comes from running Founder Connects
+
+Highlight experience managing real founders, not audiences
+
+Position as insider operational support
+
+What we manage
+
+Community strategy
+
+Member onboarding
+
+Engagement loops
+
+Events and activations
+
+Moderation and culture
+
+Retention systems
+
+Founder experience design
+
+Who this is for
+
+Startup ecosystems
+
+Accelerators
+
+Founder communities
+
+Corporates building founder programs
+
+VCs or platforms running founder networks
+
+Pricing section
+
+Single price only
+
+$6,000 per month
+
+Clear statement that this is ongoing, not project based
+
+No tiers
+
+No comparisons
+
+No checkout button
+
+Conversion section
+
+Primary CTA should be opt in or call booking
+
+CTA copy should feel premium and selective
+
+Reinforce that this is not for everyone
+
+SECTION C: DESIGN SYSTEM SAFETY RULES
+
+Explicitly instruct the AI builder to:
+
+Reuse existing typography tokens
+
+Reuse existing spacing utilities
+
+Reuse existing components where possible
+
+Match visual hierarchy of existing folders
+
+Do not introduce new UI patterns
+
+Do not alter motion or transitions
+
+Do not introduce testimonials unless placeholders already exist
+
+SECTION D: HOMEPAGE HEADLINE UPDATE
+
+You must recommend 3 alternative homepage headlines that:
+
+Reflect offering of Websites, Reels, and Community
+
+Do not list services explicitly
+
+Emphasize Founder Connects Studio as a multi service studio
+
+Feel calm, confident, and founder first
+
+Examples of direction, not final copy:
+
+Building brands, content, and communities for founders
+
+Where founders build visibility, traction, and community
+
+A studio for founders building products and people
+
+Write 3 final headline options in this spirit.
+
+SECTION E: FINAL DELIVERY FORMAT
+
+Your output must be:
+
+Clean
+
+Structured
+
+Clearly separated into sections
+
+Written as a direct instruction prompt to an AI builder
+
+No explanations
+
+No commentary
+
+No emojis
+
+No design speculation
+
+The final output must feel like a senior product spec turned into a prompt.
+
+IMPORTANT FINAL RULE
+
+You are writing a prompt that generates another prompt.
+Do not collapse steps.
+Do not simplify.
+Do not summarize.
+
+Precision matters more than brevity.
+
+MY CURRENT WEBSITE CODE:
+
+
+import React, { useState, useEffect, useRef, useCallback } from "react";
+import {
+  Wifi,
+  Battery,
+  X,
+  ExternalLink,
+  Check,
+  Globe,
+  Film,
+  Users,
+  Play,
+  Pause,
+  Eye,
+  ArrowRight,
+  ArrowLeft,
+  ChevronLeft,
+  ChevronRight,
+  Home,
+} from "lucide-react";
+
+/* ==========================================
+   GLOBAL STYLES (Memoized to prevent thrashing)
+   ========================================== */
+const GlobalStyles = React.memo(() => (
+  <style>{`
+    @import url('https://fonts.googleapis.com/css2?family=Archivo+Black&family=Inter:wght@400;500;600;900&family=Unbounded:wght@700;900&display=swap');
+
+    :root {
+      --bg-desktop: #FFFFFF;
+      --bg-modal: #FFFFFF;
+      --bg-panel: rgba(0, 0, 0, 0.03);
+      --fc-black: #1A1A1A;
+      --fc-neon: #39FF14;
+      --fc-white: #FFFFFF;
+      --text-primary: #1A1A1A;
+      --text-secondary: rgba(0, 0, 0, 0.6);
+      --text-muted: rgba(0, 0, 0, 0.4);
+      --border-color: rgba(0, 0, 0, 0.8);
+      --border-width: 2px;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      margin: 0;
+      padding: 0;
+      overflow-x: hidden;
+      overflow-y: auto;
+      background-color: var(--bg-desktop);
+      color: var(--text-primary);
+      -webkit-font-smoothing: antialiased;
+    }
+
+    body.modal-open { overflow: hidden; padding-right: 0px; }
+
+    .font-display { font-family: 'Unbounded', sans-serif; }
+    .font-header { font-family: 'Archivo Black', sans-serif; }
+
+    .custom-scrollbar::-webkit-scrollbar { width: 8px; }
+    .custom-scrollbar::-webkit-scrollbar-track { background: var(--fc-white); border-left: 1px solid rgba(0,0,0,0.05); }
+    .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.2); border-radius: 4px; }
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: var(--fc-neon); }
+
+    /* Softened Grid */
+    .grid-bg {
+      background-color: #FAFAFA;
+      background-image: 
+        repeating-linear-gradient(0deg, transparent, transparent 39px, rgba(0,0,0,0.03) 39px, rgba(0,0,0,0.03) 40px),
+        repeating-linear-gradient(90deg, transparent, transparent 39px, rgba(0,0,0,0.03) 39px, rgba(0,0,0,0.03) 40px);
+      background-size: 40px 40px;
+    }
+
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
+    .animate-slide-up { animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+    .animate-fadeIn { animation: fadeIn 0.5s ease-out; }
+    
+    @keyframes fadeOut { from { opacity: 1; } to { opacity: 0; visibility: hidden; } }
+    .animate-fade-out { animation: fadeOut 1s ease-out 5s forwards; }
+    
+    /* Soft Pulse for Neo-Brutalism */
+    @keyframes pulse-soft {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(57, 255, 20, 0.4); }
+      50% { box-shadow: 0 0 0 6px rgba(57, 255, 20, 0); }
+    }
+    .pulse-cta { animation: pulse-soft 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+
+    .folder-drag-active { z-index: 1000 !important; cursor: grabbing !important; }
+    
+    button:focus-visible, a:focus-visible { outline: 2px solid var(--fc-neon); outline-offset: 2px; border-radius: 4px; }
+    input:focus-visible, select:focus-visible { outline: 2px solid var(--fc-neon); outline-offset: -1px; }
+    
+    .safe-area-bottom {
+      padding-bottom: env(safe-area-inset-bottom, 20px);
+    }
+
+    /* Accessibility */
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+      }
+    }
+  `}</style>
+));
+
+/* ==========================================
+   MOCK DATA
+   ========================================== */
+
+const INITIAL_FOLDERS = [
+  {
+    id: "websites",
+    name: "Websites",
+    icon: Globe,
+    initialPosition: { top: 200, left: 750 },
+    badge: "WEB",
+    type: "website",
+  },
+  {
+    id: "reels",
+    name: "Reels & Content",
+    icon: Film,
+    initialPosition: { top: 200, left: 950 },
+    badge: "REEL",
+    type: "reel",
+  },
+  {
+    id: "about",
+    name: "Our Team",
+    icon: Users,
+    initialPosition: { top: 420, left: 950 },
+    badge: "TEAM",
+    type: "info",
+  },
+];
+
+const WEBSITE_PROJECTS = [
+  {
+    id: "web-1",
+    title: "Fintech Dashboard",
+    image:
+      "https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=800&h=600&q=80&auto=format&fit=crop",
+    url: "https://example.com",
+    category: "FINTECH",
+  },
+  {
+    id: "web-2",
+    title: "Crypto Exchange",
+    image:
+      "https://images.unsplash.com/photo-1642104704074-907c0698b98d?w=800&h=600&q=80&auto=format&fit=crop",
+    url: "https://example.com",
+    category: "WEB3",
+  },
+  {
+    id: "web-3",
+    title: "SaaS Platform",
+    image:
+      "https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=800&h=600&q=80&auto=format&fit=crop",
+    url: "https://example.com",
+    category: "SAAS",
+  },
+  {
+    id: "web-4",
+    title: "Agency Portfolio",
+    image:
+      "https://images.unsplash.com/photo-1507238691740-187a5b1d37b8?w=800&h=600&q=80&auto=format&fit=crop",
+    url: "https://example.com",
+    category: "AGENCY",
+  },
+];
+
+const REEL_PROJECTS = [
+  {
+    id: "reel-1",
+    founderName: "Sarah Chen",
+    topic: "Product Positioning",
+    videoUrl:
+      "https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4",
+    thumbnail:
+      "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80",
+    views: "24K",
+    engagement: "8.2%",
+  },
+  {
+    id: "reel-2",
+    founderName: "Mike Ross",
+    topic: "Scaling Sales",
+    videoUrl:
+      "https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
+    thumbnail:
+      "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=400&q=80",
+    views: "82K",
+    engagement: "12.5%",
+  },
+  {
+    id: "reel-3",
+    founderName: "Elena Rodriguez",
+    topic: "Funding Truths",
+    videoUrl:
+      "https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4",
+    thumbnail:
+      "https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?auto=format&fit=crop&w=400&q=80",
+    views: "89K",
+    engagement: "6.7%",
+  },
+  {
+    id: "reel-4",
+    founderName: "David Kim",
+    topic: "Team Building",
+    videoUrl:
+      "https://storage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4",
+    thumbnail:
+      "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=400&q=80",
+    views: "45K",
+    engagement: "9.1%",
+  },
+  {
+    id: "reel-5",
+    founderName: "Alex Rivera",
+    topic: "MVP Launch",
+    videoUrl:
+      "https://storage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
+    thumbnail:
+      "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=400&q=80",
+    views: "12K",
+    engagement: "15.0%",
+  },
+  {
+    id: "reel-6",
+    founderName: "Jessica Lee",
+    topic: "Marketing 101",
+    videoUrl:
+      "https://storage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4",
+    thumbnail:
+      "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?auto=format&fit=crop&w=400&q=80",
+    views: "105K",
+    engagement: "11.2%",
+  },
+  {
+    id: "reel-7",
+    founderName: "Tom Wilson",
+    topic: "Bootstrapping",
+    videoUrl:
+      "https://storage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4",
+    thumbnail:
+      "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=400&q=80",
+    views: "33K",
+    engagement: "7.8%",
+  },
+  {
+    id: "reel-8",
+    founderName: "Emma Davis",
+    topic: "User Research",
+    videoUrl:
+      "https://storage.googleapis.com/gtv-videos-bucket/sample/SubaruOutbackOnStreetAndDirt.mp4",
+    thumbnail:
+      "https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=400&q=80",
+    views: "19K",
+    engagement: "10.4%",
+  },
+  {
+    id: "reel-9",
+    founderName: "James Bond",
+    topic: "Spy Craft",
+    videoUrl:
+      "https://storage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4",
+    thumbnail:
+      "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=400&q=80",
+    views: "900K",
+    engagement: "99.9%",
+  },
+  {
+    id: "reel-10",
+    founderName: "Lara Croft",
+    topic: "Tomb Raiding",
+    videoUrl:
+      "https://storage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4",
+    thumbnail:
+      "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=400&q=80",
+    views: "1.2M",
+    engagement: "98%",
+  },
+  {
+    id: "reel-11",
+    founderName: "Tony Stark",
+    topic: "Tech Innovation",
+    videoUrl:
+      "https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4",
+    thumbnail:
+      "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80",
+    views: "5M",
+    engagement: "95%",
+  },
+  {
+    id: "reel-12",
+    founderName: "Bruce Wayne",
+    topic: "Business Strategy",
+    videoUrl:
+      "https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
+    thumbnail:
+      "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=400&q=80",
+    views: "3M",
+    engagement: "90%",
+  },
+];
+
+/* ==========================================
+   COMPONENTS
+   ========================================== */
+
+const StatsCounter = React.memo(({ end, suffix = "" }) => {
+  const [count, setCount] = useState(0);
+  const [isVisible, setIsVisible] = useState(false);
+  const ref = useRef(null);
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting) setIsVisible(true);
+    });
+
+    if (ref.current) observer.observe(ref.current);
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    if (!isVisible) return;
+
+    const duration = 2000;
+    const increment = end / (duration / 16);
+    let current = 0;
+
+    const timer = setInterval(() => {
+      current += increment;
+      if (current >= end) {
+        setCount(end);
+        clearInterval(timer);
+      } else {
+        setCount(Math.floor(current));
+      }
+    }, 16);
+
+    return () => clearInterval(timer);
+  }, [isVisible, end]);
+
+  return (
+    <div
+      ref={ref}
+      className="font-header text-4xl md:text-6xl text-white/95 mb-2"
+    >
+      <span className="text-[#39FF14]">
+        {count}
+        {suffix}
+      </span>
+    </div>
+  );
+});
+
+const TopBar = React.memo(() => {
+  const [time, setTime] = useState("");
+
+  useEffect(() => {
+    const updateTime = () => {
+      const now = new Date();
+      const options = {
+        weekday: "short",
+        month: "short",
+        day: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+      };
+      setTime(now.toLocaleDateString("en-US", options));
+    };
+    updateTime();
+    const interval = setInterval(updateTime, 60000);
+    return () => clearInterval(interval);
+  }, []);
+
+  return (
+    <div className="fixed top-0 left-0 right-0 h-12 bg-white/95 backdrop-blur-md border-b border-black/5 z-50 flex items-center justify-between px-6 select-none shadow-sm">
+      <div className="flex items-center gap-4">
+        <div className="text-[10px] font-bold tracking-widest text-black/90 font-mono">
+          FC STUDIO{" "}
+          <span className="text-black bg-[#39FF14] px-1.5 py-0.5 rounded-sm">
+            v2.1
+          </span>
+        </div>
+        <a
+          href="https://your-community-website.com"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="hidden md:flex items-center gap-1 text-[10px] font-bold tracking-widest text-black/80 hover:text-[#39FF14] transition-colors border-l border-black/10 pl-4"
+        >
+          <span>← COMMUNITY</span>
+        </a>
+      </div>
+
+      <div className="flex items-center gap-4 text-black/90">
+        <div className="hidden md:block text-[10px] font-bold tracking-widest font-mono opacity-80">
+          {time}
+        </div>
+        <a
+          href="https://your-community-website.com"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="md:hidden"
+          aria-label="Back to community"
+        >
+          <ArrowLeft size={16} />
+        </a>
+        <Wifi size={16} />
+        <Battery size={16} />
+      </div>
+    </div>
+  );
+});
+
+const Folder = React.memo(({ folder, position, onMouseDown, onClick }) => {
+  const Icon = folder.icon;
+
+  return (
+    <div
+      className="relative md:absolute flex flex-col items-center group touch-none pointer-events-auto"
+      style={{
+        ...(position
+          ? { top: position.top, left: position.left, position: "absolute" }
+          : {}),
+        width: "160px",
+        height: "180px",
+      }}
+      onMouseDown={(e) => onMouseDown && onMouseDown(e, folder.id)}
+      onTouchStart={(e) => onMouseDown && onMouseDown(e, folder.id)}
+      onClick={() => onClick(folder.id)}
+    >
+      <div className="relative w-28 h-24 mt-6 cursor-grab active:cursor-grabbing transition-transform duration-300 ease-out group-hover:scale-110 group-hover:-translate-y-3 group-hover:drop-shadow-2xl">
+        <div className="absolute top-[-8px] left-0 w-12 h-6 bg-[#63B0FF] rounded-t-lg z-0 shadow-sm"></div>
+        <div className="absolute top-0 left-0 w-full h-24 bg-[#4A90E2] rounded-lg shadow-[0_4px_12px_rgba(0,0,0,0.1)] z-10 overflow-hidden">
+          <div className="absolute top-2 left-2 w-[calc(100%-16px)] h-20 bg-white rounded-t-md shadow-sm z-10 transition-transform duration-300 transform translate-y-8 group-hover:translate-y-2 opacity-95"></div>
+        </div>
+        <div className="absolute inset-0 z-20 flex items-center justify-center pointer-events-none">
+          <Icon
+            size={36}
+            className="text-white drop-shadow-md transform transition-transform duration-300 ease-out translate-y-4 group-hover:-translate-y-4"
+            strokeWidth={2}
+          />
+        </div>
+        <div className="absolute bottom-0 left-0 w-full h-[85%] bg-gradient-to-b from-[#63B0FF] to-[#2F80ED] rounded-b-lg rounded-tr-lg shadow-[0_4px_16px_rgba(0,0,0,0.15)] z-30 flex items-center justify-center border-t border-white/20">
+          <div className="absolute -top-3 -right-2 bg-white/95 text-blue-600 border border-blue-100 px-2.5 py-0.5 text-[9px] font-black uppercase tracking-widest rounded-full shadow-md z-40 group-hover:bg-[#39FF14] group-hover:text-black/90 group-hover:border-transparent transition-all duration-300">
+            {folder.badge}
+          </div>
+        </div>
+      </div>
+      <div className="mt-4 px-3 py-1.5 rounded-lg transition-all duration-200 max-w-[160px] group-hover:bg-black/5 group-hover:shadow-sm">
+        <span className="text-[13px] font-semibold text-black/90 tracking-tight text-center block leading-tight font-sans whitespace-normal break-words">
+          {folder.name}
+        </span>
+      </div>
+    </div>
+  );
+});
+
+const ReelCard = React.memo(({ reel }) => {
+  const videoRef = useRef(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(false);
+  const [isHovering, setIsHovering] = useState(false);
+
+  useEffect(() => {
+    if (isHovering && videoRef.current && !isPlaying && !error) {
+      videoRef.current.play().catch(() => {});
+    } else if (!isHovering && videoRef.current && !isPlaying && !error) {
+      videoRef.current.pause();
+      videoRef.current.currentTime = 0;
+    }
+  }, [isHovering, isPlaying, error]);
+
+  const togglePlay = (e) => {
+    e.stopPropagation();
+    if (videoRef.current && !error) {
+      if (isPlaying) {
+        videoRef.current.pause();
+      } else {
+        const playPromise = videoRef.current.play();
+        if (playPromise !== undefined) {
+          playPromise.catch((error) => {
+            console.error("Playback failed:", error);
+            setIsPlaying(false);
+          });
+        }
+      }
+      setIsPlaying(!isPlaying);
+    }
+  };
+
+  const handleLoadedData = () => setIsLoading(false);
+
+  const handleError = () => {
+    console.error(`Error loading video for ${reel.id}`);
+    setIsLoading(false);
+    setError(true);
+  };
+
+  return (
+    <div
+      className="relative aspect-[9/16] w-full h-auto max-w-[320px] mx-auto bg-black/5 border border-black/10 rounded-2xl overflow-hidden group cursor-pointer transition-all duration-300 ease-out hover:border-black/20 shadow-[0_6px_18px_rgba(0,0,0,0.12)] hover:shadow-[0_10px_28px_rgba(0,0,0,0.16)] hover:scale-[1.02]"
+      onClick={togglePlay}
+      onMouseEnter={() => setIsHovering(true)}
+      onMouseLeave={() => setIsHovering(false)}
+      role="button"
+      aria-label={`Play reel from ${reel.founderName} about ${reel.topic}`}
+    >
+      {isLoading && !error && (
+        <div className="absolute inset-0 z-20 flex items-center justify-center bg-gray-50 scanlines">
+          <div className="w-8 h-8 border-[3px] border-black/10 border-t-[#39FF14] rounded-full animate-spin"></div>
+        </div>
+      )}
+      {error && (
+        <div className="absolute inset-0 z-20 flex items-center justify-center bg-gray-50">
+          <span className="text-xs font-bold text-black/50 uppercase font-pixel">
+            Video Unavailable
+          </span>
+        </div>
+      )}
+      <video
+        ref={videoRef}
+        src={reel.videoUrl}
+        poster={reel.thumbnail}
+        className={`w-full h-full object-cover ${error ? "hidden" : ""}`}
+        playsInline
+        loop
+        muted={!isPlaying}
+        onLoadedData={handleLoadedData}
+        onError={handleError}
+      />
+      {!error && (
+        <div
+          className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-16 h-16 bg-white/90 rounded-full flex items-center justify-center transition-all duration-300 ${
+            isPlaying || isHovering
+              ? "opacity-0"
+              : "opacity-100 backdrop-blur-sm shadow-lg"
+          }`}
+        >
+          <Play size={28} className="text-black fill-black ml-1" />
+        </div>
+      )}
+      {!error && (
+        <div
+          className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-16 h-16 flex items-center justify-center opacity-0 transition-opacity duration-300 pointer-events-none ${
+            isPlaying ? "group-hover:opacity-100" : ""
+          }`}
+        >
+          <Pause size={32} className="text-white fill-white drop-shadow-md" />
+        </div>
+      )}
+      <div className="absolute bottom-0 left-0 w-full p-4 pointer-events-none bg-gradient-to-t from-black/70 via-black/30 to-transparent">
+        <div className="text-white font-semibold text-[18px] leading-tight mb-1">
+          {reel.founderName}
+        </div>
+        <div className="text-white/80 font-normal text-[14px] mb-3 line-clamp-1">
+          {reel.topic}
+        </div>
+        <div className="flex items-center gap-1.5 text-white/80">
+          <Eye size={14} /> <span className="text-[13px]">{reel.views}</span>
+        </div>
+      </div>
+    </div>
+  );
+});
+
+const WhyThisWorks = React.memo(({ type }) => (
+  <div className="px-8 md:px-16 py-16 bg-white border-y border-black/5">
+    <div className="max-w-4xl mx-auto">
+      <div className="text-center mb-12">
+        <div className="inline-block bg-[#39FF14] border border-black/10 rounded-full px-4 py-1 text-[10px] font-black uppercase tracking-widest mb-4 shadow-[2px_2px_8px_rgba(0,0,0,0.1)]">
+          The Difference
+        </div>
+        <h3 className="font-header text-3xl md:text-4xl text-black/90 mb-4 capitalize">
+          Why Our {type === "website" ? "Sites" : "Reels"} Convert
+        </h3>
+      </div>
+      <div className="grid md:grid-cols-3 gap-8">
+        <div className="text-center group">
+          <div className="w-16 h-16 bg-[#39FF14] border border-black/10 rounded-2xl flex items-center justify-center mx-auto mb-4 text-3xl font-black shadow-[4px_4px_0px_rgba(0,0,0,0.1)] group-hover:shadow-[6px_6px_0px_rgba(0,0,0,0.15)] transition-all duration-300">
+            1
+          </div>
+          <h4 className="font-black text-sm uppercase tracking-wider text-black/90 mb-2">
+            {type === "website" ? "DATA-BACKED" : "FOUNDER-LED"}
+          </h4>
+          <p className="text-sm text-black/60 leading-relaxed">
+            {type === "website"
+              ? "Built on 1,500+ founder insights. Not guessing—building what's proven."
+              : "Founder-led content outperforms brand handles by 4.2x in trust metrics."}
+          </p>
+        </div>
+        <div className="text-center group">
+          <div className="w-16 h-16 bg-[#39FF14] border border-black/10 rounded-2xl flex items-center justify-center mx-auto mb-4 text-3xl font-black shadow-[4px_4px_0px_rgba(0,0,0,0.1)] group-hover:shadow-[6px_6px_0px_rgba(0,0,0,0.15)] transition-all duration-300">
+            2
+          </div>
+          <h4 className="font-black text-sm uppercase tracking-wider text-black/90 mb-2">
+            {type === "website" ? "SPEED" : "CONSISTENCY"}
+          </h4>
+          <p className="text-sm text-black/60 leading-relaxed">
+            {type === "website"
+              ? "18-day average delivery. We've done this hundreds of times."
+              : "Monthly production pipeline. No more scrambling for content ideas."}
+          </p>
+        </div>
+        <div className="text-center group">
+          <div className="w-16 h-16 bg-[#39FF14] border border-black/10 rounded-2xl flex items-center justify-center mx-auto mb-4 text-3xl font-black shadow-[4px_4px_0px_rgba(0,0,0,0.1)] group-hover:shadow-[6px_6px_0px_rgba(0,0,0,0.15)] transition-all duration-300">
+            3
+          </div>
+          <h4 className="font-black text-sm uppercase tracking-wider text-black/90 mb-2">
+            {type === "website" ? "ZERO BLOAT" : "STRATEGY INCLUDED"}
+          </h4>
+          <p className="text-sm text-black/60 leading-relaxed">
+            {type === "website"
+              ? "You talk to the people building your site. No account managers."
+              : "Monthly strategy calls. We don't just edit—we help you position."}
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+));
+
+const WebsiteROICalculator = React.memo(({ onOpenForm }) => {
+  const [productPrice, setProductPrice] = useState(100);
+  const [monthlyTraffic, setMonthlyTraffic] = useState(5000);
+  const [currentConversion, setCurrentConversion] = useState(2);
+
+  const currentLeads = Math.floor((monthlyTraffic * currentConversion) / 100);
+  const improvedConversion = currentConversion * 2.8; // Your claimed lift
+  const newLeads = Math.floor((monthlyTraffic * improvedConversion) / 100);
+  const additionalLeads = newLeads - currentLeads;
+
+  // Revenue calculation based on product price
+  const currentRevenue = currentLeads * productPrice;
+  const newRevenue = newLeads * productPrice;
+  const additionalRevenue = additionalLeads * productPrice;
+
+  return (
+    <div className="px-8 md:px-16 py-16 bg-gradient-to-br from-[#39FF14]/5 to-white border-y border-black/5">
+      <div className="max-w-3xl mx-auto">
+        <div className="text-center mb-8">
+          <div className="inline-block bg-[#39FF14] border border-black/10 rounded-full px-4 py-1 text-[10px] font-black uppercase tracking-widest mb-4 shadow-[2px_2px_8px_rgba(0,0,0,0.1)]">
+            Calculate Your ROI
+          </div>
+          <h3 className="font-header text-3xl uppercase text-black/90 mb-3">
+            See Your Revenue Growth
+          </h3>
+          <p className="text-black/60">
+            Based on our average 2.8x conversion lift
+          </p>
+        </div>
+
+        <div className="bg-white border border-black/10 rounded-2xl p-8 shadow-[4px_4px_16px_rgba(0,0,0,0.08)]">
+          <div className="space-y-6 mb-8">
+            <div>
+              <label className="text-sm font-semibold text-black/80 mb-2 block">
+                Average Product/Service Price
+              </label>
+              <div className="relative">
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-black/60 font-bold">
+                  $
+                </span>
+                <input
+                  type="number"
+                  min="10"
+                  max="10000"
+                  step="10"
+                  value={productPrice}
+                  onChange={(e) => setProductPrice(Number(e.target.value))}
+                  className="w-full pl-8 pr-4 py-3 border border-black/20 rounded-xl focus:border-[#39FF14] focus:outline-none focus:ring-4 focus:ring-[#39FF14]/20 font-bold text-black transition-all duration-200"
+                />
+              </div>
+              <div className="flex justify-between text-xs text-black/40 mt-1">
+                <span>$10</span>
+                <span>$10,000+</span>
+              </div>
+            </div>
+
+            <div>
+              <label className="text-sm font-semibold text-black/80 mb-2 block">
+                Monthly Website Traffic
+              </label>
+              <input
+                type="range"
+                min="1000"
+                max="50000"
+                step="1000"
+                value={monthlyTraffic}
+                onChange={(e) => setMonthlyTraffic(Number(e.target.value))}
+                className="w-full h-2 bg-black/5 rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-[#39FF14] [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-black/20 [&::-webkit-slider-thumb]:cursor-pointer"
+              />
+              <div className="flex justify-between text-xs text-black/40 mt-1">
+                <span>1K</span>
+                <span className="font-bold text-black">
+                  {monthlyTraffic.toLocaleString()} visitors
+                </span>
+                <span>50K</span>
+              </div>
+            </div>
+
+            <div>
+              <label className="text-sm font-semibold text-black/80 mb-2 block">
+                Current Conversion Rate
+              </label>
+              <input
+                type="range"
+                min="0.5"
+                max="10"
+                step="0.5"
+                value={currentConversion}
+                onChange={(e) => setCurrentConversion(Number(e.target.value))}
+                className="w-full h-2 bg-black/5 rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-[#39FF14] [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-black/20 [&::-webkit-slider-thumb]:cursor-pointer"
+              />
+              <div className="flex justify-between text-xs text-black/40 mt-1">
+                <span>0.5%</span>
+                <span className="font-bold text-black">
+                  {currentConversion}%
+                </span>
+                <span>10%</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid md:grid-cols-2 gap-4 mb-6">
+            <div className="bg-black/5 rounded-xl p-5 border border-black/10">
+              <p className="text-xs text-black/40 uppercase font-bold mb-2">
+                Current Monthly Revenue
+              </p>
+              <p className="text-3xl font-header text-black/60 mb-1">
+                ${currentRevenue.toLocaleString()}
+              </p>
+              <p className="text-xs text-black/40">
+                {currentLeads} sales/month
+              </p>
+            </div>
+            <div className="bg-[#39FF14]/10 rounded-xl p-5 border border-[#39FF14]/30">
+              <p className="text-xs text-black/80 uppercase font-bold mb-2">
+                With FC Studio
+              </p>
+              <p className="text-3xl font-header text-black mb-1">
+                ${newRevenue.toLocaleString()}
+              </p>
+              <p className="text-xs text-black/60">{newLeads} sales/month</p>
+            </div>
+          </div>
+
+          <div className="bg-gradient-to-r from-[#39FF14]/20 to-[#39FF14]/10 rounded-xl p-6 border border-[#39FF14]/30 mb-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs text-black/60 uppercase font-bold mb-1">
+                  Additional Revenue/Month
+                </p>
+                <p className="text-4xl font-header text-black">
+                  +${additionalRevenue.toLocaleString()}
+                </p>
+                <p className="text-xs text-black/40 mt-1">
+                  +{additionalLeads} more sales at ${productPrice} each
+                </p>
+              </div>
+              <div className="text-5xl">📈</div>
+            </div>
+          </div>
+
+          <div className="bg-black/5 rounded-xl p-4 mb-6 border border-black/10">
+            <p className="text-xs text-black/60 text-center">
+              <span className="font-bold text-black">ROI Payback:</span> Website
+              investment paid back in{" "}
+              <span className="font-black text-black">
+                {additionalRevenue > 0
+                  ? Math.ceil(10000 / additionalRevenue)
+                  : "—"}
+              </span>{" "}
+              {Math.ceil(10000 / additionalRevenue) === 1 ? "month" : "months"}
+              {additionalRevenue > 0 && additionalRevenue < 10000 && (
+                <span className="text-black/40">
+                  {" "}
+                  (assuming $10K project cost)
+                </span>
+              )}
+            </p>
+          </div>
+
+          <button
+            onClick={() => onOpenForm("website")}
+            className="w-full px-8 py-4 bg-black text-white font-black text-sm uppercase rounded-xl hover:bg-[#39FF14] hover:text-black hover:shadow-[0_8px_30px_rgba(57,255,20,0.3)] transition-all duration-300 pulse-cta"
+          >
+            Build A Site That Drives This Revenue →
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+});
+
+const FAQ = React.memo(({ type }) => {
+  const [openIndex, setOpenIndex] = useState(null);
+
+  const websiteFAQs = [
+    {
+      q: "How is this different from Fiverr or template sites?",
+      a: "We don't use templates. Every site is custom-built based on conversion data from 1,500+ founders. You get a dedicated team, unlimited revisions, and strategy sessions — not a freelancer who disappears after delivery.",
+    },
+    {
+      q: "What if I don't like the first design?",
+      a: "Unlimited revisions are included. We iterate until you're completely satisfied. Our average is 2-3 rounds, and we don't stop until the site converts.",
+    },
+    {
+      q: "Do I need to provide all the content?",
+      a: "No. We extract it from you in a 1-hour kickoff call. We'll guide you through what's needed, write the copy, and handle everything else.",
+    },
+    {
+      q: "Can you integrate with my tools (Stripe, HubSpot, etc.)?",
+      a: "Yes. We handle all integrations — payment processors, CRMs, analytics, email tools, whatever you need.",
+    },
+    {
+      q: "What happens after the site launches?",
+      a: "You own everything — code, design, domain. We provide 30 days of post-launch support for tweaks. After that, you can hire us for updates or manage it yourself.",
+    },
+  ];
+
+  const reelFAQs = [
+    {
+      q: "I'm not comfortable on camera. Can this still work?",
+      a: "Absolutely. We'll guide you through simple scripts and filming setups. Most founders feel awkward at first — but after 2-3 reels, it becomes natural. We handle all the heavy lifting (editing, captions, posting).",
+    },
+    {
+      q: "What if I run out of content ideas?",
+      a: "We provide a monthly content calendar based on your goals. You'll never scramble for topics — we map out exactly what to film each week.",
+    },
+    {
+      q: "Do you post the reels for me?",
+      a: "We deliver the final files + captions. You post them (or your team does). This keeps your account authentic and avoids third-party posting risks.",
+    },
+    {
+      q: "Can I really cancel anytime?",
+      a: "Yes. No contracts. Cancel before your next billing cycle — that's it. We're confident in our work, so we don't lock you in.",
+    },
+    {
+      q: "What platforms do you optimize for?",
+      a: "Instagram, TikTok, LinkedIn, and YouTube Shorts. We export in the right formats for each platform.",
+    },
+  ];
+
+  const faqs = type === "website" ? websiteFAQs : reelFAQs;
+
+  return (
+    <div className="px-8 md:px-16 py-16 bg-white border-t border-black/5">
+      <div className="max-w-3xl mx-auto">
+        <div className="text-center mb-10">
+          <div className="inline-block bg-[#39FF14] border border-black/10 rounded-full px-4 py-1 text-[10px] font-black uppercase tracking-widest mb-4 shadow-sm">
+            Common Questions
+          </div>
+          <h3 className="font-header text-3xl uppercase text-black/90">
+            Everything You Need To Know
+          </h3>
+        </div>
+
+        <div className="space-y-4">
+          {faqs.map((faq, idx) => (
+            <div
+              key={idx}
+              className="border border-black/10 rounded-xl overflow-hidden hover:border-black/20 hover:shadow-md transition-all duration-200 bg-white"
+            >
+              <button
+                onClick={() => setOpenIndex(openIndex === idx ? null : idx)}
+                className="w-full flex items-center justify-between p-5 text-left bg-white hover:bg-black/[0.02] transition-colors"
+              >
+                <span className="font-bold text-black/90 pr-4 text-sm md:text-base">
+                  {faq.q}
+                </span>
+                <div
+                  className={`flex-shrink-0 w-8 h-8 border border-black/10 flex items-center justify-center transition-all duration-200 rounded-full ${
+                    openIndex === idx
+                      ? "bg-[#39FF14] border-[#39FF14]"
+                      : "bg-white"
+                  }`}
+                >
+                  {openIndex === idx ? (
+                    <span className="font-bold text-black text-lg leading-none">
+                      -
+                    </span>
+                  ) : (
+                    <span className="font-bold text-black/40 text-lg leading-none">
+                      +
+                    </span>
+                  )}
+                </div>
+              </button>
+              <div
+                className={`overflow-hidden transition-all duration-300 ease-in-out ${
+                  openIndex === idx ? "max-h-96" : "max-h-0"
+                }`}
+              >
+                <div className="p-5 pt-0 text-sm text-black/60 leading-relaxed font-medium">
+                  {faq.a}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+});
+
+const TieredPricingBanner = React.memo(() => {
+  const tiers = [
+    {
+      label: "First 10",
+      starterPrice: "$900",
+      growthPrice: "$1,725",
+      soldOut: true,
+    },
+    {
+      label: "10–20 Users",
+      starterPrice: "$1,200",
+      growthPrice: "$2,300",
+      active: true,
+    },
+    {
+      label: "20+ Users",
+      starterPrice: "$1,560",
+      growthPrice: "$2,990",
+      future: true,
+    },
+  ];
+
+  return (
+    <div className="max-w-4xl mx-auto mb-8">
+      <div className="bg-white border border-black/10 rounded-2xl shadow-sm overflow-hidden">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-black/5 bg-[#FAFAFA]">
+          <div className="flex items-center gap-2.5">
+            <span className="inline-flex w-2 h-2 rounded-full bg-[#39FF14] shadow-[0_0_8px_rgba(57,255,20,0.6)] animate-pulse" />
+            <span className="text-xs font-bold text-black/70 uppercase tracking-wider">
+              Lock‑In Pricing Active
+            </span>
+          </div>
+          <span className="text-[10px] font-bold text-black/40 uppercase tracking-wider">
+            Starter / Growth
+          </span>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-black/5 overflow-x-auto snap-x snap-mandatory">
+          {tiers.map((tier, idx) => {
+            const isActive = !!tier.active;
+            return (
+              <div
+                key={idx}
+                className={`px-5 py-5 snap-center ${
+                  isActive ? "bg-[#39FF14]/5" : "bg-white"
+                }`}
+              >
+                <div className="flex flex-row items-center justify-between mb-3 gap-2">
+                  <div className="text-xs font-bold text-black/60 uppercase tracking-wide">
+                    {tier.label}
+                  </div>
+                  {isActive && (
+                    <span className="text-[9px] font-black text-black bg-[#39FF14] px-2 py-0.5 rounded-full uppercase tracking-wider shadow-sm">
+                      Current
+                    </span>
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-black/40 text-xs font-medium">
+                      Starter
+                    </span>
+                    <span
+                      className={`font-header ${
+                        tier.soldOut
+                          ? "line-through text-black/30 decoration-black/20"
+                          : "text-black/90"
+                      }`}
+                    >
+                      {tier.starterPrice}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-black/40 text-xs font-medium">
+                      Growth
+                    </span>
+                    <span
+                      className={`font-header ${
+                        tier.soldOut
+                          ? "line-through text-black/30 decoration-black/20"
+                          : "text-black"
+                      }`}
+                    >
+                      {tier.growthPrice}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+});
+
+const ApplicationForm = ({ isOpen, onClose, selectedPackage }) => {
+  const [step, setStep] = useState(1);
+  const [formStep, setFormStep] = useState(null);
+  const [formData, setFormData] = useState({
+    name: "",
+    email: "",
+    company: "",
+    monthlyBudget: "",
+    startTimeline: "",
+    currentStatus: "",
+  });
+  const [errors, setErrors] = useState({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [spotsLeft] = useState(() => {
+    const today = new Date().getDate();
+    return Math.max(1, 3 - (today % 3));
+  });
+  const [timeLeft, setTimeLeft] = useState("");
+
+  // Lock body scroll when form is open to prevent background processing and interaction conflicts
+  useEffect(() => {
+    if (isOpen) {
+      document.body.classList.add("modal-open");
+    } else {
+      document.body.classList.remove("modal-open");
+    }
+    return () => document.body.classList.remove("modal-open");
+  }, [isOpen]);
+
+  useEffect(() => {
+    const endOfMonth = new Date();
+    endOfMonth.setMonth(endOfMonth.getMonth() + 1);
+    endOfMonth.setDate(0);
+    endOfMonth.setHours(23, 59, 59);
+
+    const updateTime = () => {
+      const now = new Date();
+      const diff = endOfMonth - now;
+      const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+      setTimeLeft(`${days} days left`);
+    };
+
+    updateTime();
+    const timer = setInterval(updateTime, 1000 * 60 * 60);
+
+    return () => clearInterval(timer);
+  }, []);
+
+  const validateEmail = (email) => {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!validateEmail(formData.email)) {
+      setErrors({ ...errors, email: "Please enter a valid email" });
+      return;
+    }
+
+    setIsSubmitting(true);
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+    setIsSubmitting(false);
+    setStep(2);
+  };
+
+  const handleClose = () => {
+    setStep(1);
+    setFormStep(null);
+    setErrors({});
+    setFormData({
+      name: "",
+      email: "",
+      company: "",
+      monthlyBudget: "",
+      startTimeline: "",
+      currentStatus: "",
+    });
+    onClose();
+  };
+
+  if (!isOpen) return null;
+
+  if (formStep === "quiz") {
+    return (
+      <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md">
+        <div className="relative w-full max-w-lg bg-white border-[2px] border-black/80 rounded-2xl shadow-[4px_4px_16px_rgba(0,0,0,0.12)] p-8 animate-fadeIn">
+          <button
+            onClick={() => setFormStep(null)}
+            className="absolute top-4 right-4 text-black/60 hover:text-[#39FF14] transition-colors"
+          >
+            <X size={24} />
+          </button>
+
+          <h3 className="font-header text-2xl uppercase text-black/90 mb-6 text-center">
+            Which describes you best?
+          </h3>
+          <div className="space-y-4">
+            {[
+              "Pre-launch / Building MVP",
+              "Launched / Early traction",
+              "Scaling / Growth Stage",
+            ].map((status) => (
+              <button
+                key={status}
+                onClick={() => {
+                  setFormData({ ...formData, currentStatus: status });
+                  setFormStep(null);
+                }}
+                className="w-full text-left p-4 border border-black/10 rounded-xl hover:border-black/80 hover:bg-[#39FF14] hover:shadow-md font-bold transition-all duration-200 text-sm uppercase text-black/80"
+              >
+                {status}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md">
+      <div className="relative w-full max-w-2xl bg-white border border-black/80 rounded-3xl shadow-[0_20px_40px_rgba(0,0,0,0.2)] max-h-[90vh] overflow-y-auto custom-scrollbar animate-fadeIn">
+        <button
+          onClick={handleClose}
+          aria-label="Close form"
+          className="absolute top-4 right-4 w-10 h-10 bg-black/5 border border-transparent hover:border-black/10 text-black/60 rounded-full flex items-center justify-center hover:bg-[#39FF14] hover:text-black transition-all duration-200 z-10"
+        >
+          <X size={20} strokeWidth={2.5} />
+        </button>
+
+        {step === 1 ? (
+          <div className="p-6 md:p-12">
+            <div className="mb-6">
+              <div className="flex items-center justify-between mb-4">
+                <div className="inline-block bg-[#39FF14] px-4 py-1 text-[10px] font-black uppercase tracking-widest rounded-full border border-black/5">
+                  Step 1 of 2
+                </div>
+              </div>
+
+              <div className="w-full h-2 bg-black/5 rounded-full mb-6 overflow-hidden">
+                <div
+                  className="h-full bg-[#39FF14] rounded-full transition-all duration-300 ease-out"
+                  style={{ width: step === 1 ? "50%" : "100%" }}
+                />
+              </div>
+
+              <h2 className="font-header text-3xl md:text-4xl uppercase text-black/90 mb-3">
+                Get My Custom Roadmap →
+              </h2>
+              <p className="text-black/60 font-medium mb-2">
+                We need a few details to personalize your strategy call. Takes
+                60 seconds.
+              </p>
+
+              {!formData.currentStatus && (
+                <button
+                  onClick={() => setFormStep("quiz")}
+                  className="mt-2 text-xs font-black underline decoration-2 decoration-[#39FF14] hover:text-[#39FF14] transition-colors uppercase tracking-wider"
+                >
+                  Not sure? Take the 1-click quiz
+                </button>
+              )}
+            </div>
+
+            <div className="bg-[#39FF14]/10 border border-[#39FF14] rounded-xl p-4 mb-6">
+              <div className="flex items-center gap-3">
+                <div className="w-2 h-2 bg-[#39FF14] rounded-full animate-pulse shadow-[0_0_8px_#39FF14]"></div>
+                <p className="text-xs font-black uppercase tracking-wider text-black/80">
+                  Only {spotsLeft} spots left • {timeLeft} until reset
+                </p>
+              </div>
+            </div>
+
+            <form onSubmit={handleSubmit} className="space-y-6">
+              <div>
+                <label className="block text-sm font-semibold text-black/80 mb-2">
+                  Your Name *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={formData.name}
+                  onChange={(e) =>
+                    setFormData({ ...formData, name: e.target.value })
+                  }
+                  className="w-full px-4 py-3 border border-black/20 rounded-xl focus:border-[#39FF14] focus:outline-none focus:ring-4 focus:ring-[#39FF14]/20 font-medium text-black transition-all duration-200"
+                  placeholder="John Doe"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-black/80 mb-2">
+                  Email *
+                </label>
+                <input
+                  type="email"
+                  required
+                  value={formData.email}
+                  onChange={(e) =>
+                    setFormData({ ...formData, email: e.target.value })
+                  }
+                  onBlur={(e) => {
+                    if (!validateEmail(e.target.value)) {
+                      setErrors({
+                        ...errors,
+                        email: "Please enter a valid email",
+                      });
+                    } else {
+                      setErrors({ ...errors, email: null });
+                    }
+                  }}
+                  className={`w-full px-4 py-3 border border-black/20 rounded-xl focus:border-[#39FF14] focus:outline-none focus:ring-4 focus:ring-[#39FF14]/20 font-medium text-black transition-all duration-200 ${
+                    errors.email ? "border-red-500" : ""
+                  }`}
+                  placeholder="john@startup.com"
+                />
+                {errors.email && (
+                  <p className="text-xs text-red-500 mt-1 font-bold">
+                    {errors.email}
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-black/80 mb-2">
+                  Monthly Marketing Budget *{" "}
+                  <span className="text-black/40 font-normal ml-2 text-xs">
+                    (We work with serious founders only)
+                  </span>
+                </label>
+                <select
+                  required
+                  value={formData.monthlyBudget}
+                  onChange={(e) =>
+                    setFormData({ ...formData, monthlyBudget: e.target.value })
+                  }
+                  className="w-full px-4 py-3 border border-black/20 rounded-xl focus:border-[#39FF14] focus:outline-none focus:ring-4 focus:ring-[#39FF14]/20 font-medium text-black bg-white transition-all duration-200"
+                >
+                  <option value="">Select range...</option>
+                  <option value="under-1k">Under $1,000/mo</option>
+                  <option value="1k-2k">
+                    $1,000 - $2,000/mo ⭐ Most popular for Starter
+                  </option>
+                  <option value="2k-5k">
+                    $2,000 - $5,000/mo ⭐ Best for Growth
+                  </option>
+                  <option value="5k-plus">
+                    $5,000+/mo — Let&apos;s scale aggressively
+                  </option>
+                </select>
+              </div>
+
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="w-full px-8 py-4 bg-black text-white font-black text-sm uppercase rounded-xl border-2 border-transparent hover:bg-[#39FF14] hover:text-black hover:shadow-[0_4px_20px_rgba(57,255,20,0.4)] transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed pulse-cta"
+              >
+                {isSubmitting ? "Processing..." : "Continue to Booking →"}
+              </button>
+
+              <p className="text-xs text-black/40 text-center uppercase tracking-wider">
+                Next: Pick a time for your strategy call
+              </p>
+            </form>
+          </div>
+        ) : (
+          <div className="p-8 md:p-12">
+            <div className="mb-8">
+              <div className="inline-block bg-[#39FF14] px-4 py-1 text-[10px] font-black uppercase tracking-widest rounded-full mb-4">
+                Step 2 of 2
+              </div>
+              <h2 className="font-header text-3xl md:text-4xl uppercase text-black/90 mb-3">
+                You're All Set!
+              </h2>
+              <p className="text-black/60 font-medium text-base mb-6 max-w-md mx-auto">
+                We've received your info. Our team will reach out within 24
+                hours to schedule your strategy call.
+              </p>
+            </div>
+
+            <div
+              className="border border-black/5 rounded-2xl overflow-hidden bg-[#F8F9FA] flex flex-col items-center justify-center p-12"
+              style={{ minHeight: "450px" }}
+            >
+              <div className="text-center">
+                <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-sm border border-black/5">
+                  <span className="text-2xl">📅</span>
+                </div>
+                <h3 className="font-header text-2xl uppercase text-black/90 mb-3">
+                  Next Steps
+                </h3>
+
+                <div className="bg-white border border-black/5 rounded-xl p-6 text-left mb-6 max-w-md mx-auto shadow-sm">
+                  <p className="text-xs font-bold text-black/40 uppercase mb-3 tracking-wider">
+                    What Happens Next:
+                  </p>
+                  <ol className="space-y-2 text-sm text-black/80">
+                    <li className="flex gap-3">
+                      <span className="font-black text-[#39FF14] bg-black px-2 py-0.5 text-xs rounded-sm">
+                        1
+                      </span>
+                      <span>We'll email you within 24 hours</span>
+                    </li>
+                    <li className="flex gap-3">
+                      <span className="font-black text-[#39FF14] bg-black px-2 py-0.5 text-xs rounded-sm">
+                        2
+                      </span>
+                      <span>Schedule your 15-min strategy call</span>
+                    </li>
+                    <li className="flex gap-3">
+                      <span className="font-black text-[#39FF14] bg-black px-2 py-0.5 text-xs rounded-sm">
+                        3
+                      </span>
+                      <span>Get your custom roadmap + live audit</span>
+                    </li>
+                  </ol>
+                </div>
+                <div className="bg-[#39FF14]/10 border border-[#39FF14]/20 rounded-lg p-4 text-xs font-black uppercase tracking-wider text-black/80 max-w-md mx-auto">
+                  ✓ Form submitted successfully
+                </div>
+                <p className="text-xs text-black/40 mt-4">
+                  Check your email ({formData.email}) for confirmation
+                </p>
+              </div>
+            </div>
+
+            <button
+              onClick={handleClose}
+              className="mt-6 w-full px-8 py-3 bg-white text-black font-bold text-sm uppercase border border-black/10 rounded-xl hover:border-black hover:bg-black hover:text-white transition-all duration-200"
+            >
+              ← Back to Site
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// ... FullPageView and App component remain functionally similar but utilize the optimized child components ...
+// (Rest of the file structure is maintained as previously implemented, but utilizing the memoized components defined above)
+
+const FullPageView = ({ onClose, folder, onOpenForm, setActiveView }) => {
+  const [showContent, setShowContent] = useState(false);
+  const [imageLoaded, setImageLoaded] = useState({});
+  const [currentReelPage, setCurrentReelPage] = useState(0);
+  const scrollContainerRef = useRef(null);
+
+  useEffect(() => {
+    setTimeout(() => setShowContent(true), 50);
+    return () => {
+      setShowContent(false);
+    };
+  }, []);
+
+  const handleClose = () => {
+    setShowContent(false);
+    setTimeout(onClose, 300);
+  };
+
+  if (!folder) return null;
+
+  const renderContent = () => {
+    if (folder.type === "website")
+      return (
+        <div className="animate-[fadeIn_0.3s_ease-out_0.1s_forwards] opacity-0">
+          <div className="md:hidden fixed top-10 left-0 right-0 bg-white/95 backdrop-blur-md border-b border-black/5 z-50 px-4 py-2">
+            <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider">
+              <span className="text-black/40">FC Studio</span>
+              <ArrowRight size={12} className="text-black/40" />
+              <span className="text-black">{folder.name}</span>
+            </div>
+          </div>
+
+          {/* Desktop Breadcrumbs */}
+          <div className="hidden md:flex fixed top-16 left-8 z-40 bg-white/80 backdrop-blur-sm px-3 py-1.5 rounded-lg border border-black/5 shadow-sm items-center gap-2 text-xs font-medium">
+            <button
+              onClick={onClose}
+              className="hover:bg-black/5 p-1 rounded transition-colors"
+            >
+              <Home size={14} className="text-black/60" />
+            </button>
+            <span className="text-black/20">/</span>
+            <span className="text-black font-bold uppercase tracking-wide">
+              {folder.name}
+            </span>
+          </div>
+
+          <div className="p-8 md:p-12 border-b border-black/5 bg-white mt-8 md:mt-0 pt-20 md:pt-12">
+            <span className="inline-block px-4 py-2 mb-6 text-[11px] font-black uppercase tracking-[0.15em] text-black border border-black/10 rounded-full bg-[#39FF14]/10">
+              ⚡ Ships in 18 Days
+            </span>
+            <h2 className="font-header text-4xl md:text-6xl uppercase leading-[0.9] tracking-tighter text-black/95 max-w-[900px] mb-6">
+              Conversion-First Sites{" "}
+              <span className="text-black bg-[#39FF14] px-2 rounded-sm">
+                Built on 1,500+
+              </span>{" "}
+              Founder Insights
+            </h2>
+            <p className="text-xl font-medium text-black/60 leading-relaxed max-w-[700px] mb-4">
+              We analyzed what works. You get the playbook. 2-3 week delivery.
+              Zero templates.
+            </p>
+            <div className="inline-flex items-center gap-2 bg-black text-[#39FF14] px-4 py-2 text-sm font-black uppercase tracking-wider rounded-lg shadow-md">
+              <span className="text-xl">✓</span> 18 Days Avg Delivery
+            </div>
+          </div>
+
+          <div className="px-8 md:px-16 py-20 bg-[#F8F9FA]">
+            <h3 className="font-header text-3xl uppercase text-black/90 mb-10 border-b border-black/10 inline-block pb-2">
+              Our Work
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              {WEBSITE_PROJECTS.map((project) => (
+                <div
+                  key={project.id}
+                  onClick={() => window.open(project.url, "_blank")}
+                  className="group relative aspect-video bg-white border border-black/10 rounded-2xl hover:border-[#39FF14] transition-all duration-300 cursor-pointer overflow-hidden shadow-[4px_4px_16px_rgba(0,0,0,0.08)] hover:shadow-[6px_6px_20px_rgba(0,0,0,0.12)] hover:scale-[1.01]"
+                >
+                  {!imageLoaded[project.id] && (
+                    <div className="absolute inset-0 bg-gradient-to-br from-gray-100 to-gray-200 animate-pulse">
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <div className="w-20 h-20 border-[3px] border-gray-300 rounded-lg" />
+                      </div>
+                    </div>
+                  )}
+                  <img
+                    src={project.image}
+                    alt={project.title}
+                    loading="lazy"
+                    style={{
+                      filter: imageLoaded[project.id] ? "none" : "blur(20px)",
+                      transform: imageLoaded[project.id]
+                        ? "scale(1)"
+                        : "scale(1.1)",
+                      transition:
+                        "filter 0.5s ease-out, transform 0.5s ease-out",
+                    }}
+                    className={`w-full h-full object-cover`}
+                    onLoad={() =>
+                      setImageLoaded((prev) => ({
+                        ...prev,
+                        [project.id]: true,
+                      }))
+                    }
+                  />
+                  <div className="absolute inset-0 bg-white/90 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col items-center justify-center gap-4">
+                    <ExternalLink size={32} className="text-black" />
+                    <span className="font-black text-sm uppercase text-black tracking-widest border border-black rounded-full px-6 py-3 bg-[#39FF14] shadow-lg">
+                      View Live Site
+                    </span>
+                  </div>
+                  <div className="absolute bottom-4 left-4 z-10 pointer-events-none">
+                    <span className="text-[10px] font-bold text-white bg-black/90 px-3 py-1.5 uppercase tracking-wider rounded-md backdrop-blur-md">
+                      {project.category}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="px-8 md:px-16 py-16 bg-black border-y border-black/5">
+            <div className="max-w-3xl mx-auto text-center">
+              <div className="inline-block border border-[#39FF14]/50 bg-black px-4 py-1 text-[10px] font-black uppercase tracking-widest mb-8 text-[#39FF14] rounded-full">
+                Founder Feedback
+              </div>
+              <p className="font-header text-2xl md:text-3xl text-white mb-6 leading-tight">
+                &quot;40% lift in conversion within 2 weeks of launch. The
+                design just works.&quot;
+              </p>
+              <div>
+                <p className="font-black text-white uppercase text-sm">
+                  ALEX CHEN
+                </p>
+                <p className="text-white/60 text-xs uppercase tracking-wider">
+                  Founder, FinScale
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <WhyThisWorks type="website" />
+
+          <WebsiteROICalculator onOpenForm={onOpenForm} />
+
+          <div className="px-8 md:px-16 py-20 bg-white flex flex-col items-center">
+            <h3 className="font-header text-3xl uppercase text-black/90 mb-12 text-center">
+              Investment
+            </h3>
+
+            <div className="w-full max-w-[600px] border border-black/10 bg-white p-6 md:p-12 text-center mb-10 shadow-[4px_4px_24px_rgba(0,0,0,0.08)] rounded-3xl">
+              <div className="text-xs text-black/40 line-through mb-2 font-bold tracking-wider">
+                Traditional agency: $25K - $70K
+              </div>
+              <div className="font-header text-4xl md:text-5xl lg:text-6xl text-black leading-none mb-4">
+                $8K – $25K
+              </div>
+              <div className="text-xs font-bold uppercase tracking-[0.2em] text-black/40">
+                Based on Scope & Complexity
+              </div>
+            </div>
+
+            <div className="w-full max-w-[600px]">
+              <div className="text-xs font-black uppercase text-black/40 text-center mb-8 tracking-widest">
+                What&apos;s Included:
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4 mb-12">
+                {[
+                  "Full Webflow Build",
+                  "Conversion Architecture",
+                  "Mobile Responsive",
+                  "CMS Setup",
+                  "SEO Foundation",
+                  "Speed Optimization",
+                ].map((item) => (
+                  <div key={item} className="flex items-center gap-3">
+                    <span className="text-black bg-[#39FF14] border border-black/10 px-1 text-sm font-black rounded-sm">
+                      ✓
+                    </span>
+                    <span className="font-bold text-black text-sm uppercase">
+                      {item}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <FAQ type="website" />
+
+            <button
+              onClick={() => onOpenForm && onOpenForm("website")}
+              className="px-12 py-5 bg-black text-white font-header text-lg uppercase border-2 border-transparent rounded-xl hover:bg-[#39FF14] hover:text-black hover:shadow-[0_8px_30px_rgba(57,255,20,0.3)] transition-all duration-300 cursor-pointer tracking-tight pulse-cta"
+            >
+              BUILD A WEBSITE THAT GROWS →
+            </button>
+          </div>
+        </div>
+      );
+
+    if (folder.type === "reel") {
+      const REELS_PER_PAGE = 8;
+      const totalPages = Math.ceil(REEL_PROJECTS.length / REELS_PER_PAGE);
+      const currentReels = REEL_PROJECTS.slice(
+        currentReelPage * REELS_PER_PAGE,
+        (currentReelPage + 1) * REELS_PER_PAGE
+      );
+
+      const nextPage = () =>
+        setCurrentReelPage((prev) => Math.min(prev + 1, totalPages - 1));
+      const prevPage = () =>
+        setCurrentReelPage((prev) => Math.max(prev - 1, 0));
+
+      return (
+        <div className="animate-[fadeIn_0.3s_ease-out_0.1s_forwards] opacity-0">
+          <div className="p-8 md:p-12 border-b border-black/5 bg-white">
+            <span className="inline-block px-4 py-2 mb-6 text-[11px] font-black uppercase tracking-[0.15em] text-black border border-black/10 rounded-full bg-[#39FF14]/10">
+              📈 4.2x More Trust
+            </span>
+            <h2 className="font-header text-4xl md:text-6xl uppercase leading-[0.9] tracking-tighter text-black max-w-[900px] mb-6">
+              Create{" "}
+              <span className="text-black bg-[#39FF14] px-2 rounded-sm">
+                1 month
+              </span>{" "}
+              of content in just 2 hours
+            </h2>
+            <p className="text-xl font-medium text-black/60 leading-relaxed max-w-[700px] mb-4">
+              Monthly production + strategy. Turn founder expertise into
+              trust-building content. No more scrambling for posts.
+            </p>
+            <div className="inline-flex items-center gap-2 bg-black text-[#39FF14] px-4 py-2 text-sm font-black uppercase tracking-wider rounded-lg shadow-md">
+              <span className="text-xl">✓</span> Founder faces build trust 4.2X
+              more than brand accounts
+            </div>
+          </div>
+
+          <div className="px-8 md:px-16 py-20 bg-[#F8F9FA]">
+            <div className="flex justify-between items-center mb-10 border-b border-black/10 pb-2">
+              <h3 className="font-header text-3xl uppercase text-black/90">
+                Our Reels
+              </h3>
+              {totalPages > 1 && (
+                <div className="flex gap-2">
+                  <button
+                    onClick={prevPage}
+                    disabled={currentReelPage === 0}
+                    className="p-2 border border-black/10 bg-white rounded-lg disabled:opacity-30 hover:border-black/50 hover:bg-[#39FF14] transition-colors"
+                  >
+                    <ChevronLeft size={20} />
+                  </button>
+                  <button
+                    onClick={nextPage}
+                    disabled={currentReelPage === totalPages - 1}
+                    className="p-2 border border-black/10 bg-white rounded-lg disabled:opacity-30 hover:border-black/50 hover:bg-[#39FF14] transition-colors"
+                  >
+                    <ChevronRight size={20} />
+                  </button>
+                </div>
+              )}
+            </div>
+
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
+              {currentReels.map((reel) => (
+                <div
+                  key={reel.id}
+                  className="scale-95 hover:scale-100 transition-transform duration-300"
+                >
+                  <ReelCard reel={reel} />
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="px-8 md:px-16 py-16 bg-black border-y border-black/5">
+            <div className="max-w-3xl mx-auto text-center">
+              <div className="inline-block border border-[#39FF14]/50 bg-black px-4 py-1 text-[10px] font-black uppercase tracking-widest mb-8 text-[#39FF14] rounded-full">
+                Founder Feedback
+              </div>
+              <p className="font-header text-2xl md:text-3xl text-white mb-6 leading-tight">
+                &quot;17 warm investor intros in 6 weeks vs 3 in previous 6
+                months.&quot;
+              </p>
+              <div>
+                <p className="font-black text-white uppercase text-sm">
+                  PRIYA SHARMA
+                </p>
+                <p className="text-white/60 text-xs uppercase tracking-wider">
+                  CEO, DataFlow
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <WhyThisWorks type="reel" />
+
+          <div className="px-8 md:px-16 py-20 bg-[#F8F9FA] border-t border-black/5">
+            <h3 className="font-header text-3xl uppercase text-black mb-4 text-center">
+              Choose Your Package
+            </h3>
+            <p className="text-center text-black/60 mb-8 max-w-2xl mx-auto font-medium">
+              Monthly retainer. Cancel anytime. No long-term contracts.
+            </p>
+
+            <TieredPricingBanner />
+
+            <div className="grid md:grid-cols-2 gap-8 max-w-5xl mx-auto mb-12">
+              {/* STARTER PACKAGE */}
+              <div className="relative border border-black/10 bg-white p-8 shadow-[4px_4px_16px_rgba(0,0,0,0.08)] hover:shadow-[6px_6px_24px_rgba(0,0,0,0.12)] rounded-2xl hover:-translate-y-1 transition-all duration-300">
+                <div className="text-center mb-6 pb-6 border-b border-black/5">
+                  <div className="inline-block bg-black text-white px-3 py-1 text-[10px] font-black uppercase tracking-widest mb-4 rounded-full">
+                    Starter
+                  </div>
+                  <div className="font-header text-5xl text-black mb-2">
+                    $1,200
+                  </div>
+                  <div className="text-black/40 text-sm uppercase tracking-wider font-bold">
+                    /month
+                  </div>
+                </div>
+
+                <div className="mb-6 pb-6 border-b border-black/5">
+                  <div className="font-header text-3xl text-black mb-4">
+                    10 Reels
+                  </div>
+                  <div className="text-xs text-black/60 uppercase tracking-wider font-bold mb-4">
+                    Per Month (~2.5/week)
+                  </div>
+
+                  <div className="space-y-3">
+                    {[
+                      "Pro editing + motion graphics",
+                      "Platform-optimized exports",
+                      "Captions & hooks included",
+                      "Content strategy",
+                      "Monthly analytics review",
+                      "Raw footage access",
+                    ].map((item, idx) => (
+                      <div key={idx} className="flex items-start gap-3">
+                        <div className="w-5 h-5 bg-[#39FF14] border border-black/10 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                          <Check
+                            size={14}
+                            className="text-black"
+                            strokeWidth={3}
+                          />
+                        </div>
+                        <span className="text-sm font-medium text-black">
+                          {item}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => onOpenForm && onOpenForm("starter")}
+                  className="w-full px-6 py-4 bg-white text-black font-black text-sm uppercase border border-black/10 rounded-xl hover:bg-[#39FF14] hover:text-black hover:border-transparent transition-all duration-200 shadow-sm"
+                >
+                  Start getting leads →
+                </button>
+              </div>
+
+              {/* GROWTH PACKAGE (RECOMMENDED) */}
+              <div className="relative border-2 border-[#39FF14] bg-white p-8 shadow-[4px_4px_24px_rgba(57,255,20,0.15)] hover:shadow-[6px_6px_30px_rgba(57,255,20,0.25)] rounded-2xl hover:-translate-y-1 transition-all duration-300">
+                {/* Popular Badge */}
+                <div className="absolute -top-4 -right-4 bg-black text-[#39FF14] px-4 py-2 text-xs font-black uppercase tracking-wider rotate-6 rounded-lg shadow-lg border border-[#39FF14]/50">
+                  Save 15%
+                </div>
+
+                <div className="text-center mb-6 pb-6 border-b border-black/5">
+                  <div className="inline-block bg-black text-[#39FF14] px-3 py-1 text-[10px] font-black uppercase tracking-widest mb-4 rounded-full">
+                    Growth
+                  </div>
+                  <div className="font-header text-5xl text-black mb-2">
+                    $2,300
+                  </div>
+                  <div className="text-black/40 text-sm uppercase tracking-wider font-bold">
+                    /month
+                  </div>
+                </div>
+
+                <div className="mb-6 pb-6 border-b border-black/5">
+                  <div className="font-header text-3xl text-black mb-4">
+                    22 Reels
+                  </div>
+                  <div className="text-xs text-black/60 uppercase tracking-wider font-bold mb-4">
+                    Per Month (~5.5/week)
+                  </div>
+
+                  <div className="space-y-3">
+                    {[
+                      "Everything in Starter, plus:",
+                      "2x weekly output (daily posting)",
+                      "Priority editing queue",
+                      "Dedicated strategist",
+                      "Bi-weekly strategy calls",
+                      "Advanced motion graphics",
+                    ].map((item, idx) => (
+                      <div key={idx} className="flex items-start gap-3">
+                        <div className="w-5 h-5 bg-[#39FF14] border border-black/10 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                          <Check
+                            size={14}
+                            className="text-black"
+                            strokeWidth={3}
+                          />
+                        </div>
+                        <span
+                          className={`text-sm ${
+                            idx === 0 ? "font-bold" : "font-medium"
+                          } text-black`}
+                        >
+                          {item}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => onOpenForm && onOpenForm("growth")}
+                  className="w-full px-6 py-4 bg-white text-black font-black text-sm uppercase border border-black/10 rounded-xl hover:bg-[#39FF14] hover:text-black hover:border-transparent transition-all duration-200 shadow-sm pulse-cta"
+                >
+                  Double your outcome →
+                </button>
+              </div>
+            </div>
+
+            <FAQ type="reel" />
+
+            <div className="text-center">
+              <div className="inline-block border border-black/10 px-6 py-3 bg-white text-black/60 text-xs font-bold uppercase tracking-wider rounded-full shadow-sm">
+                ⚡ Cancel Anytime • No Long-Term Commitment
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className="animate-[fadeIn_0.3s_ease-out_0.1s_forwards] opacity-0">
+        <div className="p-8 md:p-16 border-b border-black/5 bg-white flex flex-col md:flex-row items-center gap-12 mt-8 md:mt-0 pt-20 md:pt-16">
+          <div className="flex-1">
+            <span className="inline-block px-4 py-2 mb-6 text-[11px] font-black uppercase tracking-[0.15em] text-black border border-black/10 rounded-full bg-[#39FF14]/10">
+              About The Studio
+            </span>
+            <h2 className="font-header text-4xl md:text-6xl uppercase leading-[0.9] tracking-tighter text-black/95 mb-6">
+              We're Not Your <br />
+              <span className="text-white bg-black px-2 rounded-sm">
+                Typical Agency
+              </span>
+            </h2>
+            <p className="text-lg font-medium text-black/60 leading-relaxed max-w-[500px]">
+              We got tired of agencies over-promising and under-delivering. So
+              we built the studio we wished existed when we were founders.
+            </p>
+          </div>
+
+          <div className="w-full md:w-auto min-w-[300px] border border-black/10 bg-[#F8F9FA] p-6 shadow-[4px_4px_16px_rgba(0,0,0,0.08)] rounded-2xl rotate-2 hover:rotate-0 transition-transform duration-300">
+            <div className="font-header text-xl uppercase mb-4 border-b-2 border-black/5 pb-2">
+              Quick Stats
+            </div>
+            <div className="space-y-3">
+              <div className="flex justify-between items-center">
+                <span className="text-sm font-bold uppercase">Projects</span>
+                <span className="text-sm font-mono bg-black text-white px-2 rounded-sm">
+                  200+
+                </span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-sm font-bold uppercase">Raised</span>
+                <span className="text-sm font-mono bg-black text-[#39FF14] px-2 rounded-sm">
+                  $110M+
+                </span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-sm font-bold uppercase">Views</span>
+                <span className="text-sm font-mono bg-black text-white px-2 rounded-sm">
+                  50M+
+                </span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-sm font-bold uppercase">Avg Lift</span>
+                <span className="text-sm font-mono bg-black text-[#39FF14] px-2 rounded-sm">
+                  2.8x
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="px-8 md:px-16 py-20 bg-[#F8F9FA]">
+          <h3 className="font-header text-3xl uppercase text-black/90 mb-12 text-center">
+            The Reality Check
+          </h3>
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="p-8 bg-white border border-black/10 rounded-2xl shadow-[0_4px_12px_rgba(0,0,0,0.05)] hover:shadow-lg transition-all duration-300">
+              <h4 className="font-header text-xl uppercase mb-6 text-black/40">
+                Boring Agencies
+              </h4>
+              <ul className="space-y-4 mb-8">
+                <li className="flex items-start gap-3">
+                  <X size={18} className="text-red-500 mt-0.5 flex-shrink-0" />
+                  <span className="text-sm font-medium text-black/60">
+                    Generic templates
+                  </span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <X size={18} className="text-red-500 mt-0.5 flex-shrink-0" />
+                  <span className="text-sm font-medium text-black/60">
+                    Account managers (middlemen)
+                  </span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <X size={18} className="text-red-500 mt-0.5 flex-shrink-0" />
+                  <span className="text-sm font-medium text-black/60">
+                    6-8 week timelines
+                  </span>
+                </li>
+              </ul>
+              <div className="bg-black/5 p-3 text-center rounded-lg">
+                <span className="text-pink-500 font-bold uppercase text-xs tracking-wider">
+                  Slow & Bloated
+                </span>
+              </div>
+            </div>
+
+            <div className="p-8 bg-white border border-black/10 rounded-2xl shadow-[0_4px_12px_rgba(0,0,0,0.05)] hover:shadow-lg transition-all duration-300">
+              <h4 className="font-header text-xl uppercase mb-6 text-black/40">
+                Freelancer Chaos
+              </h4>
+              <ul className="space-y-4 mb-8">
+                <li className="flex items-start gap-3">
+                  <X size={18} className="text-red-500 mt-0.5 flex-shrink-0" />
+                  <span className="text-sm font-medium text-black/60">
+                    Unreliable communication
+                  </span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <X size={18} className="text-red-500 mt-0.5 flex-shrink-0" />
+                  <span className="text-sm font-medium text-black/60">
+                    Inconsistent quality
+                  </span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <X size={18} className="text-red-500 mt-0.5 flex-shrink-0" />
+                  <span className="text-sm font-medium text-black/60">
+                    Zero strategy input
+                  </span>
+                </li>
+              </ul>
+              <div className="bg-black/5 p-3 text-center rounded-lg">
+                <span className="text-pink-500 font-bold uppercase text-xs tracking-wider">
+                  High Risk
+                </span>
+              </div>
+            </div>
+
+            <div className="p-8 bg-[#39FF14]/5 border-2 border-[#39FF14]/30 rounded-2xl shadow-[0_8px_24px_rgba(57,255,20,0.15)] hover:shadow-[0_12px_32px_rgba(57,255,20,0.2)] transition-all duration-300 relative overflow-hidden">
+              <div className="absolute top-0 right-0 bg-[#39FF14] text-black px-4 py-1 text-[10px] font-black uppercase rounded-bl-xl shadow-sm">
+                That's Us
+              </div>
+              <h4 className="font-header text-xl uppercase mb-6 text-black">
+                FC Studio
+              </h4>
+              <ul className="space-y-4 mb-8">
+                <li className="flex items-start gap-3">
+                  <Check
+                    size={18}
+                    className="text-black mt-0.5 flex-shrink-0"
+                    strokeWidth={3}
+                  />
+                  <span className="text-sm font-bold text-black">
+                    Data-backed design & content
+                  </span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <Check
+                    size={18}
+                    className="text-black mt-0.5 flex-shrink-0"
+                    strokeWidth={3}
+                  />
+                  <span className="text-sm font-bold text-black">
+                    Direct access to builders
+                  </span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <Check
+                    size={18}
+                    className="text-black mt-0.5 flex-shrink-0"
+                    strokeWidth={3}
+                  />
+                  <span className="text-sm font-bold text-black">
+                    Rapid delivery (Sites + Reels)
+                  </span>
+                </li>
+              </ul>
+              <div className="bg-black p-3 text-center rounded-lg shadow-sm">
+                <span className="text-[#39FF14] font-black uppercase text-xs tracking-wider">
+                  Growth Partner
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="px-8 md:px-16 py-12 bg-white border-y border-black/5">
+          <div className="text-center mb-8">
+            <p className="text-xs text-black/40 uppercase tracking-widest font-bold mb-6">
+              Trusted By Founders At
+            </p>
+          </div>
+          <div className="flex flex-wrap justify-center items-center gap-12 opacity-50 grayscale hover:grayscale-0 transition-all duration-500">
+            <div className="px-4 py-2 border border-black/10 rounded-lg font-black text-lg tracking-tighter">
+              ZENITH
+            </div>
+            <div className="px-4 py-2 border border-black/10 rounded-lg font-black text-lg tracking-tighter">
+              PULSE.IO
+            </div>
+            <div className="px-4 py-2 border border-black/10 rounded-lg font-black text-lg tracking-tighter">
+              VERTEX
+            </div>
+            <div className="px-4 py-2 border border-black/10 rounded-lg font-black text-lg tracking-tighter">
+              AXON.AI
+            </div>
+          </div>
+        </div>
+
+        <div className="px-8 md:px-16 py-16 bg-black text-center border-b border-black/5">
+          <div className="max-w-3xl mx-auto">
+            <span className="inline-block px-3 py-1 mb-6 text-[10px] font-black uppercase tracking-[0.15em] text-black border-2 border-[#39FF14] rounded-full bg-[#39FF14]">
+              Client Track Record
+            </span>
+            <StatsCounter end={110} suffix="M+" />
+            <h3 className="font-header text-3xl md:text-4xl uppercase text-white mb-6 leading-none">
+              Raised by Our Clients
+            </h3>
+            <p className="text-lg text-white/70 leading-relaxed">
+              This isn't just a vanity metric. It represents the collective
+              funding secured by founders after partnering with us to refine
+              their positioning, design, and content strategy. We build assets
+              that investors trust.
+            </p>
+          </div>
+        </div>
+
+        <div className="px-8 md:px-16 py-20 bg-white flex flex-col items-center text-center">
+          <div className="max-w-2xl mb-12">
+            <h3 className="font-header text-3xl uppercase text-black/90 mb-6">
+              Built By Founders, For Founders
+            </h3>
+            <p className="text-lg text-black/70 leading-relaxed">
+              We started FC Studio because we were tired of seeing great
+              products fail due to poor positioning and boring content. We don't
+              just "make things pretty" — we engineer assets that drive revenue.
+            </p>
+          </div>
+
+          <div className="flex flex-col sm:flex-row gap-4 w-full justify-center max-w-md">
+            <button
+              onClick={() => setActiveView("websites")}
+              className="flex-1 px-6 py-4 bg-white text-black font-black text-sm uppercase border border-black/10 rounded-xl hover:bg-black hover:text-white hover:border-black transition-all duration-300 shadow-sm"
+            >
+              See Websites
+            </button>
+            <button
+              onClick={() => setActiveView("reels")}
+              className="flex-1 px-6 py-4 bg-transparent text-black font-black text-sm uppercase border border-black/10 rounded-xl hover:bg-black hover:text-[#39FF14] hover:border-black transition-all duration-300 shadow-sm"
+            >
+              See Reels
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <div
+      className={`fixed inset-0 z-[50] flex items-center justify-center bg-white/50 backdrop-blur-sm transition-transform duration-300 ease-out ${
+        showContent ? "translate-x-0" : "translate-x-full"
+      }`}
+    >
+      <div className="relative w-full h-full bg-white flex flex-col shadow-2xl">
+        <button
+          onClick={handleClose}
+          aria-label="Close modal"
+          className="fixed top-4 right-4 z-[60] w-10 h-10 bg-black/5 border border-transparent hover:border-black/10 text-black/60 rounded-full flex items-center justify-center hover:bg-[#39FF14] hover:text-black transition-all duration-200 group shadow-sm"
+        >
+          <X size={20} strokeWidth={2.5} />
+        </button>
+
+        <div
+          className="flex-1 overflow-y-auto custom-scrollbar bg-white safe-area-bottom"
+          ref={scrollContainerRef}
+        >
+          {renderContent()}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default function App() {
+  const [folders, setFolders] = useState(INITIAL_FOLDERS);
+  const [activeView, setActiveView] = useState("desktop");
+  const [formOpen, setFormOpen] = useState(false);
+  const [selectedPackage, setSelectedPackage] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [showFloatingCTA, setShowFloatingCTA] = useState(false);
+  const [scrollProgress, setScrollProgress] = useState(0);
+
+  const [draggingId, setDraggingId] = useState(null);
+  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+  const [isMobile, setIsMobile] = useState(false);
+  const [hasDragged, setHasDragged] = useState(false);
+  const dragStartPos = useRef({ x: 0, y: 0 });
+
+  useEffect(() => {
+    setTimeout(() => setIsLoading(false), 800);
+
+    try {
+      const savedPositions = localStorage.getItem(
+        "desktop-folder-positions-brutalist-v3"
+      );
+      if (savedPositions) {
+        const parsed = JSON.parse(savedPositions);
+        setFolders((prev) =>
+          prev.map((f) => {
+            const saved = parsed.find((p) => p.id === f.id);
+            if (saved && window.innerWidth > 1024) {
+              const constrainedLeft = Math.min(
+                saved.left,
+                window.innerWidth - 180
+              );
+              const constrainedTop = Math.min(
+                saved.top,
+                window.innerHeight - 200
+              );
+              return {
+                ...f,
+                initialPosition: {
+                  top: Math.max(40, constrainedTop),
+                  left: Math.max(0, constrainedLeft),
+                },
+              };
+            }
+            return f;
+          })
+        );
+      }
+    } catch (e) {
+      // Failed to load positions
+    }
+
+    const checkMobile = () => setIsMobile(window.innerWidth < 1024);
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+
+    const handleScroll = () => {
+      setShowFloatingCTA(window.scrollY > 500);
+      const scrolled = window.scrollY;
+      const total = document.documentElement.scrollHeight - window.innerHeight;
+      if (total > 0) {
+        setScrollProgress((scrolled / total) * 100);
+      }
+    };
+    window.addEventListener("scroll", handleScroll);
+
+    return () => {
+      window.removeEventListener("resize", checkMobile);
+      window.removeEventListener("scroll", handleScroll);
+    };
+  }, []);
+
+  useEffect(() => {
+    const handleKeyPress = (e) => {
+      if (e.key === "Escape" && activeView !== "desktop") {
+        setActiveView("desktop");
+      }
+      if (e.key === "Escape" && formOpen) {
+        setFormOpen(false);
+        setSelectedPackage(null);
+      }
+    };
+    window.addEventListener("keydown", handleKeyPress);
+    return () => window.removeEventListener("keydown", handleKeyPress);
+  }, [activeView, formOpen]);
+
+  const savePositions = (updatedFolders) => {
+    try {
+      const positions = updatedFolders.map((f) => ({
+        id: f.id,
+        top: f.initialPosition.top,
+        left: f.initialPosition.left,
+      }));
+      localStorage.setItem(
+        "desktop-folder-positions-brutalist-v3",
+        JSON.stringify(positions)
+      );
+    } catch (e) {
+      // Ignore errors in sandbox
+    }
+  };
+
+  const handleDragStart = (e, id) => {
+    if (isMobile) return;
+    const folder = folders.find((f) => f.id === id);
+    if (!folder) return;
+    const clientX = e.type.includes("mouse") ? e.clientX : e.touches[0].clientX;
+    const clientY = e.type.includes("mouse") ? e.clientY : e.touches[0].clientY;
+    const offsetX = clientX - folder.initialPosition.left;
+    const offsetY = clientY - folder.initialPosition.top;
+    setDraggingId(id);
+    setDragOffset({ x: offsetX, y: offsetY });
+    setHasDragged(false);
+    dragStartPos.current = { x: clientX, y: clientY };
+  };
+
+  useEffect(() => {
+    const handleDragMove = (e) => {
+      if (!draggingId) return;
+      const clientX = e.type.includes("mouse")
+        ? e.clientX
+        : e.touches[0].clientX;
+      const clientY = e.type.includes("mouse")
+        ? e.clientY
+        : e.touches[0].clientY;
+
+      const deltaX = Math.abs(clientX - dragStartPos.current.x);
+      const deltaY = Math.abs(clientY - dragStartPos.current.y);
+      if (deltaX > 5 || deltaY > 5) {
+        setHasDragged(true);
+      }
+
+      const newLeft = clientX - dragOffset.x;
+      const newTop = clientY - dragOffset.y;
+      const maxLeft = window.innerWidth - 160;
+      const maxTop = window.innerHeight - 160;
+      const constrainedLeft = Math.max(0, Math.min(newLeft, maxLeft));
+      const constrainedTop = Math.max(40, Math.min(newTop, maxTop));
+      setFolders((prev) =>
+        prev.map((f) => {
+          if (f.id === draggingId) {
+            return {
+              ...f,
+              initialPosition: { top: constrainedTop, left: constrainedLeft },
+            };
+          }
+          return f;
+        })
+      );
+    };
+
+    const handleDragEnd = () => {
+      if (draggingId) {
+        savePositions(folders);
+        setDraggingId(null);
+      }
+    };
+
+    if (draggingId) {
+      window.addEventListener("mousemove", handleDragMove);
+      window.addEventListener("mouseup", handleDragEnd);
+      window.addEventListener("touchmove", handleDragMove, { passive: false });
+      window.addEventListener("touchend", handleDragEnd);
+    }
+
+    return () => {
+      window.removeEventListener("mousemove", handleDragMove);
+      window.removeEventListener("mouseup", handleDragEnd);
+      window.removeEventListener("touchmove", handleDragMove);
+      window.removeEventListener("touchend", handleDragEnd);
+    };
+  }, [draggingId, dragOffset, folders]);
+
+  const handleFolderClick = (id) => {
+    if (!hasDragged) {
+      setActiveView(id);
+    }
+    setHasDragged(false);
+  };
+
+  const handleOpenForm = (packageType) => {
+    setSelectedPackage(packageType);
+    setFormOpen(true);
+  };
+
+  const openFolder = (id) => setActiveView(id);
+
+  if (isLoading) {
+    return (
+      <div className="w-screen h-screen flex items-center justify-center bg-white">
+        <GlobalStyles />
+        <div className="text-center">
+          <div className="relative mx-auto mb-6">
+            <div className="w-20 h-20 border-[4px] border-black/10 border-t-[#39FF14] rounded-full animate-spin"></div>
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="w-12 h-12 border-[3px] border-[#39FF14] rounded-full opacity-30"></div>
+            </div>
+          </div>
+
+          <p className="font-mono text-xs uppercase tracking-[0.2em] text-black/40 animate-pulse mb-4">
+            Initializing FC Studio...
+          </p>
+
+          <div className="flex gap-1.5 justify-center">
+            <div
+              className="w-2 h-2 bg-[#39FF14] rounded-full animate-bounce"
+              style={{ animationDelay: "0s" }}
+            ></div>
+            <div
+              className="w-2 h-2 bg-[#39FF14] rounded-full animate-bounce"
+              style={{ animationDelay: "0.1s" }}
+            ></div>
+            <div
+              className="w-2 h-2 bg-[#39FF14] rounded-full animate-bounce"
+              style={{ animationDelay: "0.2s" }}
+            ></div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const websitesFolder = folders.find((f) => f.id === "websites");
+  const reelsFolder = folders.find((f) => f.id === "reels");
+  const aboutFolder = folders.find((f) => f.id === "about");
+
+  return (
+    <div className="relative w-screen h-screen overflow-hidden bg-white grid-bg">
+      <GlobalStyles />
+
+      <TopBar />
+
+      <div
+        className="fixed top-10 left-0 h-[3px] bg-[#39FF14] z-50 transition-all duration-100"
+        style={{ width: `${scrollProgress}%` }}
+      />
+
+      {activeView === "desktop" && (
+        <>
+          <div className="relative w-full h-full pt-10">
+            <div className="absolute top-1/2 left-6 md:left-12 lg:left-24 xl:left-32 -translate-y-1/2 max-w-[90vw] md:max-w-[500px] lg:max-w-[600px] pointer-events-none select-none z-0 pr-4">
+              {/* HEADLINE ROW 1 */}
+              <h1 className="font-display text-xl sm:text-3xl md:text-5xl lg:text-6xl xl:text-7xl font-black uppercase tracking-tighter leading-[0.9] text-black/95 animate-slide-up whitespace-nowrap">
+                Websites + Reels
+              </h1>
+
+              {/* HEADLINE ROW 2 */}
+              <h1
+                className="font-display text-xl sm:text-3xl md:text-5xl lg:text-6xl xl:text-7xl font-black uppercase tracking-tighter leading-[0.9] text-black/95 mt-1 md:mt-2 animate-slide-up whitespace-nowrap"
+                style={{ animationDelay: "0.1s" }}
+              >
+                That Turn Traffic
+              </h1>
+
+              {/* HEADLINE ROW 3 */}
+              <h1
+                className="font-display text-xl sm:text-3xl md:text-5xl lg:text-6xl xl:text-7xl font-black uppercase tracking-tighter leading-[0.9] text-black/95 mt-1 md:mt-2 animate-slide-up whitespace-nowrap"
+                style={{ animationDelay: "0.2s" }}
+              >
+                Into{" "}
+                <span
+                  className="text-[#39FF14]"
+                  style={{ textShadow: "1px 1px 0px #000, 2px 2px 0px #000" }}
+                >
+                  Revenue.
+                </span>
+              </h1>
+
+              <p
+                className="mt-4 md:mt-6 lg:mt-8 text-black/70 text-xs sm:text-sm md:text-base lg:text-lg font-medium leading-relaxed animate-slide-up max-w-[85vw] sm:max-w-[400px] md:max-w-[450px] lg:max-w-[550px]"
+                style={{ animationDelay: "0.3s" }}
+              >
+                We spoke to{" "}
+                <span className="font-black text-black">400+ founders</span>{" "}
+                through our{" "}
+                <a
+                  href="https://www.founderconnects.com"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="pointer-events-auto inline-flex items-center gap-1 px-1.5 py-0.5 -my-1 mx-0.5 bg-[#F0F0F0] border border-black/10 rounded-[4px] hover:bg-[#39FF14] hover:shadow-[2px_2px_8px_rgba(0,0,0,0.1)] hover:-translate-y-0.5 transition-all cursor-pointer group text-xs md:text-sm font-bold text-black no-underline"
+                  title="Open Community"
+                >
+                  <Users
+                    size={12}
+                    className="group-hover:scale-110 transition-transform"
+                  />
+                  <span>community</span>
+                  <ExternalLink
+                    size={10}
+                    className="opacity-50 group-hover:opacity-100"
+                  />
+                </a>
+                .<br />
+                We know what works.
+              </p>
+
+              <div
+                className="mt-6 flex flex-wrap items-center gap-6 animate-slide-up"
+                style={{ animationDelay: "0.4s" }}
+              >
+                <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-black/80">
+                  <div className="w-2 h-2 bg-black rounded-full shadow-[0_0_8px_rgba(0,0,0,0.3)]"></div>
+                  <span>FASTER THAN AGENCIES</span>
+                </div>
+                <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-black/80">
+                  <div className="w-2 h-2 bg-black rounded-full shadow-[0_0_8px_rgba(0,0,0,0.3)]"></div>
+                  <span>FREELANCER FLEXIBILITY WITH A TEAM</span>
+                </div>
+              </div>
+
+              <div
+                className="mt-8 flex flex-wrap gap-3 pointer-events-auto animate-slide-up"
+                style={{ animationDelay: "0.5s" }}
+              >
+                <button
+                  onClick={() => openFolder("websites")}
+                  className="group px-6 py-3 sm:px-8 sm:py-4 bg-white text-black font-black text-sm sm:text-base uppercase border-2 border-black/90 rounded-xl hover:bg-[#39FF14] hover:text-black hover:border-transparent transition-all shadow-[4px_4px_16px_rgba(0,0,0,0.12)] hover:shadow-[6px_6px_20px_rgba(0,0,0,0.15)] hover:scale-[1.02] relative overflow-hidden pulse-cta"
+                >
+                  <span className="relative z-10 flex items-center gap-2">
+                    View Websites
+                    <ArrowRight
+                      size={18}
+                      className="group-hover:translate-x-1 transition-transform"
+                      strokeWidth={2.5}
+                    />
+                  </span>
+                </button>
+                <button
+                  onClick={() => openFolder("reels")}
+                  className="group px-6 py-3 sm:px-8 sm:py-4 bg-white text-black font-black text-sm sm:text-base uppercase border-2 border-black/90 rounded-xl hover:bg-[#39FF14] hover:text-black hover:border-transparent transition-all shadow-[4px_4px_16px_rgba(0,0,0,0.12)] hover:shadow-[6px_6px_20px_rgba(0,0,0,0.15)] hover:scale-[1.02]"
+                >
+                  <span className="relative z-10 flex items-center gap-2">
+                    View Reels
+                    <ArrowRight
+                      size={18}
+                      className="group-hover:translate-x-1 transition-transform"
+                      strokeWidth={2.5}
+                    />
+                  </span>
+                </button>
+              </div>
+            </div>
+
+            <div className="absolute inset-0 z-10 pointer-events-none">
+              {isMobile ? (
+                // Use a grid for better tablet optimization (2 cols for tablets, 1 for mobile)
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 p-6 pt-[380px] w-full max-w-4xl mx-auto">
+                  {folders.map((folder) => (
+                    <div
+                      key={folder.id}
+                      className="w-full pointer-events-auto"
+                      onClick={() => setActiveView(folder.id)}
+                    >
+                      <div className="bg-white border border-black/5 p-5 flex items-center gap-4 rounded-xl shadow-[4px_4px_16px_rgba(0,0,0,0.08)] hover:shadow-[6px_6px_20px_rgba(0,0,0,0.12)] hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer">
+                        <div className="w-14 h-14 bg-gradient-to-br from-blue-400 to-blue-600 border border-blue-200/20 rounded-lg flex items-center justify-center flex-shrink-0 shadow-inner">
+                          <folder.icon
+                            size={24}
+                            className="text-white"
+                            strokeWidth={2.5}
+                          />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="text-xs font-black uppercase tracking-wider text-black/80 mb-1">
+                            {folder.badge}
+                          </div>
+                          <div className="text-[10px] font-bold text-black/60 font-mono truncate">
+                            {folder.name}
+                          </div>
+                        </div>
+                        <div className="w-10 h-10 border border-black/10 rounded-full flex items-center justify-center flex-shrink-0 bg-[#39FF14]/80 shadow-sm">
+                          <ArrowRight
+                            size={18}
+                            className="text-black"
+                            strokeWidth={2.5}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                folders.map((folder) => (
+                  <div
+                    key={folder.id}
+                    className={`${
+                      draggingId === folder.id ? "folder-drag-active" : ""
+                    }`}
+                  >
+                    <Folder
+                      folder={folder}
+                      position={folder.initialPosition}
+                      onMouseDown={handleDragStart}
+                      onClick={() => handleFolderClick(folder.id)}
+                    />
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+
+          <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-md border-t border-black/5 p-4 safe-area-bottom shadow-[0_-4px_20px_rgba(0,0,0,0.05)]">
+            <button
+              onClick={() => handleOpenForm("growth")}
+              className="w-full bg-[#39FF14] text-black font-extrabold uppercase py-4 rounded-xl border border-transparent shadow-[0_4px_12px_rgba(57,255,20,0.3)] active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+            >
+              <span>Book Free Strategy Call</span>
+              <ArrowRight size={20} strokeWidth={2.5} />
+            </button>
+            <div className="flex items-center justify-center gap-4 mt-3">
+              <p className="text-center text-[10px] text-black/40 uppercase tracking-wider">
+                2 spots left this month • 15 min call
+              </p>
+              <button
+                onClick={() => setActiveView("about")}
+                className="text-[10px] text-black/60 uppercase tracking-wider font-bold hover:text-[#39FF14] transition-colors"
+              >
+                About Us →
+              </button>
+            </div>
+          </div>
+
+          {showFloatingCTA && (
+            <div className="md:hidden fixed bottom-4 right-4 z-[60] animate-[fadeIn_0.3s_ease-out]">
+              <button
+                onClick={() => handleOpenForm("growth")}
+                className="w-16 h-16 bg-[#39FF14] border border-black/5 rounded-full flex items-center justify-center shadow-[0_8px_24px_rgba(57,255,20,0.4)] active:scale-[0.95] transition-all"
+              >
+                <ArrowRight
+                  size={24}
+                  strokeWidth={2.5}
+                  className="text-black"
+                />
+              </button>
+            </div>
+          )}
+        </>
+      )}
+
+      {activeView === "websites" && (
+        <FullPageView
+          isOpen={true}
+          folder={websitesFolder}
+          onClose={() => setActiveView("desktop")}
+          onOpenForm={handleOpenForm}
+          setActiveView={setActiveView}
+        />
+      )}
+
+      {activeView === "reels" && (
+        <FullPageView
+          isOpen={true}
+          folder={reelsFolder}
+          onClose={() => setActiveView("desktop")}
+          onOpenForm={handleOpenForm}
+          setActiveView={setActiveView}
+        />
+      )}
+
+      {activeView === "about" && (
+        <FullPageView
+          isOpen={true}
+          folder={aboutFolder}
+          onClose={() => setActiveView("desktop")}
+          onOpenForm={handleOpenForm}
+          setActiveView={setActiveView}
+        />
+      )}
+
+      <ApplicationForm
+        isOpen={formOpen}
+        onClose={() => {
+          setFormOpen(false);
+          setSelectedPackage(null);
+        }}
+        selectedPackage={selectedPackage}
+      />
+    </div>
+  );
+}
+

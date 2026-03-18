@@ -1,0 +1,278 @@
+# Chairman's Verdict: AI Council Pricing Strategy
+
+## Decision & Rationale
+
+**I side with Claude Opus 4.6's architecture — a per-call topology formula with deterministic upfront pricing, hard output caps, tiered markups, and internal actual-cost tracking for margin monitoring — but with significant corrections from the cross-examination and GPT-5.4 Pro's financial rigor.** Gemini's core insight about the Chairman's context accumulation is correct and gets absorbed into the winning formula, but Gemini's insistence on post-hoc settlement is wrong and was decisively dismantled in cross-examination.
+
+Let me address every single question you raised.
+
+---
+
+## 1. The New Credit Cost Formula (Replacing the 7× Multiplier)
+
+**Decision: Model the pipeline as 7 discrete calls with stage-specific token budgets. The 7× multiplier is dead.**
+
+Your current formula treats all 7 calls identically. In reality:
+
+| Call | Input | Output |
+|------|-------|--------|
+| Stage 1 × 3 (Council) | `systemPrompt + userPrompt + attachments` | Free-running (capped by you) |
+| Stage 2 × 3 (Cross-exam) | `systemPrompt + userPrompt + 2 peer responses` | Hard-capped at 2,048 |
+| Stage 3 × 1 (Chairman) | `systemPrompt + userPrompt + 3×Stage1 + 3×Stage2` | Free-running (capped by you) |
+
+Gemini correctly identified that the Chairman's input is massive — it receives ALL prior outputs. Your old formula gave it 1/7 of tokens. That's backwards; the Chairman call is often the single most expensive call in the pipeline, especially with expensive chairman models. Gemini called this "quadratic" — GPT-5.4 Pro rightly corrected that it's linear in prior outputs, not quadratic, but the directional point stands: **you are dramatically underpricing the Chairman step.**
+
+### The Implementation
+
+```typescript
+function estimateDebateCost(
+  councilModels: [ModelConfig, ModelConfig, ModelConfig],
+  chairmanModel: ModelConfig,
+  contentTokens: number, // user prompt + attachments + compressed prior context
+  depthMode: 'concise' | 'standard' | 'comprehensive'
+): { estimatedApiCost: number; creditCharge: number } {
+
+  const SYSTEM_OVERHEAD = 500; // measure this from your actual system prompts
+  const baseInput = SYSTEM_OVERHEAD + contentTokens;
+
+  // Output budgets by depth mode (these are BOTH your estimates AND your hard max_tokens caps)
+  const STAGE1_OUTPUT: Record<string, number> = {
+    concise: 1_000,
+    standard: 2_500,
+    comprehensive: 4_500,
+  };
+  const STAGE2_OUTPUT = 2_048; // already capped, keep it
+  const STAGE3_OUTPUT: Record<string, number> = {
+    concise: 1_200,
+    standard: 3_000,
+    comprehensive: 5_500,
+  };
+
+  const s1Out = STAGE1_OUTPUT[depthMode];
+  const s2Out = STAGE2_OUTPUT;
+  const s3Out = STAGE3_OUTPUT[depthMode];
+
+  // Utilization factor: models rarely hit max_tokens exactly
+  // Start at 0.75, tune with actual data (see Section 4)
+  const UTIL = 0.75;
+
+  let totalCost = 0;
+
+  // --- Stage 1: 3 council calls ---
+  for (const model of councilModels) {
+    const input = baseInput;
+    const output = Math.round(s1Out * UTIL);
+    totalCost += calcCost(model, input, output);
+  }
+
+  // --- Stage 2: 3 cross-examination calls ---
+  // Each reviewer sees prompt + 2 peers' Stage 1 responses
+  const estStage1OutputPerModel = Math.round(s1Out * UTIL);
+  for (const model of councilModels) {
+    const input = baseInput + (estStage1OutputPerModel * 2);
+    const output = Math.round(s2Out * UTIL);
+    totalCost += calcCost(model, input, output);
+  }
+
+  // --- Stage 3: Chairman ---
+  const totalStage1Output = estStage1OutputPerModel * 3;
+  const totalStage2Output = Math.round(s2Out * UTIL) * 3;
+  const chairmanInput = baseInput + totalStage1Output + totalStage2Output;
+  const chairmanOutput = Math.round(s3Out * UTIL);
+  totalCost += calcCost(chairmanModel, chairmanInput, chairmanOutput);
+
+  // --- Optional 8th call (context compression for multi-turn) ---
+  // GPT-4o Mini is so cheap this is negligible, but include it
+  const contextCompressionCost = 0.002; // ~3K input + 1K output on GPT-4o Mini ≈ $0.001
+  // Only add if this is a follow-up turn
+  // totalCost += contextCompressionCost;
+
+  // Apply markup and floor
+  const markup = getMarkupForDebate(councilModels, chairmanModel, totalCost);
+  const chargedCost = Math.max(MIN_FLOOR_USD, totalCost * markup);
+  const creditCharge = Math.max(MIN_CREDITS, Math.ceil(chargedCost / COST_PER_CREDIT));
+
+  return { estimatedApiCost: totalCost, creditCharge };
+}
+
+function calcCost(model: ModelConfig, inputTokens: number, outputTokens: number): number {
+  return (inputTokens * model.apiCostInput + outputTokens * model.apiCostOutput) / 1_000_000;
+}
+```
+
+**This directly replaces your broken `getDebateCreditCost()`.** The key differences from your current code:
+- No blunt `7 × contentTokens` — each stage has its own input composition
+- Stage 2 output respects the 2,048 cap
+- Chairman input is correctly modeled as the sum of all prior outputs
+- Each model's actual per-token cost is used (not an average)
+- A utilization factor prevents systematic overestimation
+
+---
+
+## 2. Should You Track Actual Costs and Settle on Actuals?
+
+**Decision: Track actual costs religiously. Settle on estimates. Never do post-hoc billing.**
+
+This was the sharpest disagreement in the council. Gemini argued passionately for "Reserve & Refund" based on actuals. Claude Opus 4.6 argued for estimate-based settlement with internal tracking. **Claude wins, and here's why Gemini lost:**
+
+Gemini's own proposal contradicts itself. It recommends hard output caps via a "Response Depth" toggle (which constrains the very variance it claims is unpredictable) AND post-hoc settlement based on actuals (which is only necessary if variance is unpredictable). **If you cap output tokens — which you should — your estimate becomes highly accurate, and the rationale for post-hoc settlement collapses.**
+
+Claude's cross-examination delivered the killing blow: post-hoc billing means users cannot make rational decisions about whether to run a debate. If I have 6 credits and the estimate says "~4-8 credits," I don't know if I can afford it. The "refund dopamine hit" Gemini described is wishful thinking — what users actually experience is anxiety about unpredictable charges and confusion from fluctuating credit balances.
+
+**The correct architecture:**
+
+```typescript
+// 1. BEFORE debate: Show user a firm credit price
+const { creditCharge } = estimateDebateCost(council, chairman, contentTokens, depthMode);
+// Display: "This debate will cost 5 credits"
+
+// 2. Reserve with small buffer (for rounding/edge cases only)
+const reserved = Math.ceil(creditCharge * 1.05); // 5% buffer, not 10%
+await deductCredits(userId, reserved);
+
+// 3. Execute all 7 calls, collecting ACTUAL token usage from each
+interface ActualUsage {
+  debateId: string;
+  stage: number;
+  callIndex: number;
+  modelId: string;
+  actualInputTokens: number;   // from OpenRouter response
+  actualOutputTokens: number;  // from OpenRouter response
+  actualCostUSD: number;       // computed from actual tokens × model rates
+  estimatedCostUSD: number;    // what we predicted for this call
+}
+
+// 4. Settle at the ESTIMATED credit charge (user pays exactly what was quoted)
+await settleCredits(userId, reserved, creditCharge);
+// Refund: reserved - creditCharge (only the 5% buffer delta)
+
+// 5. Log actuals for margin analysis (user never sees this)
+await logActualUsage(debateId, allCallUsages);
+```
+
+**Why track actuals if you don't bill on them?** Because it's the only way to answer the question "are we profitable?" You need a nightly dashboard:
+
+```typescript
+interface DailyMarginReport {
+  date: string;
+  totalDebates: number;
+  totalCreditsCharged: number;
+  totalEstimatedApiCost: number;
+  totalActualApiCost: number;
+  estimationAccuracy: number;          // actual / estimated (target: 0.70-0.95)
+  grossRevenueUSD: number;             // credits × weighted avg revenue/credit
+  netRevenueUSD: number;               // after Stripe fees
+  grossMargin: number;                 // (netRevenue - actualApiCost) / netRevenue
+  modelComboBreakdown: {
+    combo: string;
+    debateCount: number;
+    avgActualCost: number;
+    avgCreditsCharged: number;
+    margin: number;
+  }[];
+  // Flag any model combo with margin < 40% for investigation
+  marginAlerts: string[];
+}
+```
+
+**This is the single highest-ROI change you can make.** OpenRouter returns `usage.prompt_tokens` and `usage.completion_tokens` in every response. You're already getting this data. Start storing it today.
+
+---
+
+## 3. Margin Target & Markup Formula
+
+**Decision: Target 55% gross margin after Stripe fees. Use a cost-band markup, not a cost-tier markup.**
+
+GPT-5.4 Pro raised a critical point that neither Gemini nor Claude properly addressed: **your $0.05 "cost per credit" is not your revenue per credit.** The actual revenue per credit after Stripe fees:
+
+| Pack | Gross $/credit | After Stripe (~2.9% + $0.30) | Net $/credit |
+|------|----------------|------------------------------|--------------|
+| Explorer (100 for $15) | $0.150 | $14.265 / 100 | **$0.1427** |
+| Strategist (325 for $39) | $0.120 | $37.569 / 325 | **$0.1156** |
+| Visionary (900 for $89) | $0.099 | $86.119 / 900 | **$0.0957** |
+
+**Your worst-case realized revenue is ~$0.096/credit (Visionary after Stripe).** All margin math must use this number as the floor, not $0.05 or $0.15.
+
+### Why Cost-Tier Markup Is Wrong
+
+Claude proposed markups by cost tier (3.5× for Tier 1, 2.0× for Tier 4). The problem: cost tiers are labels you assigned, not precise cost reflections. GPT-4o (Tier 2) at $2.50/$10.00 has very different economics from Gemini 2.5 Pro (Tier 2) at $1.25/$10.00. And the markup should depend on the **total debate cost**, not the tier of the most expensive model, because a debate with 2 cheap models + 1 expensive model has different economics than 3 expensive models.
+
+### The Cost-Band Markup Formula
+
+```typescript
+const COST_PER_CREDIT = 0.05;
+const MIN_CREDITS = 2;              // $0.10 minimum charge
+const MIN_FLOOR_USD = 0.10;         // covers orchestration overhead
+const WORST_CASE_NET_PER_CREDIT = 0.096; // Visionary after Stripe
+const TARGET_MARGIN = 0.55;         // 55% gross margin
+
+function getMarkupForDebate(
+  councilModels: ModelConfig[],
+  chairmanModel: ModelConfig,
+  estimatedApiCost: number
+): number {
+  // We need: (credits × $0.096 - estimatedApiCost) / (credits × $0.096) ≥ 0.55
+  // Solving: credits ≥ estimatedApiCost / (0.096 × (1 - 0.55))
+  // credits ≥ estimatedApiCost / 0.0432
+  // So: chargedUSD = credits × 0.05 ≥ estimatedApiCost × (0.05 / 0.0432)
+  // Effective markup ≈ 1.157× on the credit-denominated cost
+  // BUT that's the markup to hit 55% at worst-case Visionary pricing
+  
+  // For safety across all packs + to cover free credits, failures, overhead:
+  // Use cost bands that scale the markup inversely with absolute cost
+
+  if (estimatedApiCost < 0.02) {
+    // Ultra-cheap debates: floor dominates, markup is implicit
+    // 2 credits minimum = $0.192 net revenue at Visionary
+    // Margin: (0.192 - 0.02) / 0.192 = 89%
+    return 3.0; // high multiplier but absolute cost is tiny
+  }
+  if (estimatedApiCost < 0.15) {
+    // Budget debates (cheap model combos, simple prompts)
+    return 2.8;
+  }
+  if (estimatedApiCost < 0.50) {
+    // Mid-range debates (standard model combos)
+    return 2.5;
+  }
+  if (estimatedApiCost < 2.00) {
+    // Premium debates (expensive models, complex prompts)
+    return 2.2;
+  }
+  // Ultra-premium debates (all Tier 4 models, huge context)
+  return 2.0;
+}
+```
+
+### Margin Validation Across Scenarios
+
+Let me prove this works:
+
+**Scenario A: Budget combo, simple prompt (concise mode)**
+- Council: Llama 4 Maverick × 3, Chairman: GPT-4o Mini
+- Content: 500 tokens
+- API cost: ~$0.004
+- Markup: 3.0× → $0.012 → Floor kicks in → **2 credits**
+- Visionary revenue: 2 × $0.096 = $0.192
+- **Margin: 98%.** User pays 2 credits for a quick answer. Feels fair.
+
+**Scenario B: Mid-range combo, standard prompt**
+- Council: GPT-4o + Claude Sonnet 4.5 + Grok 4, Chairman: Gemini 3 Pro
+- Content: 3,000 tokens, standard depth
+- API cost: ~$0.22
+- Markup: 2.5× → $0.55 → **11 credits**
+- Visionary revenue: 11 × $0.096 = $1.056
+- Explorer revenue: 11 × $0.143 = $1.573
+- **Margin: 79% (Visionary), 86% (Explorer).** 11 credits for a serious multi-model debate. Proportional.
+
+**Scenario C: Premium combo, comprehensive prompt**
+- Council: Claude Opus 4.1 + o1 + GPT-5.2 Pro, Chairman: Claude Opus 4.6
+- Content: 15,000 tokens, comprehensive depth
+- API cost: ~$4.50
+- Markup: 2.0× → $9.00 → **180 credits**
+- Visionary revenue: 180 × $0.096 = $17.28
+- **Margin: 74%.** 180 credits is expensive, but this user selected three of the most expensive AI models in existence and asked for comprehensive output. The price is clearly driven by their choices.
+
+**Scenario D: The default free-user config**
+- Council: GPT-4o + Claude 3.5 Sonnet + Gemini 2.5 Flash, Chairman: GPT-4o
+- Content: 1,

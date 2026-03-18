@@ -1,0 +1,1 @@
+ALTER TABLE "users" ALTER COLUMN "debate_credits" SET DEFAULT 18;
