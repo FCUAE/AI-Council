@@ -1,4 +1,5 @@
-import { pool } from '../db';
+import { db } from '../db';
+import { sql } from 'drizzle-orm';
 
 export async function checkPerUserLimit(
   userId: string,
@@ -8,23 +9,22 @@ export async function checkPerUserLimit(
 ): Promise<boolean> {
   const windowSeconds = Math.ceil(windowMs / 1000);
 
-  const result = await pool.query(
-    `INSERT INTO rate_limit_buckets (route_key, user_id, count, reset_at)
-     VALUES ($1, $2, 1, NOW() + ($3 || ' seconds')::interval)
-     ON CONFLICT (route_key, user_id) DO UPDATE SET
-       count = CASE
-         WHEN rate_limit_buckets.reset_at <= NOW() THEN 1
-         ELSE rate_limit_buckets.count + 1
-       END,
-       reset_at = CASE
-         WHEN rate_limit_buckets.reset_at <= NOW() THEN NOW() + ($3 || ' seconds')::interval
-         ELSE rate_limit_buckets.reset_at
-       END
-     RETURNING count`,
-    [route, userId, windowSeconds.toString()]
-  );
+  const result = await db.execute(sql`
+    INSERT INTO rate_limit_buckets (route_key, user_id, count, reset_at)
+    VALUES (${route}, ${userId}, 1, NOW() + (${windowSeconds.toString()} || ' seconds')::interval)
+    ON CONFLICT (route_key, user_id) DO UPDATE SET
+      count = CASE
+        WHEN rate_limit_buckets.reset_at <= NOW() THEN 1
+        ELSE rate_limit_buckets.count + 1
+      END,
+      reset_at = CASE
+        WHEN rate_limit_buckets.reset_at <= NOW() THEN NOW() + (${windowSeconds.toString()} || ' seconds')::interval
+        ELSE rate_limit_buckets.reset_at
+      END
+    RETURNING count
+  `);
 
-  const count = result.rows[0]?.count ?? 1;
+  const count = (result.rows[0] as any)?.count ?? 1;
   return count <= maxPerWindow;
 }
 
@@ -34,9 +34,9 @@ export function startRateLimitCleanup() {
   if (cleanupInterval) return;
   cleanupInterval = setInterval(async () => {
     try {
-      const result = await pool.query(
-        `DELETE FROM rate_limit_buckets WHERE reset_at < NOW()`
-      );
+      const result = await db.execute(sql`
+        DELETE FROM rate_limit_buckets WHERE reset_at < NOW()
+      `);
       if (result.rowCount && result.rowCount > 0) {
         console.log(`[RATE LIMIT] Cleaned up ${result.rowCount} expired bucket(s)`);
       }
