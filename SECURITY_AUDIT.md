@@ -208,6 +208,63 @@
 
 ---
 
+## Phase 3 Hardening (March 19, 2026)
+
+### Critical — Fixed
+
+**28. Extract-text ACL bypass on object storage and local files**
+- **Risk:** `POST /api/uploads/extract-text` accessed object storage files without verifying the requesting user had read permission via the ACL system. The local file ownership check was also fail-open for files without ownership records. Any authenticated user could extract text from another user's files.
+- **Fix:** Both object-storage branches (image and document) now call `objectStorageService.canAccessObjectEntity()` with `ObjectPermission.READ` before reading any file. The local file ownership check is now fail-closed: non-admin requests are denied when no ownership record exists. Access denied returns 403 and is logged.
+- **File:** `server/routes.ts`
+
+**29. Upload endpoint fail-open on missing ownership record**
+- **Risk:** `GET /uploads/:filename` only denied access when a file had an owner and the requester didn't match. Files without ownership records (pre-migration uploads) were served to any authenticated user.
+- **Fix:** Changed to fail-closed: if no ownership record exists and the requester is not an admin, access is denied with 403. Admins can still access all files.
+- **File:** `server/replit_integrations/object_storage/routes.ts`
+
+### High — Fixed
+
+**30. PDF rendered images bypassed upload ACL**
+- **Risk:** `renderPdfToImages` created temp files in `/uploads/` and passed HTTP URLs (`${baseUrl}/uploads/${filename}`) as image references. These URLs would be fetched via HTTP back through the server, bypassing ownership checks since temp render files had no ownership records.
+- **Fix:** PDF rendered images now use direct file paths instead of HTTP URLs. `imageUrlToBase64` resolves them from disk directly, eliminating the HTTP round-trip and ownership check bypass.
+- **File:** `server/routes.ts`
+
+**31. Support form used unauthenticated requests**
+- **Risk:** `SupportWidget.tsx` used plain `fetch()` instead of `authFetch()` for both `/api/support/upload` and `/api/support` endpoints. This bypassed Clerk token transmission, making requests unauthenticated.
+- **Fix:** Switched both calls to `authFetch()`. Added `isAuthenticated` middleware to `POST /api/support` (the upload endpoint already had it).
+- **Files:** `client/src/components/SupportWidget.tsx`, `server/routes.ts`
+
+### Medium — Fixed
+
+**32. CSRF middleware allowed missing Origin header**
+- **Risk:** The CSRF origin check only ran when an `Origin` header was present. State-changing requests without an `Origin` header (e.g., from curl, scripts, or some browser extensions) bypassed validation entirely.
+- **Fix:** When allowed origins are configured, requests with a missing `Origin` header are now denied with 403 and logged.
+- **File:** `server/index.ts`
+
+**33. Per-user rate limits were not route-scoped**
+- **Risk:** All per-user rate limit checks shared a single global bucket per user. A user exhausting their limit on one endpoint would be blocked on all endpoints, while a user could also avoid limits by spreading requests across endpoints.
+- **Fix:** Rate limit keys are now scoped as `${userId}:${route}`. Each endpoint has its own independent per-user bucket.
+- **File:** `server/routes.ts`
+
+**34. Missing per-user rate limits on sensitive endpoints**
+- **Risk:** Several sensitive endpoints only had IP-based rate limits: retry (3/min), extract-text (10/min), stripe.recover-credits (3/min), stripe.sync-credits (3/min).
+- **Fix:** Added per-user rate limits to all four endpoints with appropriate thresholds.
+- **File:** `server/routes.ts`
+
+**35. Admin routes and billing mutations not logged**
+- **Risk:** Admin access to support messages, analytics, and analytics refresh were not captured in security logs. Subscription cancellation had no audit trail.
+- **Fix:** Added `securityLog.adminAccess()` to all admin route handlers. Added `securityLog.billingAnomaly()` to subscription cancellation.
+- **File:** `server/routes.ts`
+
+### Low — Documented (No Fix Needed)
+
+**36. CSP `unsafe-inline` in script-src**
+- **Risk:** `'unsafe-inline'` in `script-src` weakens XSS protection.
+- **Status:** Required by Clerk SDK which injects inline scripts. Cannot be replaced with nonce-based loading until Clerk supports it. Similarly, `'unsafe-inline'` in `style-src` is required for React's dynamic styles and Clerk's style injection.
+- **Recommendation:** Revisit when Clerk adds nonce/hash support.
+
+---
+
 ## Recommendations (Require Product Decisions)
 
 1. **CAPTCHA on support form** — Consider adding CAPTCHA to prevent automated abuse.

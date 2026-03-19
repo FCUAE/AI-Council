@@ -12,6 +12,7 @@ export type {
 } from "./objectAcl";
 
 export {
+  ObjectPermission,
   canAccessObject,
   getObjectAclPolicy,
   setObjectAclPolicy,

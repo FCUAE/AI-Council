@@ -60,18 +60,19 @@ The backend implements a council deliberation pattern:
 
 ### Security
 - **CSP**: Full Content Security Policy via Helmet with allowlists for Clerk, Stripe, RefGrow, Google Fonts, and Replit WebSocket domains. `object-src: 'none'`, `base-uri: 'self'`, `frame-ancestors: 'self'`.
-- **CSRF protection**: Origin header validation middleware on all state-changing API requests (`POST/PUT/PATCH/DELETE` to `/api/`). Stripe webhook excluded.
+- **CSRF protection**: Origin header validation middleware on all state-changing API requests (`POST/PUT/PATCH/DELETE` to `/api/`). Missing Origin headers denied when allowed origins are configured. Stripe webhook excluded.
 - **Rate limiting** (`express-rate-limit` + per-user):
   - General API: 100 requests per 15 minutes per IP (applied to all `/api/` routes in `server/index.ts`)
   - Conversation creation/messages: 10/min IP + 5/min per-user
+  - Retry: 3/min per-user; Extract-text: 10/min per-user; Stripe recovery/sync: 3/min per-user
   - Stripe checkout: 10 requests per minute per IP
-  - Per-user in-memory rate limiter in `server/routes.ts` supplements IP-based limits
+  - Per-user in-memory rate limiter in `server/routes.ts` supplements IP-based limits, keyed as `${userId}:${route}` for route-scoped isolation
 - **Auth identity collision protection**: `upsertUser` in `server/replit_integrations/auth/storage.ts` blocks email collision attacks — returns 409 instead of overwriting account identity.
 - **Ownership checks**: All conversation endpoints verify `conv.userId === getUserId(req)` to prevent IDOR attacks (get, cancel, retry, status, addMessage)
-- **File upload security**: Magic-byte validation, extension blocklist, filename sanitization, file ownership tracking via `file_uploads` table. `/uploads/:filename` checks requester against file owner. `X-Content-Type-Options: nosniff` on all file responses.
-- **Object storage ACL**: `/objects/` enforces `canAccessObjectEntity` check. Unauthenticated access to owned files returns 403.
+- **File upload security**: Magic-byte validation, extension blocklist, filename sanitization, file ownership tracking via `file_uploads` table. `/uploads/:filename` and `/api/uploads/extract-text` both fail-closed when no ownership record exists. `X-Content-Type-Options: nosniff` on all file responses.
+- **Object storage ACL**: `/objects/` and `/api/uploads/extract-text` enforce `canAccessObjectEntity` ACL check. Unauthenticated access to owned files returns 403.
 - **Account deletion hardening**: Requires `{ confirmation: "DELETE" }` body. Frontend enforces typed "DELETE" confirmation input.
-- **Security logging**: Centralized `server/securityLogger.ts` logs auth collisions, file access denials, CSRF mismatches, upload validation failures, rate limit hits, and destructive actions. PII redacted.
+- **Security logging**: Centralized `server/securityLogger.ts` logs auth collisions, file access denials, admin access, CSRF mismatches, billing mutations, upload validation failures, rate limit hits, and destructive actions. PII redacted.
 - **Legacy routes removed**: `/api/queries` endpoints deleted (were unauthenticated)
 
 ### Credits & Payments

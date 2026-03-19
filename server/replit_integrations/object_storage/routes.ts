@@ -290,9 +290,15 @@ export function registerObjectStorageRoutes(app: Express): void {
       return res.status(403).json({ error: "Access denied" });
     }
 
-    if (owner && userId !== owner && !isAdmin(userId)) {
-      securityLog.fileAccessDenied({ route: "/uploads", userId, reason: "not_owner" });
-      return res.status(403).json({ error: "Access denied" });
+    if (!isAdmin(userId)) {
+      if (!owner) {
+        securityLog.fileAccessDenied({ route: "/uploads", userId, reason: "no_ownership_record" });
+        return res.status(403).json({ error: "Access denied" });
+      }
+      if (owner !== userId) {
+        securityLog.fileAccessDenied({ route: "/uploads", userId, reason: "not_owner" });
+        return res.status(403).json({ error: "Access denied" });
+      }
     }
 
     const ext = path.extname(filePath).toLowerCase();

@@ -1,0 +1,350 @@
+You are acting as a principal application security engineer, senior backend/frontend security reviewer, and production hardening lead.
+
+Repository:
+FCUAE/AI-Council
+
+Goal:
+Implement the remaining security fixes in this repo based on the latest audit findings. Do not just describe them. Fix them safely in code, preserve normal product behavior, and fail closed wherever access control is uncertain.
+
+Important rules
+
+1. Fix root causes, not cosmetic symptoms.
+2. Preserve normal user behavior where possible.
+3. When unsure, deny access safely.
+4. Do not trust client-supplied ownership, identity, file path, or route intent.
+5. Add tests where practical for each security-sensitive change.
+6. Update SECURITY_AUDIT.md after the fixes.
+7. If any fix cannot be completed safely, document exactly why and what manual follow-up is needed.
+
+Priority order
+
+1. Fix object ACL bypass in /api/uploads/extract-text
+2. Fix access to unowned uploads and generated files
+3. Make support flow security model consistent end to end
+4. Tighten CSRF protection for sensitive state-changing routes
+5. Improve rate limiting and concurrency controls so they are safer for real production
+6. Tighten CSP and logging coverage
+7. Update SECURITY_AUDIT.md
+
+Issue 1
+Critical: Object ACL bypass in /api/uploads/extract-text
+
+Problem
+The app now enforces ACL on /objects/*, but /api/uploads/extract-text still reads object-storage files directly with getObjectEntityFile and processes them without calling canAccessObjectEntity. This creates an alternate path to access private object content.
+
+Files likely involved
+- server/routes.ts
+- server/replit_integrations/object_storage/objectStorage.ts
+- server/replit_integrations/object_storage/objectAcl.ts
+
+Required fix
+- In every /api/uploads/extract-text path that touches object storage, resolve the current authenticated user first
+- Before reading the object, call objectStorageService.canAccessObjectEntity with READ permission
+- If access is denied, return 403 with a generic message
+- Log the denied attempt using securityLogger without exposing the raw object path
+- Apply this for both:
+  - image object paths
+  - document object paths
+- Do not allow extraction, metadata reading, page counting, rendering, or temp-file creation before ACL passes
+
+Acceptance
+- A user cannot extract text or metadata from another user's private object
+- Public objects still work if public read is explicitly allowed
+- Denied access is logged safely
+- No object content is processed before authorization succeeds
+
+Issue 2
+High: /uploads/:filename still allows access to files with no ownership record
+
+Problem
+The new /uploads route checks ownership only if an owner record exists. If there is no owner record, the file is still served to any authenticated user. This likely affects:
+- legacy uploads created before file_uploads tracking
+- failed tracking inserts
+- generated PDF page images or other derived files
+
+Files likely involved
+- server/replit_integrations/object_storage/routes.ts
+- server/routes.ts
+- server/documentParser.ts
+- database migration logic if needed
+
+Required fix
+- Change /uploads/:filename to fail closed when ownership metadata is missing
+- Only serve a file if one of these is true:
+  - the requester is the recorded owner
+  - the requester is admin
+  - the file is explicitly marked public in a safe and intentional way
+- Do not treat missing ownership as safe
+- If needed, add a stronger file metadata model to support:
+  - filename
+  - owner user id
+  - purpose
+  - public/private flag
+  - parent resource id if needed
+  - generated-from source if needed
+
+Generated file handling
+- Review all server-generated files such as rendered PDF page images
+- Do not leave generated artifacts in uploads without ownership tracking
+- Best option:
+  - keep generated images internal only and never serve them through /uploads
+- Acceptable fallback:
+  - record them in file_uploads or a better metadata table with the correct owner and purpose
+  - ensure cleanup happens safely
+
+Legacy compatibility
+- If old files already exist without ownership metadata, do not leave them readable
+- Add a migration strategy or documented fallback for old files
+- If migration is required, document it clearly in SECURITY_AUDIT.md
+
+Acceptance
+- Missing ownership means deny access, not allow access
+- Generated files are no longer orphaned
+- Legitimate owners still access their files normally
+- Admin access still works where intended
+
+Issue 3
+High: Support flow is inconsistent between frontend and backend
+
+Problem
+Backend now requires authentication for /api/support/upload, but the frontend support widget still uses plain fetch for uploads and support message submission. The support flow is now inconsistent and likely broken.
+
+Files likely involved
+- client/src/components/SupportWidget.tsx
+- server/replit_integrations/object_storage/routes.ts
+- server/routes.ts
+- any auth fetch helper already in use elsewhere
+
+Required fix
+Choose one security model and implement it consistently. Preferred model:
+Authenticated support only.
+
+If using authenticated support:
+- Use authFetch in the support widget for:
+  - /api/support/upload
+  - /api/support
+- Bind support messages server-side to authenticated user id
+- Do not trust the client-supplied email as identity
+- You may still allow a contact email field, but treat it as a contact preference, not identity proof
+- Ensure support uploads remain private
+- Ensure support attachment access is restricted to:
+  - owner
+  - admin/support staff only
+
+If you believe public support must remain allowed:
+- Document why
+- Add explicit anti-abuse controls
+- Separate public support from authenticated file upload logic
+- Do not mix public identity claims with authenticated ownership assumptions
+
+Extra requirements
+- Make the UI behave correctly for signed-out users
+- If support now requires auth, show a clear message in the widget
+- Do not leave half-authenticated behavior
+
+Acceptance
+- Support flow works correctly for the intended user state
+- Upload and submit use the same trust model
+- Support identity is no longer based only on user-entered email
+- Support uploads are private and auditable
+
+Issue 4
+High: CSRF protection is only partial
+
+Problem
+State-changing middleware checks Origin only when the header is present. Missing-Origin requests are currently allowed. This is not a complete defense for browser-facing authenticated mutation routes.
+
+Files likely involved
+- server/index.ts
+- server/routes.ts
+- any auth/session handling related code
+
+Required fix
+- Tighten CSRF protection for browser-facing state-changing authenticated routes
+- Do not silently allow missing Origin on sensitive browser routes unless there is a clearly verified reason
+- Best options:
+  1. require a valid Origin for sensitive browser mutation routes, or
+  2. implement a real CSRF token mechanism, or
+  3. combine strict Origin checking with route-specific CSRF protection
+- At minimum, sensitive routes like these must be covered carefully:
+  - DELETE /api/user
+  - Stripe mutation routes
+  - conversation creation and add message
+  - retry and cancel routes
+  - support routes if authenticated
+  - profile update routes
+
+Important nuance
+- Some legitimate non-browser flows may not send Origin
+- If so, separate those routes clearly instead of leaving browser-sensitive routes broadly permissive
+- Do not reduce security just to avoid edge-case breakage
+
+Acceptance
+- Sensitive browser mutation routes reject unauthorized cross-origin requests
+- Missing-Origin behavior is handled intentionally, not passively
+- CSRF-like attempts are logged
+- Normal in-app usage still works
+
+Issue 5
+Medium: Rate limiting and abuse protection are still too weak for real production
+
+Problem
+Per-user throttling is currently in-memory, not distributed, and not route-scoped enough. This is not reliable in multi-instance production and may create weird cross-route throttling.
+
+Files likely involved
+- server/routes.ts
+- server/index.ts
+- storage or database if durable locks or counters are added
+
+Required fix
+- Replace or significantly improve the in-memory perUserBuckets system
+- Prefer route-scoped and durable throttling using a shared store if available
+- At minimum, separate limits by route category, not only by user id
+- Add explicit concurrency protection for expensive debate processing
+- Limit active debates per user in a way that survives multiple processes if possible
+- Add retry cooldown for retry endpoints
+- Add stronger protection for:
+  - conversations.create
+  - conversations.addMessage
+  - conversations.retry
+  - uploads.direct
+  - uploads.extract-text
+  - support
+  - support.upload
+  - stripe.recover-credits
+  - stripe.sync-credits
+
+Important
+- Do not make limits so strict that normal users break
+- Keep the UX reasonable
+- If only a partial distributed solution is possible now, document the limitation in SECURITY_AUDIT.md
+
+Acceptance
+- Abuse is harder for a single authenticated user
+- Retry spam is controlled
+- Active processing amplification is controlled
+- Route limits are scoped sensibly
+- Document any remaining multi-instance limitation if not fully solved
+
+Issue 6
+Medium: CSP is enabled but still too permissive
+
+Problem
+CSP now exists, which is good, but unsafe-inline is still present and weakens the protection.
+
+Files likely involved
+- server/index.ts
+
+Required fix
+- Tighten CSP further, especially script-src
+- Remove unsafe-inline from script-src if possible
+- If some inline script is genuinely required, use nonce or hash-based allowlisting instead
+- Keep style-src as tight as practical
+- Make sure all real dependencies still work:
+  - Clerk
+  - Stripe
+  - Refgrow if used
+  - any required fonts or images
+- Keep object-src none, base-uri self, and frame-ancestors self unless a justified exception exists
+
+Acceptance
+- CSP remains enabled
+- App still works
+- The policy is more protective than the current version
+- Any necessary relaxation is documented precisely
+
+Issue 7
+Low to Medium: Structured security logging coverage is incomplete
+
+Problem
+securityLogger exists, but not all sensitive paths are using it consistently.
+
+Files likely involved
+- server/securityLogger.ts
+- server/index.ts
+- server/routes.ts
+- server/replit_integrations/object_storage/routes.ts
+- auth-related files
+
+Required fix
+- Use structured security logging consistently for:
+  - denied object access
+  - denied upload access
+  - extract-text authorization failures
+  - CSRF-like failures
+  - rate-limit hits on sensitive routes
+  - admin route access
+  - billing anomalies
+  - destructive actions
+- Keep logs privacy-safe
+- Do not log:
+  - secrets
+  - raw tokens
+  - full file paths for sensitive resources
+  - file contents
+  - full sensitive payloads
+
+Acceptance
+- Sensitive security events are logged consistently
+- Logs remain privacy-conscious and parseable
+
+Testing requirements
+
+Add tests where feasible for:
+- extract-text denied on unauthorized object path
+- extract-text allowed on authorized object path
+- /uploads denied when ownership record is missing
+- /uploads allowed for owner
+- generated file ownership or internal-only behavior
+- support widget authenticated flow if support is auth-only
+- cross-origin mutation rejection
+- rate limiting behavior on expensive routes
+
+Validation requirements
+
+After implementing fixes, run:
+- typecheck
+- build
+- tests if present
+- any linting that is already part of the repo flow
+
+Report honestly:
+- what passed
+- what failed
+- what you fixed
+- what could not be completed safely
+
+Documentation requirements
+
+Update SECURITY_AUDIT.md with:
+- newly fixed issues
+- partially fixed issues
+- deferred issues
+- files changed
+- migrations or deployment steps
+- CSP changes
+- support-flow security model decision
+- manual testing checklist
+- residual risks
+
+Definition of done
+
+The repo should end in a state where:
+- private object files cannot be accessed through extract-text without ACL
+- uploads fail closed when ownership is missing
+- generated file artifacts are no longer orphaned or casually accessible
+- support flow uses one consistent trust model
+- CSRF protection on sensitive browser-facing routes is materially stronger
+- abuse controls are more production-appropriate
+- CSP is tighter
+- security logging coverage is improved
+- SECURITY_AUDIT.md reflects the new state accurately
+
+Begin by tracing these exact paths first:
+1. /api/uploads/extract-text for local and object-backed files
+2. /uploads/:filename ownership resolution and generated-file behavior
+3. support upload and submit flow from frontend to backend
+4. mutation route Origin handling
+5. current per-user throttling model and active-debate protections
+
+Then implement the fixes in priority order and finish by updating SECURITY_AUDIT.md.

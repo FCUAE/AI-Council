@@ -6,7 +6,7 @@ import { z } from "zod";
 import OpenAI from "openai";
 import sharp from "sharp";
 import rateLimit from "express-rate-limit";
-import { registerObjectStorageRoutes, ObjectStorageService } from "./replit_integrations/object_storage";
+import { registerObjectStorageRoutes, ObjectStorageService, ObjectPermission } from "./replit_integrations/object_storage";
 import { DEFAULT_COUNCIL_MODELS, DEFAULT_CHAIRMAN_MODEL, isVisionCapable, getDebateCreditCost, AVAILABLE_MODELS, FREE_TIER_CREDITS, getUserTier, getModelContextWindow, MODEL_FALLBACKS, getModelById } from "@shared/models";
 import { users } from "@shared/models/auth";
 import { isAuthenticated } from "./replit_integrations/auth";
@@ -74,11 +74,12 @@ const accountDeleteLimiter = rateLimit({
 
 const perUserBuckets = new Map<string, { count: number; resetAt: number }>();
 
-function checkPerUserLimit(userId: string, maxPerWindow: number, windowMs: number = 60_000): boolean {
+function checkPerUserLimit(userId: string, maxPerWindow: number, windowMs: number = 60_000, route: string = "global"): boolean {
+  const key = `${userId}:${route}`;
   const now = Date.now();
-  const bucket = perUserBuckets.get(userId);
+  const bucket = perUserBuckets.get(key);
   if (!bucket || now >= bucket.resetAt) {
-    perUserBuckets.set(userId, { count: 1, resetAt: now + windowMs });
+    perUserBuckets.set(key, { count: 1, resetAt: now + windowMs });
     return true;
   }
   if (bucket.count >= maxPerWindow) {
@@ -1032,9 +1033,7 @@ ${previousContext}
             }
             if (usable.length > 0) {
               for (const imgPath of usable) {
-                const filename = path.basename(imgPath);
-                const imgUrl = `${baseUrl}/uploads/${filename}`;
-                result.localImageUrls.push(imgUrl);
+                result.localImageUrls.push(imgPath);
                 result.localRenderedPaths.push(imgPath);
               }
               totalRenderedImages += usable.length;
@@ -1829,6 +1828,11 @@ export async function registerRoutes(
       const userId = getUserId(req);
       if (!userId) return res.status(401).json({ message: "Unauthorized" });
 
+      if (!checkPerUserLimit(userId, 10, 60_000, "extract-text")) {
+        securityLog.rateLimitHit({ route: "extract-text", userId });
+        return res.status(429).json({ message: "Too many text extraction requests. Please wait." });
+      }
+
       const { fileUrl, fileType } = req.body;
       if (!fileUrl || typeof fileUrl !== "string") {
         return res.status(400).json({ message: "Missing fileUrl" });
@@ -1842,9 +1846,15 @@ export async function registerRoutes(
             sql`SELECT user_id FROM file_uploads WHERE filename = ${filename}`
           );
           const ownerRow = (ownerResult as any).rows?.[0];
-          if (ownerRow && ownerRow.user_id !== userId && !isAdmin(req)) {
-            securityLog.fileAccessDenied({ route: "/api/uploads/extract-text", userId, reason: "not_owner" });
-            return res.status(403).json({ message: "Access denied" });
+          if (!isAdmin(req)) {
+            if (!ownerRow) {
+              securityLog.fileAccessDenied({ route: "/api/uploads/extract-text", userId, reason: "no_ownership_record" });
+              return res.status(403).json({ message: "Access denied" });
+            }
+            if (ownerRow.user_id !== userId) {
+              securityLog.fileAccessDenied({ route: "/api/uploads/extract-text", userId, reason: "not_owner" });
+              return res.status(403).json({ message: "Access denied" });
+            }
           }
         }
       }
@@ -1861,6 +1871,15 @@ export async function registerRoutes(
             const objectsPathMatch = fileUrl.match(/\/objects\/(.+?)(?:\?.*)?$/);
             if (objectsPathMatch) {
               const objectFile = await objectStorageService.getObjectEntityFile(`/objects/${objectsPathMatch[1]}`);
+              const canAccess = await objectStorageService.canAccessObjectEntity({
+                userId,
+                objectFile,
+                requestedPermission: ObjectPermission.READ,
+              });
+              if (!canAccess) {
+                securityLog.fileAccessDenied({ route: "/api/uploads/extract-text", userId, reason: "acl_denied" });
+                return res.status(403).json({ message: "Access denied" });
+              }
               const chunks: Buffer[] = [];
               const stream = objectFile.createReadStream();
               await new Promise<void>((resolve, reject) => {
@@ -1904,6 +1923,15 @@ export async function registerRoutes(
         if (objectsPathMatch) {
           try {
             const objectFile = await objectStorageService.getObjectEntityFile(`/objects/${objectsPathMatch[1]}`);
+            const canAccess = await objectStorageService.canAccessObjectEntity({
+              userId,
+              objectFile,
+              requestedPermission: ObjectPermission.READ,
+            });
+            if (!canAccess) {
+              securityLog.fileAccessDenied({ route: "/api/uploads/extract-text", userId, reason: "acl_denied" });
+              return res.status(403).json({ message: "Access denied" });
+            }
             const chunks: Buffer[] = [];
             const stream = objectFile.createReadStream();
             await new Promise<void>((resolve, reject) => {
@@ -1916,7 +1944,10 @@ export async function registerRoutes(
             tempFile = path.join(path.resolve(process.cwd(), "uploads"), `tmp-${Date.now()}${ext}`);
             fs.writeFileSync(tempFile, buffer);
             resolvedPath = tempFile;
-          } catch {
+          } catch (err: any) {
+            if (err?.status === 403 || err?.message?.includes("Access denied")) {
+              return res.status(403).json({ message: "Access denied" });
+            }
             return res.status(400).json({ message: "File not found in object storage" });
           }
         } else {
@@ -1983,6 +2014,10 @@ export async function registerRoutes(
 
   app.post("/api/conversations/:id/retry", isAuthenticated, async (req, res) => {
     const userId = getUserId(req);
+    if (userId && !checkPerUserLimit(userId, 3, 60_000, "conversations.retry")) {
+      securityLog.rateLimitHit({ route: "conversations.retry", userId });
+      return res.status(429).json({ success: false, message: "Too many retries. Please wait a moment." });
+    }
     const conversationId = Number(req.params.id);
     
     const conv = await storage.getConversation(conversationId);
@@ -2229,7 +2264,7 @@ export async function registerRoutes(
       const userId = getUserId(req);
       if (!userId) return res.status(401).json({ message: "Unauthorized" });
 
-      if (!checkPerUserLimit(userId, 5)) {
+      if (!checkPerUserLimit(userId, 5, 60_000, "conversations.create")) {
         securityLog.rateLimitHit({ route: "conversations.create", userId });
         return res.status(429).json({ message: "You're creating debates too quickly. Please wait a moment." });
       }
@@ -2350,7 +2385,7 @@ export async function registerRoutes(
   app.post(api.conversations.addMessage.path, conversationLimiter, isAuthenticated, async (req, res) => {
     try {
       const userId = getUserId(req);
-      if (userId && !checkPerUserLimit(userId, 5)) {
+      if (userId && !checkPerUserLimit(userId, 5, 60_000, "conversations.addMessage")) {
         securityLog.rateLimitHit({ route: "conversations.addMessage", userId });
         return res.status(429).json({ message: "You're sending messages too quickly. Please wait a moment." });
       }
@@ -2718,6 +2753,10 @@ export async function registerRoutes(
     try {
       const userId = getUserId(req);
       if (!userId) return res.status(401).json({ message: "Unauthorized" });
+      if (!checkPerUserLimit(userId, 3, 60_000, "stripe.recover-credits")) {
+        securityLog.rateLimitHit({ route: "stripe.recover-credits", userId });
+        return res.status(429).json({ message: "Too many recovery requests. Please wait." });
+      }
 
       const stripe = await getUncachableStripeClient();
       const user = await storage.getUserById(userId);
@@ -2786,6 +2825,10 @@ export async function registerRoutes(
     try {
       const userId = getUserId(req);
       if (!userId) return res.status(401).json({ message: "Unauthorized" });
+      if (!checkPerUserLimit(userId, 3, 60_000, "stripe.sync-credits")) {
+        securityLog.rateLimitHit({ route: "stripe.sync-credits", userId });
+        return res.status(429).json({ message: "Too many sync requests. Please wait." });
+      }
       
       const { sessionId } = req.body || {};
       if (!sessionId || typeof sessionId !== 'string') {
@@ -2860,6 +2903,8 @@ export async function registerRoutes(
         return res.status(400).json({ message: "No active subscription to cancel" });
       }
       
+      securityLog.billingAnomaly({ action: "cancel_subscription", userId, detail: `subscriptionId=${user.stripeSubscriptionId}` });
+      
       const stripe = await getUncachableStripeClient();
       await stripe.subscriptions.update(user.stripeSubscriptionId, {
         cancel_at_period_end: true,
@@ -2872,7 +2917,7 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/support", supportLimiter, async (req, res) => {
+  app.post("/api/support", supportLimiter, isAuthenticated, async (req, res) => {
     try {
       const schema = z.object({
         email: z.string().email("Invalid email address"),
@@ -2918,6 +2963,8 @@ export async function registerRoutes(
     if (!isAdmin(req)) {
       return res.status(403).json({ message: "Forbidden: admin access required" });
     }
+    const userId = getUserId(req);
+    if (userId) securityLog.adminAccess({ route: "/api/admin/support-messages", userId });
     try {
       const messages = await storage.getSupportMessages();
       res.json(messages);
@@ -2931,6 +2978,8 @@ export async function registerRoutes(
     if (!isAdmin(req)) {
       return res.status(403).json({ message: "Forbidden: admin access required" });
     }
+    const userId = getUserId(req);
+    if (userId) securityLog.adminAccess({ route: "/api/admin/analytics", userId });
     try {
       const analytics = await storage.getPlatformAnalytics();
       res.json(analytics);
@@ -2944,6 +2993,8 @@ export async function registerRoutes(
     if (!isAdmin(req)) {
       return res.status(403).json({ message: "Forbidden: admin access required" });
     }
+    const userId = getUserId(req);
+    if (userId) securityLog.adminAccess({ route: "/api/admin/analytics/refresh", userId });
     try {
       await storage.backfillAnalytics();
       const analytics = await storage.getPlatformAnalytics();

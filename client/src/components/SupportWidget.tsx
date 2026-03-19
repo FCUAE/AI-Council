@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { MessageCircleQuestion, X, Send, CheckCircle, ImagePlus } from "lucide-react";
+import { authFetch } from "@/lib/clerk-token";
 
 interface AttachedImage {
   file: File;
@@ -96,7 +97,7 @@ export default function SupportWidget() {
     const formData = new FormData();
     formData.append("file", img.file);
 
-    const res = await fetch("/api/support/upload", {
+    const res = await authFetch("/api/support/upload", {
       method: "POST",
       body: formData,
     });
@@ -124,7 +125,7 @@ export default function SupportWidget() {
         imageUrls.push(url);
       }
 
-      const res = await fetch("/api/support", {
+      const res = await authFetch("/api/support", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, message, imageUrls: imageUrls.length > 0 ? imageUrls : undefined }),

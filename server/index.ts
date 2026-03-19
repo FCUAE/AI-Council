@@ -177,10 +177,13 @@ app.use("/api/", (req: Request, res: Response, next: NextFunction) => {
   if (req.path === "/api/stripe/webhook") return next();
 
   const origin = req.headers.origin;
-  if (!origin) return next();
-
   const allowed = getAllowedOrigins();
   if (allowed.length === 0) return next();
+
+  if (!origin) {
+    securityLog.csrfOriginMismatch({ route: req.path, origin: "(none)", method: req.method });
+    return res.status(403).json({ message: "Forbidden" });
+  }
 
   if (!allowed.includes(origin)) {
     securityLog.csrfOriginMismatch({ route: req.path, origin, method: req.method });
