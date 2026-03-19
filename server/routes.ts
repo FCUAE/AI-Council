@@ -242,7 +242,7 @@ function isUrlSafeForFetch(urlStr: string): boolean {
   }
 }
 
-async function imageUrlToBase64(imageUrl: string, userId?: string): Promise<string | null> {
+async function imageUrlToBase64(imageUrl: string, userId?: string, isAdminUser?: boolean): Promise<string | null> {
   if (!imageUrl || typeof imageUrl !== 'string' || imageUrl.trim() === '') {
     return null;
   }
@@ -253,7 +253,7 @@ async function imageUrlToBase64(imageUrl: string, userId?: string): Promise<stri
       try {
         const objectFile = await objectStorageService.getObjectEntityFile(`/objects/${objectsPathMatch[1]}`);
 
-        if (userId) {
+        if (userId && !isAdminUser) {
           const canAccess = await objectStorageService.canAccessObjectEntity({
             userId,
             objectFile,
@@ -291,7 +291,7 @@ async function imageUrlToBase64(imageUrl: string, userId?: string): Promise<stri
 
     const localPath = resolveLocalFilePath(imageUrl);
     if (localPath && fs.existsSync(localPath)) {
-      if (userId) {
+      if (userId && !isAdminUser) {
         const filename = path.basename(localPath);
         const ownerResult = await db.execute(
           sql`SELECT user_id FROM file_uploads WHERE filename = ${filename}`
@@ -341,8 +341,8 @@ async function imageUrlToBase64(imageUrl: string, userId?: string): Promise<stri
   }
 }
 
-async function convertImagesToBase64(imageUrls: string[], userId?: string): Promise<string[]> {
-  const results = await Promise.all(imageUrls.map(url => imageUrlToBase64(url, userId)));
+async function convertImagesToBase64(imageUrls: string[], userId?: string, isAdminUser?: boolean): Promise<string[]> {
+  const results = await Promise.all(imageUrls.map(url => imageUrlToBase64(url, userId, isAdminUser)));
   return results.filter((uri): uri is string => uri !== null);
 }
 
@@ -813,7 +813,8 @@ async function callLLMWithVision(
   systemPrompt: string = "You are a helpful assistant.",
   signal?: AbortSignal,
   maxTokens: number = 4096,
-  userId?: string
+  userId?: string,
+  isAdminUser?: boolean
 ): Promise<LLMResult> {
   if (signal?.aborted) {
     throw new Error("Request cancelled");
@@ -830,7 +831,7 @@ async function callLLMWithVision(
   let base64Images: string[] = [];
   if (imageUrls.length > 0) {
     console.log(`[LLM Vision] Converting ${imageUrls.length} image(s) to base64 for ${model}...`);
-    base64Images = await convertImagesToBase64(imageUrls, userId);
+    base64Images = await convertImagesToBase64(imageUrls, userId, isAdminUser);
     if (base64Images.length === 0) {
       console.error(`[LLM Vision] Failed to convert any images for ${model}`);
       const fallbackPrompt = prompt + `\n\n[Note: ${imageUrls.length} image(s) were attached but could not be loaded for analysis.]`;
@@ -939,7 +940,7 @@ function estimateAttachmentTokensFromMetadata(attachments: Attachment[]): number
 
 const PROCESS_TIMEOUT_MS = 10 * 60 * 1000;
 
-async function processCouncilMessage(conversationId: number, userMessageId: number, prompt: string, previousContext?: string, attachments?: Attachment[], customModels?: string[], chairmanModel?: string, creditCost?: number, userId?: string) {
+async function processCouncilMessage(conversationId: number, userMessageId: number, prompt: string, previousContext?: string, attachments?: Attachment[], customModels?: string[], chairmanModel?: string, creditCost?: number, userId?: string, isAdminUser?: boolean) {
   const controller = createAbortController(userMessageId);
   const signal = controller.signal;
   const renderedImagePaths: string[] = [];
@@ -1324,7 +1325,7 @@ If you can't find anything to verify or challenge, you're not adding value. Scru
           : "";
         const councilSystemPrompt = stance.prompt + visionAddendum;
         const s1Result = (modelHasVision && hasImages)
-          ? await callLLMWithVision(activeModel, modelPrompt, imageUrls, councilSystemPrompt, signal, 2500, userId)
+          ? await callLLMWithVision(activeModel, modelPrompt, imageUrls, councilSystemPrompt, signal, 2500, userId, isAdminUser)
           : await callLLM(activeModel, modelPrompt, councilSystemPrompt, signal, 2500);
         trackUsage(activeModel, s1Result.usage, 'S1-initial', 2500);
         
@@ -1365,7 +1366,7 @@ If you can't find anything to verify or challenge, you're not adding value. Scru
               : "";
             const fbSystemPrompt = stance.prompt + fbVisionAddendum;
             const fbResult = (fbHasVision && hasImages)
-              ? await callLLMWithVision(fallbackModel, fbPrompt, imageUrls, fbSystemPrompt, signal, 2500, userId)
+              ? await callLLMWithVision(fallbackModel, fbPrompt, imageUrls, fbSystemPrompt, signal, 2500, userId, isAdminUser)
               : await callLLM(fallbackModel, fbPrompt, fbSystemPrompt, signal, 2500);
             trackUsage(fallbackModel, fbResult.usage, 'S1-initial', 2500);
             
@@ -1477,7 +1478,7 @@ Rules:
     let finalContent: string = "";
     try {
       const chairResult = (chairmanHasVision && hasImages)
-        ? await callLLMWithVision(selectedChairman, allContext, imageUrls, chairmanSystemPrompt, signal, CHAIRMAN_MAX_TOKENS, userId)
+        ? await callLLMWithVision(selectedChairman, allContext, imageUrls, chairmanSystemPrompt, signal, CHAIRMAN_MAX_TOKENS, userId, isAdminUser)
         : await callLLM(selectedChairman, allContext, chairmanSystemPrompt, signal, CHAIRMAN_MAX_TOKENS);
       finalContent = chairResult.content;
       trackUsage(selectedChairman, chairResult.usage, 'S3-chairman', CHAIRMAN_MAX_TOKENS);
@@ -1501,7 +1502,7 @@ Rules:
             fbHasVision && hasImages ? '- You can see the attached images. Incorporate visual analysis into your verdict.' : ''
           );
           const fbChairResult = (fbHasVision && hasImages)
-            ? await callLLMWithVision(fbModel, allContext, imageUrls, fbSystemPrompt, signal, CHAIRMAN_MAX_TOKENS, userId)
+            ? await callLLMWithVision(fbModel, allContext, imageUrls, fbSystemPrompt, signal, CHAIRMAN_MAX_TOKENS, userId, isAdminUser)
             : await callLLM(fbModel, allContext, fbSystemPrompt, signal, CHAIRMAN_MAX_TOKENS);
           finalContent = fbChairResult.content;
           trackUsage(fbModel, fbChairResult.usage, 'S3-chairman', CHAIRMAN_MAX_TOKENS);
@@ -2070,19 +2071,20 @@ export async function registerRoutes(
           ? JSON.parse(retryMessage.attachments)
           : retryMessage.attachments;
         
-        if (Array.isArray(rawAttachments)) {
-          parsedAttachments = rawAttachments.filter((att: any) => {
-            const isValid = att && typeof att.url === 'string' && att.url.trim() !== '';
-            if (!isValid && att) {
-              console.warn(`[Retry] Skipping invalid attachment (missing URL):`, att);
-            }
-            return isValid;
-          }) as Attachment[];
-          console.log(`[Retry] Validated ${parsedAttachments.length} attachments for retry`);
+        if (!Array.isArray(rawAttachments)) {
+          return res.status(400).json({ success: false, message: "Invalid attachment data in stored message" });
         }
+        for (const att of rawAttachments) {
+          if (!att || typeof att.url !== 'string' || att.url.trim() === '') {
+            securityLog.fileAccessDenied({ route: "/api/conversations/retry", userId: userId!, reason: "malformed_stored_attachment" });
+            return res.status(400).json({ success: false, message: "Stored message contains malformed attachment" });
+          }
+        }
+        parsedAttachments = rawAttachments as Attachment[];
+        console.log(`[Retry] Parsed ${parsedAttachments.length} attachments for retry`);
       } catch (parseErr) {
         console.error(`[Retry] Failed to parse attachments:`, parseErr);
-        parsedAttachments = undefined;
+        return res.status(400).json({ success: false, message: "Failed to parse stored attachments" });
       }
     }
 
@@ -2121,7 +2123,8 @@ export async function registerRoutes(
       conv.models || DEFAULT_COUNCIL_MODELS,
       conv.chairmanModel || DEFAULT_CHAIRMAN_MODEL,
       undefined,
-      userId || undefined
+      userId || undefined,
+      isAdmin(req)
     ).catch((err: Error) => {
       console.error(`[Retry] Error processing retry for message ${retryMessage.id}:`, err);
     });
@@ -2437,7 +2440,7 @@ export async function registerRoutes(
 
       const { conversation, userMessage } = txResult;
       
-      processCouncilMessage(conversation.id, userMessage.id, prompt, undefined, attachments, effectiveModels, effectiveChairman, creditCost, userId);
+      processCouncilMessage(conversation.id, userMessage.id, prompt, undefined, attachments, effectiveModels, effectiveChairman, creditCost, userId, isAdmin(req));
       
       res.status(201).json(conversation);
     } catch (err) {
@@ -2584,7 +2587,7 @@ export async function registerRoutes(
       }
 
       const { userMessage } = txResult;
-      processCouncilMessage(conversationId, userMessage.id, prompt, context, attachments, effectiveModels, effectiveChairman, creditCost, userId);
+      processCouncilMessage(conversationId, userMessage.id, prompt, context, attachments, effectiveModels, effectiveChairman, creditCost, userId, isAdmin(req));
 
       res.status(201).json(userMessage);
     } catch (err) {

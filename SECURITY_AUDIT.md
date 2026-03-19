@@ -202,7 +202,7 @@ The AI Council platform underwent a 5-phase security hardening across authentica
   - `validateAttachmentsBatch()` — validates all attachments, rejects entire request on first failure, logs denials via `securityLog`
   - Ingestion validation in POST `/api/conversations` and POST `/api/conversations/:id/messages` BEFORE inserting messages into the database — unauthorized attachment URLs are never stored
   - Retry endpoint re-validates all stored attachments against the current authenticated user
-  - Defense-in-depth in `imageUrlToBase64` — ownership/ACL checks with userId parameter threaded through `callLLMWithVision` → `convertImagesToBase64` → `imageUrlToBase64`
+  - Defense-in-depth in `imageUrlToBase64` — ownership/ACL checks with userId and isAdminUser parameters threaded through `processCouncilMessage` → `callLLMWithVision` → `convertImagesToBase64` → `imageUrlToBase64`; admin override consistent between ingestion and processing
   - File existence is NOT proof of authorization — `file_uploads` ownership record required
 
 #### Medium — Fixed
