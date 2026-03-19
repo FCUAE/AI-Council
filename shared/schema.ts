@@ -84,6 +84,7 @@ export const responses = pgTable("responses", {
 
 export const supportMessages = pgTable("support_messages", {
   id: serial("id").primaryKey(),
+  userId: text("user_id").notNull(),
   email: text("email").notNull(),
   message: text("message").notNull(),
   imageUrls: jsonb("image_urls").$type<string[]>().default([]),

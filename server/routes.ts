@@ -1825,7 +1825,8 @@ export async function registerRoutes(
           const ownerResult = await db.execute(
             sql`SELECT user_id FROM file_uploads WHERE filename = ${filename}`
           );
-          const ownerRow = (ownerResult as any).rows?.[0];
+          const ownerRows = ownerResult.rows as { user_id: string }[];
+          const ownerRow = ownerRows[0];
           if (!isAdmin(req)) {
             if (!ownerRow) {
               securityLog.fileAccessDenied({ route: "/api/uploads/extract-text", userId, reason: "no_ownership_record" });
@@ -2917,12 +2918,19 @@ export async function registerRoutes(
         return res.status(429).json({ message: "Daily support message limit reached. Please try again tomorrow." });
       }
 
+      const user = await storage.getUserById(userId);
+      if (!user) return res.status(401).json({ message: "Unauthorized" });
+
+      const canonicalEmail = user.email;
+
       const schema = z.object({
-        email: z.string().email("Invalid email address"),
+        email: z.string().email("Invalid email address").optional(),
         message: z.string().min(1, "Message is required").max(5000, "Message is too long"),
         imageUrls: z.array(z.string().regex(/^\/uploads\/[a-f0-9-]+\.\w+$/i, "Invalid image URL")).max(5).optional(),
       });
-      const { email, message, imageUrls } = schema.parse(req.body);
+      const { email: contactEmail, message, imageUrls } = schema.parse(req.body);
+
+      const senderEmail = canonicalEmail || contactEmail || "unknown";
 
       const baseUrl = process.env.REPLIT_DEV_DOMAIN
         ? `https://${process.env.REPLIT_DEV_DOMAIN}`
@@ -2938,12 +2946,13 @@ export async function registerRoutes(
       });
 
       await storage.createSupportMessage({
-        email,
+        userId,
+        email: senderEmail,
         message,
         imageUrls: fullImageUrls || [],
       });
 
-      const sent = await sendSupportMessage(email, message, fullImageUrls);
+      const sent = await sendSupportMessage(senderEmail, message, fullImageUrls);
       if (!sent) {
         return res.status(500).json({ message: "Failed to send message. Please try again." });
       }
