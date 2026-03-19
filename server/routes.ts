@@ -1732,6 +1732,7 @@ export async function registerRoutes(
       return res.status(404).json({ message: "Conversation not found" });
     }
     if (conv.userId !== userId) {
+      securityLog.fileAccessDenied({ route: "/api/conversations/get", userId: userId!, reason: "not_owner" });
       return res.status(403).json({ message: "Forbidden" });
     }
     res.json(conv);
@@ -1749,6 +1750,7 @@ export async function registerRoutes(
       return res.status(404).json({ message: "Conversation not found" });
     }
     if (conv.userId !== userId) {
+      securityLog.fileAccessDenied({ route: "/api/conversations/rename", userId: userId!, reason: "not_owner" });
       return res.status(403).json({ message: "Forbidden" });
     }
     await storage.renameConversation(id, parsed.data.title);
@@ -1763,6 +1765,7 @@ export async function registerRoutes(
       return res.status(404).json({ message: "Conversation not found" });
     }
     if (conv.userId !== userId) {
+      securityLog.fileAccessDenied({ route: "/api/conversations/delete", userId: userId!, reason: "not_owner" });
       return res.status(403).json({ message: "Forbidden" });
     }
     const messageIds = (conv.messages || []).map(m => m.id);
@@ -1927,6 +1930,7 @@ export async function registerRoutes(
             resolvedPath = tempFile;
           } catch (err: any) {
             if (err?.status === 403 || err?.message?.includes("Access denied")) {
+              securityLog.fileAccessDenied({ route: "/api/uploads/extract-text", userId, reason: "object_storage_denied" });
               return res.status(403).json({ message: "Access denied" });
             }
             return res.status(400).json({ message: "File not found in object storage" });
@@ -2075,6 +2079,7 @@ export async function registerRoutes(
       return res.status(404).json({ message: "Conversation not found" });
     }
     if (conv.userId !== userId) {
+      securityLog.fileAccessDenied({ route: "/api/conversations/status", userId: userId!, reason: "not_owner" });
       return res.status(403).json({ message: "Forbidden" });
     }
     
@@ -2403,6 +2408,7 @@ export async function registerRoutes(
         return res.status(404).json({ message: "Conversation not found" });
       }
       if (conversation.userId !== userId) {
+        securityLog.fileAccessDenied({ route: "/api/conversations/addMessage", userId, reason: "not_owner" });
         return res.status(403).json({ message: "Forbidden" });
       }
 
@@ -2748,7 +2754,7 @@ export async function registerRoutes(
     try {
       const userId = getUserId(req);
       if (!userId) return res.status(401).json({ message: "Unauthorized" });
-      if (!(await checkPerUserLimit(userId, 3, 60_000, "stripe.recover-credits"))) {
+      if (!(await checkPerUserLimit(userId, 2, 60_000, "stripe.recover-credits"))) {
         securityLog.rateLimitHit({ route: "stripe.recover-credits", userId });
         return res.status(429).json({ message: "Too many recovery requests. Please wait." });
       }
@@ -2922,6 +2928,10 @@ export async function registerRoutes(
       const userId = getUserId(req);
       if (!userId) return res.status(401).json({ message: "Unauthorized" });
 
+      if (!(await checkPerUserLimit(userId, 3, 60_000, "support"))) {
+        securityLog.rateLimitHit({ route: "support", userId });
+        return res.status(429).json({ message: "Too many support messages. Please wait a moment." });
+      }
       if (!(await checkPerUserLimit(userId, 10, 86_400_000, "support.daily"))) {
         securityLog.rateLimitHit({ route: "support.daily", userId });
         return res.status(429).json({ message: "Daily support message limit reached. Please try again tomorrow." });
@@ -2977,6 +2987,8 @@ export async function registerRoutes(
 
   app.get("/api/admin/support-messages", isAuthenticated, async (req, res) => {
     if (!isAdmin(req)) {
+      const userId = getUserId(req);
+      securityLog.fileAccessDenied({ route: "/api/admin/support-messages", userId: userId || "unknown", reason: "not_admin" });
       return res.status(403).json({ message: "Forbidden: admin access required" });
     }
     const userId = getUserId(req);
@@ -2992,6 +3004,8 @@ export async function registerRoutes(
 
   app.get("/api/admin/analytics", isAuthenticated, async (req, res) => {
     if (!isAdmin(req)) {
+      const userId = getUserId(req);
+      securityLog.fileAccessDenied({ route: "/api/admin/analytics", userId: userId || "unknown", reason: "not_admin" });
       return res.status(403).json({ message: "Forbidden: admin access required" });
     }
     const userId = getUserId(req);
@@ -3007,6 +3021,8 @@ export async function registerRoutes(
 
   app.post("/api/admin/analytics/refresh", isAuthenticated, async (req, res) => {
     if (!isAdmin(req)) {
+      const userId = getUserId(req);
+      securityLog.fileAccessDenied({ route: "/api/admin/analytics/refresh", userId: userId || "unknown", reason: "not_admin" });
       return res.status(403).json({ message: "Forbidden: admin access required" });
     }
     const userId = getUserId(req);

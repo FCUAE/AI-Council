@@ -211,7 +211,7 @@ export function registerObjectStorageRoutes(app: Express): void {
   app.post("/api/uploads/direct", uploadLimiter, isAuthenticated, upload.single("file"), async (req, res) => {
     try {
       const userId = getUserId(req);
-      if (userId && !(await checkPerUserLimit(userId, 30, 60_000, "uploads.direct"))) {
+      if (userId && !(await checkPerUserLimit(userId, 10, 60_000, "uploads.direct"))) {
         if (req.file) fs.unlink(req.file.path, () => {});
         securityLog.rateLimitHit({ route: "uploads.direct", userId });
         return res.status(429).json({ error: "Too many uploads. Please wait." });
