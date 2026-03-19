@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { MessageCircleQuestion, X, Send, CheckCircle, ImagePlus } from "lucide-react";
+import { MessageCircleQuestion, X, Send, CheckCircle, ImagePlus, LogIn } from "lucide-react";
 import { authFetch } from "@/lib/clerk-token";
+import { useAuth } from "@clerk/react";
 
 interface AttachedImage {
   file: File;
@@ -12,6 +13,7 @@ const MAX_SIZE = 5 * 1024 * 1024;
 const ALLOWED_TYPES = ["image/png", "image/jpeg", "image/gif", "image/webp"];
 
 export default function SupportWidget() {
+  const { isSignedIn, isLoaded: authLoaded } = useAuth();
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
@@ -178,7 +180,19 @@ export default function SupportWidget() {
             </button>
           </div>
 
-          {sent ? (
+          {!authLoaded ? (
+            <div className="px-5 py-8 flex justify-center">
+              <div className="w-5 h-5 border-2 border-[#ddd] border-t-[#555] rounded-full animate-spin" />
+            </div>
+          ) : !isSignedIn ? (
+            <div className="px-5 py-8 text-center" data-testid="text-support-signin-required">
+              <LogIn className="mx-auto mb-3 text-[#888]" size={28} />
+              <p className="text-[15px] text-[#1a1a1a] font-medium mb-1">Sign in to contact support</p>
+              <p className="text-[13px] text-[#888] leading-relaxed">
+                Please sign in to your account first, then come back here to send us a message.
+              </p>
+            </div>
+          ) : sent ? (
             <div className="px-5 py-8 text-center" data-testid="text-support-success">
               <CheckCircle className="mx-auto mb-3 text-green-500" size={32} />
               <p className="text-[15px] text-[#1a1a1a] leading-relaxed">
