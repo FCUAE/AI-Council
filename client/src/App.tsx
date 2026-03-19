@@ -31,7 +31,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import logoImg from "@assets/aicouncil3_1773164313661.png";
+const logoImg = "/logo.png";
 import SupportWidget from "@/components/SupportWidget";
 import { setClerkTokenGetter, authFetch } from "@/lib/clerk-token";
 import { useToast } from "@/hooks/use-toast";
