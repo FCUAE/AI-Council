@@ -1665,6 +1665,7 @@ export async function registerRoutes(
     
     const paymentFailed = user.subscriptionStatus === "past_due" || user.subscriptionStatus === "unpaid";
     
+    res.set("Cache-Control", "no-store");
     res.json({
       deliberationCount: user.deliberationCount,
       debateCredits: user.debateCredits,
@@ -2628,6 +2629,7 @@ export async function registerRoutes(
       }
 
       const pm = paymentMethods.data[0];
+      res.set("Cache-Control", "no-store");
       res.json({
         brand: pm.card?.brand || "unknown",
         last4: pm.card?.last4 || "0000",
@@ -2685,6 +2687,7 @@ export async function registerRoutes(
         }
       }
 
+      res.set("Cache-Control", "no-store");
       res.json(invoiceItems);
     } catch (error: any) {
       console.error("Invoices error:", error?.message || error);

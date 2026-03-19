@@ -22,6 +22,7 @@ export function registerAuthRoutes(app: Express): void {
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
+      res.set("Cache-Control", "no-store");
       res.json(user);
     } catch (error) {
       console.error("Error fetching user:", error);

@@ -56,11 +56,11 @@ app.use(helmet({
         "https://js.stripe.com",
         "https://scripts.refgrowcdn.com",
         "https://refgrowcdn.com",
-        "'unsafe-inline'",
+        "'unsafe-inline'", // Required: Clerk SDK injects inline scripts for auth widgets
       ],
       styleSrc: [
         "'self'",
-        "'unsafe-inline'",
+        "'unsafe-inline'", // Required: React CSS-in-JS and Clerk widget inline styles
         "https://fonts.googleapis.com",
         "https://*.clerk.accounts.dev",
       ],
