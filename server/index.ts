@@ -11,10 +11,10 @@ import { WebhookHandlers } from './webhookHandlers';
 import { pool, db } from './db';
 import { sql, eq } from 'drizzle-orm';
 import { conversations } from '@shared/schema';
-import { users, creditTransactions } from '@shared/models/auth';
 import { startCreditExpirationCron } from './cron';
 import { storage } from './storage';
 import { securityLog } from './securityLogger';
+import { withAdvisoryLock, LOCK_IDS } from './security/advisoryLocks';
 
 if (process.env.NODE_ENV === "production") {
   if (process.env.CLERK_PROD_SECRET_KEY) {
@@ -35,14 +35,6 @@ const apiLimiter = rateLimit({
 
 
 process.on("SIGHUP", () => {});
-const _origExit = process.exit;
-process.exit = ((code?: number) => {
-  if (code !== 0) {
-    console.error(`[vite] Suppressed non-fatal process.exit(${code})`);
-    return;
-  }
-  _origExit(code);
-}) as typeof process.exit;
 
 const app = express();
 const httpServer = createServer(app);
@@ -359,8 +351,8 @@ async function runAppMigrations() {
   await setupAuth(app);
   registerAuthRoutes(app);
   
-  await runAppMigrations();
-  await initStripe();
+  await withAdvisoryLock(LOCK_IDS.APP_MIGRATIONS, "App Migrations", runAppMigrations);
+  await withAdvisoryLock(LOCK_IDS.STRIPE_INIT, "Stripe Init", initStripe);
 
   const { ensureDatabaseViews } = await import("./storage");
   await ensureDatabaseViews();
@@ -395,7 +387,7 @@ async function runAppMigrations() {
     }
   }
 
-  await recoverStuckConversations();
+  await withAdvisoryLock(LOCK_IDS.STALE_RECOVERY, "Stuck Conversation Recovery", recoverStuckConversations);
 
   const STALE_CHECK_INTERVAL_MS = 5 * 60 * 1000;
   const STALE_THRESHOLD_MINUTES = 15;
@@ -411,54 +403,10 @@ async function runAppMigrations() {
   }, STALE_CHECK_INTERVAL_MS);
   staleRecoveryInterval.unref();
 
-  async function correctDoubleRefundCredits() {
-    const affectedUserId = "user_3AqlXjlXEI1i84EvcXa2v43EzgT";
-    const correctionDescription = "Correction: subtract extra 7 credits from double-refund bug";
-    try {
-      const [existing] = await db.select({ id: creditTransactions.id })
-        .from(creditTransactions)
-        .where(sql`${creditTransactions.userId} = ${affectedUserId} AND ${creditTransactions.description} = ${correctionDescription}`)
-        .limit(1);
-      if (existing) return;
-
-      const [user] = await db.select({ debateCredits: users.debateCredits })
-        .from(users)
-        .where(eq(users.id, affectedUserId));
-      if (!user) return;
-
-      const correctionAmount = 7;
-      const newBalance = Math.max(0, user.debateCredits - correctionAmount);
-
-      await db.transaction(async (tx) => {
-        await tx.update(users).set({
-          debateCredits: newBalance,
-          updatedAt: new Date()
-        }).where(eq(users.id, affectedUserId));
-
-        await tx.insert(creditTransactions).values({
-          userId: affectedUserId,
-          type: "correction",
-          amount: -correctionAmount,
-          balanceAfter: newBalance,
-          description: correctionDescription,
-          conversationId: null,
-        });
-      });
-
-      log(`[CORRECTION] Subtracted ${correctionAmount} extra credits from user ${affectedUserId} (${user.debateCredits} -> ${newBalance}) due to double-refund bug`);
-    } catch (error: any) {
-      console.error(`[CORRECTION] Failed to correct credits for ${affectedUserId}:`, error.message);
-    }
-  }
-
-  await correctDoubleRefundCredits();
-
-  try {
+  await withAdvisoryLock(LOCK_IDS.ANALYTICS_BACKFILL, "Analytics Backfill", async () => {
     await storage.backfillAnalytics();
     log('[ANALYTICS] Backfill completed on startup');
-  } catch (error: any) {
-    console.error('[ANALYTICS] Backfill error on startup:', error.message);
-  }
+  });
 
   const port = parseInt(process.env.PORT || "5000", 10);
   httpServer.listen(
