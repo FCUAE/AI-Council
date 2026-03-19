@@ -263,6 +263,15 @@
 - **Status:** Required by Clerk SDK which injects inline scripts. Cannot be replaced with nonce-based loading until Clerk supports it. Similarly, `'unsafe-inline'` in `style-src` is required for React's dynamic styles and Clerk's style injection.
 - **Recommendation:** Revisit when Clerk adds nonce/hash support.
 
+### Phase 4 — Step-Up Auth for Destructive Actions
+
+**37. Session-age check on destructive endpoints** — IMPLEMENTED (approximation)
+- `requireRecentAuth` middleware checks Clerk JWT `iat` claim; rejects sessions older than 10 minutes
+- Protected: DELETE /api/user, POST /api/stripe/cancel-subscription, POST /api/stripe/create-portal, POST /api/stripe/setup-payment
+- Frontend detects `RECENT_AUTH_REQUIRED` response code and triggers sign-out + sign-in flow
+- **Limitation**: This is a JWT-age approximation, NOT true Clerk reverification or password re-entry. It checks when the JWT was issued, not when the user last entered credentials. If Clerk silently refreshes tokens, the effective window may differ from 10 minutes. True step-up auth requires Clerk's reverification APIs not available in @clerk/express v2.
+- **Residual risk**: A compromised session token within its first 10 minutes can still perform destructive actions without additional verification.
+
 ---
 
 ## Recommendations (Require Product Decisions)

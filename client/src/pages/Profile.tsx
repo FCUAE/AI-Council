@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/use-auth";
-import { SignInButton, useUser } from "@clerk/react";
+import { SignInButton, useUser, useClerk } from "@clerk/react";
 import { useLocation } from "wouter";
 import { FileText, Download, CreditCard, ArrowLeft, ExternalLink, Loader2, Trash2, Check, Shield, Eye, EyeOff } from "lucide-react";
 import { useQuery, useMutation } from "@tanstack/react-query";
@@ -61,6 +61,7 @@ type SetPasswordFormValues = z.infer<typeof setPasswordSchema>;
 export default function Profile() {
   const { user, isAuthenticated, isLoading: authLoading, logout } = useAuth();
   const { user: clerkUser } = useUser();
+  const clerk = useClerk();
   const [, setLocation] = useLocation();
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showPasswordForm, setShowPasswordForm] = useState(false);
@@ -69,6 +70,16 @@ export default function Profile() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isChangingPassword, setIsChangingPassword] = useState(false);
   const { toast } = useToast();
+
+  const handleRecentAuthRequired = async () => {
+    toast({
+      title: "Re-authentication required",
+      description: "For security, please sign in again to perform this action.",
+      variant: "destructive",
+    });
+    await clerk.signOut();
+    clerk.openSignIn();
+  };
 
   const hasPassword = clerkUser?.passwordEnabled ?? false;
 
@@ -204,11 +215,19 @@ export default function Profile() {
 
   const setupPaymentMutation = useMutation({
     mutationFn: async () => {
-      const res = await apiRequest("POST", "/api/stripe/setup-payment");
-      return res.json();
+      const res = await authFetch("/api/stripe/setup-payment", { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) {
+        if (data.code === "RECENT_AUTH_REQUIRED") {
+          await handleRecentAuthRequired();
+          return null;
+        }
+        throw new Error(data.message || "Failed to set up payment");
+      }
+      return data;
     },
     onSuccess: (data) => {
-      if (data.url) window.location.href = data.url;
+      if (data?.url) window.location.href = data.url;
     },
   });
 
@@ -223,11 +242,16 @@ export default function Profile() {
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({ message: "Failed to delete account." }));
+        if (data.code === "RECENT_AUTH_REQUIRED") {
+          await handleRecentAuthRequired();
+          return;
+        }
         throw new Error(data.message || "Failed to delete account.");
       }
       return res.json();
     },
-    onSuccess: async () => {
+    onSuccess: async (data) => {
+      if (!data) return;
       await logout();
       setLocation("/");
     },

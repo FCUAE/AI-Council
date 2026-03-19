@@ -24,6 +24,7 @@ import { conversations, messages } from "@shared/schema";
 import { creditTransactions } from "@shared/models/auth";
 import { securityLog } from "./securityLogger";
 import { checkPerUserLimit } from "./security/rateLimiter";
+import { requireRecentAuth } from "./security/recentAuth";
 
 const conversationLimiter = rateLimit({
   windowMs: 60 * 1000,
@@ -1677,7 +1678,7 @@ export async function registerRoutes(
     });
   });
 
-  app.delete("/api/user", accountDeleteLimiter, isAuthenticated, async (req, res) => {
+  app.delete("/api/user", accountDeleteLimiter, isAuthenticated, requireRecentAuth, async (req, res) => {
     const userId = getUserId(req);
     if (!userId) return res.status(401).json({ message: "Unauthorized" });
 
@@ -2582,7 +2583,7 @@ export async function registerRoutes(
     }
   });
   
-  app.post("/api/stripe/create-portal", sensitiveStripeLimiter, isAuthenticated, async (req, res) => {
+  app.post("/api/stripe/create-portal", sensitiveStripeLimiter, isAuthenticated, requireRecentAuth, async (req, res) => {
     try {
       const userId = getUserId(req);
       if (!userId) return res.status(401).json({ message: "Unauthorized" });
@@ -2691,7 +2692,7 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/stripe/setup-payment", sensitiveStripeLimiter, isAuthenticated, async (req, res) => {
+  app.post("/api/stripe/setup-payment", sensitiveStripeLimiter, isAuthenticated, requireRecentAuth, async (req, res) => {
     try {
       const userId = getUserId(req);
       if (!userId) return res.status(401).json({ message: "Unauthorized" });
@@ -2871,7 +2872,7 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/stripe/cancel-subscription", isAuthenticated, async (req, res) => {
+  app.post("/api/stripe/cancel-subscription", isAuthenticated, requireRecentAuth, async (req, res) => {
     try {
       const userId = getUserId(req);
       if (!userId) return res.status(401).json({ message: "Unauthorized" });

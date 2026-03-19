@@ -1,7 +1,7 @@
 import { Switch, Route, useLocation } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
-import { ClerkProvider, SignInButton, SignUpButton, UserButton, useAuth as useClerkAuth } from "@clerk/react";
+import { ClerkProvider, SignInButton, SignUpButton, UserButton, useAuth as useClerkAuth, useClerk } from "@clerk/react";
 import NotFound from "@/pages/not-found";
 import Home from "@/pages/Home";
 import Chat from "@/pages/Chat";
@@ -34,6 +34,7 @@ import {
 import logoImg from "@assets/aicouncil3_1773164313661.png";
 import SupportWidget from "@/components/SupportWidget";
 import { setClerkTokenGetter, authFetch } from "@/lib/clerk-token";
+import { useToast } from "@/hooks/use-toast";
 import { trackRefgrowSignup } from "@/hooks/use-refgrow";
 
 function formatRelativeTime(dateString: string | Date): string {
@@ -87,6 +88,8 @@ function AppSidebar() {
   const [location, setLocation] = useLocation();
   const renameMutation = useRenameConversation();
   const deleteMutation = useDeleteConversation();
+  const clerk = useClerk();
+  const { toast } = useToast();
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editingTitle, setEditingTitle] = useState("");
   const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
@@ -156,6 +159,17 @@ function AppSidebar() {
       if (res.ok) {
         const { url } = await res.json();
         if (url) window.location.href = url;
+      } else {
+        const data = await res.json().catch(() => ({}));
+        if (data.code === "RECENT_AUTH_REQUIRED") {
+          toast({
+            title: "Re-authentication required",
+            description: "For security, please sign in again to perform this action.",
+            variant: "destructive",
+          });
+          await clerk.signOut();
+          clerk.openSignIn();
+        }
       }
     } catch (err) {
       console.error("Portal error:", err);
