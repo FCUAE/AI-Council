@@ -1,4 +1,8 @@
+import pg from 'pg';
 import { pool } from '../db';
+
+export type { pg };
+export type PoolClient = pg.PoolClient;
 
 export const LOCK_IDS = {
   APP_MIGRATIONS: 100,
@@ -54,7 +58,7 @@ export async function withAdvisoryLock(
 export async function withBlockingAdvisoryLock(
   lockId: number,
   jobName: string,
-  fn: () => Promise<void>,
+  fn: (client: pg.PoolClient) => Promise<void>,
   options: { timeoutMs?: number } = {}
 ): Promise<void> {
   const timeoutMs = options.timeoutMs ?? BLOCKING_LOCK_TIMEOUT_MS;
@@ -92,7 +96,7 @@ export async function withBlockingAdvisoryLock(
       console.log(`[LOCK] Acquired "${jobName}" after waiting ${waited}ms`);
     }
 
-    await fn();
+    await fn(client);
 
     const totalMs = Date.now() - startWait;
     console.log(`[LOCK] "${jobName}" completed in ${totalMs}ms`);

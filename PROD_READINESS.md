@@ -48,7 +48,7 @@ The three critical startup jobs run as a single ordered chain under one **blocki
 | Behavior | Detail |
 |----------|--------|
 | Lock type | `pg_advisory_lock` (blocking) — non-lock-holder waits |
-| Same session | Lock acquire → job execution → lock release all use the same pool client |
+| Same session | Lock acquire → job → lock release use the same pool client. App migrations and views DDL execute on the lock-holding session. Stripe init uses its own connections (third-party `stripe-replit-sync` library) but runs sequentially within the locked chain. |
 | Timeout | 120 seconds wall-clock timer (`process.exit(1)`) + SQL `statement_timeout`; covers both lock-wait and callback execution |
 | Failure | Any error in the chain crashes the process (prevents serving on bad state) |
 | Observability | Logs: attempting lock → waiting (if blocked) → acquired → each step → completed with elapsed time |

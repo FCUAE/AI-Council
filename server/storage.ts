@@ -568,8 +568,8 @@ export class DatabaseStorage implements IStorage {
 
 export const storage = new DatabaseStorage();
 
-export async function ensureDatabaseViews() {
-  await db.execute(sql`
+export async function ensureDatabaseViews(lockClient?: import('pg').PoolClient) {
+  const createTableSQL = `
     CREATE TABLE IF NOT EXISTS debate_cost_summary (
       debate_id INTEGER PRIMARY KEY,
       user_id VARCHAR,
@@ -582,7 +582,12 @@ export async function ensureDatabaseViews() {
       profit_dollars NUMERIC DEFAULT 0,
       created_at TIMESTAMP
     )
-  `);
+  `;
+  if (lockClient) {
+    await lockClient.query(createTableSQL);
+  } else {
+    await db.execute(sql.raw(createTableSQL));
+  }
   await refreshDebateCostSummary();
 }
 

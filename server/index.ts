@@ -253,8 +253,7 @@ async function initStripe() {
   }
 }
 
-async function runAppMigrations() {
-  const client = await pool.connect();
+async function runAppMigrations(client: import('pg').PoolClient) {
   try {
     await client.query(`
       CREATE TABLE IF NOT EXISTS credit_transactions (
@@ -368,8 +367,6 @@ async function runAppMigrations() {
   } catch (error) {
     console.error('App migration error:', error);
     throw error;
-  } finally {
-    client.release();
   }
 }
 
@@ -380,14 +377,14 @@ async function runAppMigrations() {
   await withBlockingAdvisoryLock(
     LOCK_IDS.CRITICAL_STARTUP,
     "Critical Startup (migrations → Stripe → views)",
-    async () => {
-      console.log("[STARTUP] Running app migrations...");
-      await runAppMigrations();
-      console.log("[STARTUP] Running Stripe init...");
+    async (lockClient) => {
+      console.log("[STARTUP] Running app migrations (on lock session)...");
+      await runAppMigrations(lockClient);
+      console.log("[STARTUP] Running Stripe init (third-party, own connections)...");
       await initStripe();
-      console.log("[STARTUP] Ensuring database views...");
+      console.log("[STARTUP] Ensuring database views (DDL on lock session)...");
       const { ensureDatabaseViews } = await import("./storage");
-      await ensureDatabaseViews();
+      await ensureDatabaseViews(lockClient);
       console.log("[STARTUP] Critical startup chain complete.");
     },
     { timeoutMs: 120_000 }

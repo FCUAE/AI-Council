@@ -225,7 +225,7 @@ The AI Council platform underwent a 6-phase security hardening across authentica
 **55. Unsafe startup lock semantics for critical jobs**
 - **Risk:** Critical startup jobs (migrations, Stripe init, ensureDatabaseViews) used non-blocking `pg_try_advisory_lock`. If one instance held the lock, other instances silently skipped the job and continued booting — potentially serving traffic before the database schema or Stripe products were ready. Additionally, `ensureDatabaseViews` ran without any lock protection, allowing concurrent execution across instances despite depending on migration schema.
 - **Fix:** Added `withBlockingAdvisoryLock` function using `pg_advisory_lock` (blocking). All three critical jobs now run as a single ordered chain under one blocking lock (ID 200):
-  - Lock acquire, job execution, and lock release all use the same DB session (same pool client)
+  - Lock acquire, job execution, and lock release all use the same DB session (same pool client). App migrations and ensureDatabaseViews DDL run on the lock-holding client. Stripe init uses its own connections (third-party `stripe-replit-sync` library) but runs sequentially within the locked chain.
   - Non-lock-holder instances block and wait instead of skipping
   - 120-second wall-clock timer (`process.exit(1)`) + SQL `statement_timeout` prevents indefinite hangs — covers both lock-wait and callback execution
   - Observable logging at every stage: attempting → waiting (if blocked) → acquired → each step name → completed with elapsed time
