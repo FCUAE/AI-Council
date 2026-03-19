@@ -124,16 +124,15 @@ export class DatabaseStorage implements IStorage {
         const result = await tx.update(conversations)
           .set({ settled: 1 })
           .where(sql`${conversations.id} = ${conversationId} AND ${conversations.settled} = 0`)
-          .returning({ id: conversations.id, reservedCredits: conversations.reservedCredits });
+          .returning({ id: conversations.id });
         if (result.length === 0) {
           console.log(`[REFUND] Skipped duplicate refund for debate #${conversationId} (already settled)`);
           return false;
         }
-        const atomicAmount = result[0].reservedCredits || amount;
         await tx.insert(creditTransactions).values({
           userId,
           type: "refund",
-          amount: atomicAmount,
+          amount: amount,
           balanceAfter: 0,
           description: reason,
           conversationId: conversationId,
