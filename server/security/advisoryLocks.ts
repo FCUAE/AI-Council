@@ -11,8 +11,10 @@ export const LOCK_IDS = {
 export async function withAdvisoryLock(
   lockId: number,
   jobName: string,
-  fn: () => Promise<void>
+  fn: () => Promise<void>,
+  options: { critical?: boolean } = {}
 ): Promise<boolean> {
+  const { critical = false } = options;
   const client = await pool.connect();
   try {
     const result = await client.query(
@@ -37,6 +39,9 @@ export async function withAdvisoryLock(
     try {
       await client.query(`SELECT pg_advisory_unlock($1)`, [lockId]);
     } catch {
+    }
+    if (critical) {
+      throw error;
     }
     return false;
   } finally {

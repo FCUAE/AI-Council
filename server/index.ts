@@ -351,8 +351,10 @@ async function runAppMigrations() {
   await setupAuth(app);
   registerAuthRoutes(app);
   
-  await withAdvisoryLock(LOCK_IDS.APP_MIGRATIONS, "App Migrations", runAppMigrations);
-  await withAdvisoryLock(LOCK_IDS.STRIPE_INIT, "Stripe Init", initStripe);
+  // Startup jobs run in the web process under advisory lock protection.
+  // See PROD_READINESS.md for the operational tradeoff vs. separate workers.
+  await withAdvisoryLock(LOCK_IDS.APP_MIGRATIONS, "App Migrations", runAppMigrations, { critical: true });
+  await withAdvisoryLock(LOCK_IDS.STRIPE_INIT, "Stripe Init", initStripe, { critical: true });
 
   const { ensureDatabaseViews } = await import("./storage");
   await ensureDatabaseViews();
