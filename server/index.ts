@@ -15,6 +15,7 @@ import { startCreditExpirationCron } from './cron';
 import { storage } from './storage';
 import { securityLog } from './securityLogger';
 import { withAdvisoryLock, LOCK_IDS } from './security/advisoryLocks';
+import { startRateLimitCleanup } from './security/rateLimiter';
 
 if (process.env.NODE_ENV === "production") {
   if (process.env.CLERK_PROD_SECRET_KEY) {
@@ -339,6 +340,14 @@ async function runAppMigrations() {
         BEFORE INSERT ON credit_transactions
         FOR EACH ROW
         EXECUTE FUNCTION sync_credits_on_insert();
+
+      CREATE TABLE IF NOT EXISTS rate_limit_buckets (
+        route_key TEXT NOT NULL,
+        user_id TEXT NOT NULL,
+        count INTEGER NOT NULL DEFAULT 1,
+        reset_at TIMESTAMPTZ NOT NULL,
+        UNIQUE (route_key, user_id)
+      );
     `);
     console.log('App migrations complete');
   } catch (error) {
@@ -422,6 +431,7 @@ async function runAppMigrations() {
     () => {
       log(`serving on port ${port}`);
       startCreditExpirationCron();
+      startRateLimitCleanup();
     },
   );
 

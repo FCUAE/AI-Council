@@ -23,6 +23,7 @@ import { sql, eq } from "drizzle-orm";
 import { conversations, messages } from "@shared/schema";
 import { creditTransactions } from "@shared/models/auth";
 import { securityLog } from "./securityLogger";
+import { checkPerUserLimit } from "./security/rateLimiter";
 
 const conversationLimiter = rateLimit({
   windowMs: 60 * 1000,
@@ -72,29 +73,6 @@ const accountDeleteLimiter = rateLimit({
   message: { message: "Too many requests. Please try again shortly." },
 });
 
-const perUserBuckets = new Map<string, { count: number; resetAt: number }>();
-
-function checkPerUserLimit(userId: string, maxPerWindow: number, windowMs: number = 60_000, route: string = "global"): boolean {
-  const key = `${userId}:${route}`;
-  const now = Date.now();
-  const bucket = perUserBuckets.get(key);
-  if (!bucket || now >= bucket.resetAt) {
-    perUserBuckets.set(key, { count: 1, resetAt: now + windowMs });
-    return true;
-  }
-  if (bucket.count >= maxPerWindow) {
-    return false;
-  }
-  bucket.count++;
-  return true;
-}
-
-setInterval(() => {
-  const now = Date.now();
-  for (const [key, bucket] of perUserBuckets) {
-    if (now >= bucket.resetAt) perUserBuckets.delete(key);
-  }
-}, 5 * 60_000);
 
 function getUserId(req: Request): string | undefined {
   return getAuth(req).userId ?? undefined;
@@ -1828,7 +1806,7 @@ export async function registerRoutes(
       const userId = getUserId(req);
       if (!userId) return res.status(401).json({ message: "Unauthorized" });
 
-      if (!checkPerUserLimit(userId, 10, 60_000, "extract-text")) {
+      if (!(await checkPerUserLimit(userId, 10, 60_000, "extract-text"))) {
         securityLog.rateLimitHit({ route: "extract-text", userId });
         return res.status(429).json({ message: "Too many text extraction requests. Please wait." });
       }
@@ -2014,7 +1992,7 @@ export async function registerRoutes(
 
   app.post("/api/conversations/:id/retry", isAuthenticated, async (req, res) => {
     const userId = getUserId(req);
-    if (userId && !checkPerUserLimit(userId, 3, 60_000, "conversations.retry")) {
+    if (userId && !(await checkPerUserLimit(userId, 3, 60_000, "conversations.retry"))) {
       securityLog.rateLimitHit({ route: "conversations.retry", userId });
       return res.status(429).json({ success: false, message: "Too many retries. Please wait a moment." });
     }
@@ -2264,7 +2242,7 @@ export async function registerRoutes(
       const userId = getUserId(req);
       if (!userId) return res.status(401).json({ message: "Unauthorized" });
 
-      if (!checkPerUserLimit(userId, 5, 60_000, "conversations.create")) {
+      if (!(await checkPerUserLimit(userId, 5, 60_000, "conversations.create"))) {
         securityLog.rateLimitHit({ route: "conversations.create", userId });
         return res.status(429).json({ message: "You're creating debates too quickly. Please wait a moment." });
       }
@@ -2385,7 +2363,7 @@ export async function registerRoutes(
   app.post(api.conversations.addMessage.path, conversationLimiter, isAuthenticated, async (req, res) => {
     try {
       const userId = getUserId(req);
-      if (userId && !checkPerUserLimit(userId, 5, 60_000, "conversations.addMessage")) {
+      if (userId && !(await checkPerUserLimit(userId, 5, 60_000, "conversations.addMessage"))) {
         securityLog.rateLimitHit({ route: "conversations.addMessage", userId });
         return res.status(429).json({ message: "You're sending messages too quickly. Please wait a moment." });
       }
@@ -2753,7 +2731,7 @@ export async function registerRoutes(
     try {
       const userId = getUserId(req);
       if (!userId) return res.status(401).json({ message: "Unauthorized" });
-      if (!checkPerUserLimit(userId, 3, 60_000, "stripe.recover-credits")) {
+      if (!(await checkPerUserLimit(userId, 3, 60_000, "stripe.recover-credits"))) {
         securityLog.rateLimitHit({ route: "stripe.recover-credits", userId });
         return res.status(429).json({ message: "Too many recovery requests. Please wait." });
       }
@@ -2825,7 +2803,7 @@ export async function registerRoutes(
     try {
       const userId = getUserId(req);
       if (!userId) return res.status(401).json({ message: "Unauthorized" });
-      if (!checkPerUserLimit(userId, 3, 60_000, "stripe.sync-credits")) {
+      if (!(await checkPerUserLimit(userId, 3, 60_000, "stripe.sync-credits"))) {
         securityLog.rateLimitHit({ route: "stripe.sync-credits", userId });
         return res.status(429).json({ message: "Too many sync requests. Please wait." });
       }

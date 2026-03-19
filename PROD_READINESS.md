@@ -66,6 +66,6 @@ For production deployments, also set:
 | Conversation recovery | Safe | Advisory lock 102 |
 | Analytics backfill | Safe | Advisory lock 103 |
 | Credit expiration cron | Safe | Advisory lock 42 |
-| Rate limiting | In-memory | Not shared across instances (see Task #74) |
+| Per-user rate limiting | Safe | Postgres-backed `rate_limit_buckets` table with atomic upsert |
 | CSRF origin check | Safe | Stateless origin validation |
 | Session management | Safe | Clerk JWT-based, stateless |
