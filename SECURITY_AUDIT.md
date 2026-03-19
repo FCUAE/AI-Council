@@ -214,9 +214,9 @@ The AI Council platform underwent a 5-phase security hardening across authentica
 #### Low — Fixed
 
 **54. Attachment auth tests**
-- 30 unit tests (`server/__tests__/attachmentAuth.test.ts`) covering URL normalization, DB-backed ownership validation, batch rejection, traversal attempts, unknown URL patterns, data URI rejection, admin override for `/uploads/` and `/objects/`, malformed encoding rejection, empty URL rejection, and unsafe external URL handling
-- 14 route-level integration tests (`server/__tests__/attachmentAuthRoutes.test.ts`) using `supertest`: forged `/uploads/` and `/objects/` via create/add-message/retry endpoints, data URI rejection, unsafe external URL rejection, path traversal via HTTP, retry parse failure handling, no-attachment success paths, and add-message forged `/objects/` case
-- Route tests use a minimal Express app reproducing the ingestion validation pattern; they exercise real `validateAttachmentsBatch` against the DB but do not mock the full auth/storage stack
+- 31 unit tests (`server/__tests__/attachmentAuth.test.ts`): URL normalization, DB-backed ownership validation (owner success, non-owner denial, admin override success, admin no-record denial), batch validation (full batch success, first-failure rejection), traversal attempts, unknown URL patterns, data URI rejection, admin override for `/objects/`, malformed encoding rejection, empty URL rejection, unsafe external URL handling
+- 14 route-level integration tests (`server/__tests__/attachmentAuthRoutes.test.ts`) using `supertest`: forged `/uploads/` and `/objects/` via create/add-message/retry endpoints, data URI rejection, unsafe external URL rejection, path traversal via HTTP, retry parse failure handling (JSON error, non-array, empty URL), success paths for each endpoint
+- Route tests use a minimal Express app reproducing the ingestion validation pattern; they exercise real `validateAttachmentsBatch` against the DB
 
 ---
 

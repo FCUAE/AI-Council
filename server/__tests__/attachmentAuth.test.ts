@@ -1,11 +1,7 @@
 import { normalizeAttachmentUrl, validateAttachmentAccess, validateAttachmentsBatch, AttachmentAuthError } from "../security/attachmentAuth";
-
-let mockCanAccess = true;
-
-async function setupMocks() {
-  const assert = await import("assert");
-  return { assert: assert.strict };
-}
+import { db } from "../db";
+import { sql } from "drizzle-orm";
+import { randomUUID } from "crypto";
 
 function describe(name: string, fn: () => void) {
   console.log(`\n=== ${name} ===`);
@@ -19,7 +15,6 @@ function it(name: string, fn: () => Promise<void>) {
 }
 
 async function runTests() {
-  const { assert } = await setupMocks();
   let passed = 0;
   let failed = 0;
   const failures: { name: string; error: any }[] = [];
@@ -27,10 +22,10 @@ async function runTests() {
   for (const test of testQueue) {
     try {
       await test.fn();
-      console.log(`  ✓ ${test.name}`);
+      console.log(`  \u2713 ${test.name}`);
       passed++;
     } catch (err: any) {
-      console.error(`  ✗ ${test.name}: ${err.message}`);
+      console.error(`  \u2717 ${test.name}: ${err.message}`);
       failed++;
       failures.push({ name: test.name, error: err });
     }
@@ -53,13 +48,13 @@ describe("normalizeAttachmentUrl", () => {
   });
 
   it("strips query strings", async () => {
-    const result = normalizeAttachmentUrl("/uploads/test.png?v=123");
-    if (result !== "/uploads/test.png") throw new Error(`Expected /uploads/test.png, got ${result}`);
+    const result = normalizeAttachmentUrl("/uploads/file.png?token=abc");
+    if (result !== "/uploads/file.png") throw new Error(`Expected /uploads/file.png, got ${result}`);
   });
 
   it("strips fragments", async () => {
-    const result = normalizeAttachmentUrl("/uploads/test.png#section");
-    if (result !== "/uploads/test.png") throw new Error(`Expected /uploads/test.png, got ${result}`);
+    const result = normalizeAttachmentUrl("/uploads/file.png#section");
+    if (result !== "/uploads/file.png") throw new Error(`Expected /uploads/file.png, got ${result}`);
   });
 
   it("decodes URL-encoded characters", async () => {
@@ -68,18 +63,20 @@ describe("normalizeAttachmentUrl", () => {
   });
 
   it("collapses duplicate slashes", async () => {
-    const result = normalizeAttachmentUrl("/uploads///test.png");
-    if (result !== "/uploads/test.png") throw new Error(`Expected /uploads/test.png, got ${result}`);
+    const result = normalizeAttachmentUrl("/uploads///file.png");
+    if (result !== "/uploads/file.png") throw new Error(`Expected /uploads/file.png, got ${result}`);
   });
 
   it("resolves path traversal attempts", async () => {
-    const result = normalizeAttachmentUrl("/uploads/../etc/passwd");
-    if (result !== "/etc/passwd") throw new Error(`Expected /etc/passwd, got ${result}`);
+    const result = normalizeAttachmentUrl("/uploads/../../../etc/passwd");
+    if (result.includes("..")) throw new Error("Path traversal not resolved");
+    if (result.startsWith("/uploads/")) throw new Error("Traversal should escape /uploads/ prefix");
+    if (result !== "/etc/passwd") throw new Error(`Expected /etc/passwd (escaped uploads), got ${result}`);
   });
 
   it("resolves dot segments", async () => {
-    const result = normalizeAttachmentUrl("/uploads/./test.png");
-    if (result !== "/uploads/test.png") throw new Error(`Expected /uploads/test.png, got ${result}`);
+    const result = normalizeAttachmentUrl("/uploads/./file.png");
+    if (result !== "/uploads/file.png") throw new Error(`Expected /uploads/file.png, got ${result}`);
   });
 
   it("rejects empty URL", async () => {
@@ -87,27 +84,23 @@ describe("normalizeAttachmentUrl", () => {
       normalizeAttachmentUrl("");
       throw new Error("Should have thrown");
     } catch (err: any) {
-      if (!(err instanceof AttachmentAuthError)) throw new Error(`Expected AttachmentAuthError, got ${err.constructor.name}`);
-      if (err.reason !== "empty_url") throw new Error(`Expected empty_url reason, got ${err.reason}`);
+      if (!(err instanceof AttachmentAuthError)) throw err;
+      if (err.statusCode !== 400) throw new Error(`Expected 400, got ${err.statusCode}`);
     }
   });
 
   it("handles absolute HTTP URLs by extracting path", async () => {
-    const result = normalizeAttachmentUrl("https://example.com/uploads/test.png?v=1");
-    if (result !== "/uploads/test.png") throw new Error(`Expected /uploads/test.png, got ${result}`);
+    const result = normalizeAttachmentUrl("https://example.com/uploads/file.png?q=1");
+    if (result !== "/uploads/file.png") throw new Error(`Expected /uploads/file.png, got ${result}`);
   });
 
   it("rejects malformed absolute URLs", async () => {
     try {
-      normalizeAttachmentUrl("http://[invalid-bracket");
+      normalizeAttachmentUrl("http://[invalid");
       throw new Error("Should have thrown");
     } catch (err: any) {
-      if (!(err instanceof AttachmentAuthError)) {
-        if (err instanceof TypeError && err.message.includes("Invalid URL")) {
-          return;
-        }
-        throw new Error(`Expected AttachmentAuthError or TypeError, got ${err.constructor.name}: ${err.message}`);
-      }
+      if (!(err instanceof AttachmentAuthError)) throw err;
+      if (err.reason !== "malformed_url") throw new Error(`Expected malformed_url, got ${err.reason}`);
     }
   });
 
@@ -125,10 +118,20 @@ describe("normalizeAttachmentUrl", () => {
     const result = normalizeAttachmentUrl("data:image/png;base64,abc");
     if (!result.startsWith("/")) throw new Error("data: URIs get normalized to path form which is then rejected by validateAttachmentAccess");
   });
+
+  it("rejects malformed percent-encoding in relative URLs", async () => {
+    try {
+      normalizeAttachmentUrl("/uploads/file%ZZbad.png");
+      throw new Error("Should have thrown");
+    } catch (err: any) {
+      if (!(err instanceof AttachmentAuthError)) throw err;
+      if (err.reason !== "malformed_encoding") throw new Error(`Expected malformed_encoding, got ${err.reason}`);
+    }
+  });
 });
 
-describe("validateAttachmentAccess — /uploads/ paths", () => {
-  it("rejects if no file_uploads ownership record exists (file existence ≠ auth)", async () => {
+describe("validateAttachmentAccess — /uploads/ ownership (DB-backed)", () => {
+  it("rejects if no file_uploads ownership record exists (file existence != auth)", async () => {
     try {
       await validateAttachmentAccess("user-1", "/uploads/orphan-file.png", false);
       throw new Error("Should have thrown");
@@ -139,13 +142,58 @@ describe("validateAttachmentAccess — /uploads/ paths", () => {
     }
   });
 
-  it("rejects if user is not the owner", async () => {
+  it("allows access when user owns the file (DB record exists)", async () => {
+    const testFilename = `test-owned-${randomUUID()}.png`;
+    const testUserId = `test-owner-${randomUUID()}`;
+    await db.execute(
+      sql`INSERT INTO file_uploads (filename, user_id, purpose) VALUES (${testFilename}, ${testUserId}, 'test')`
+    );
     try {
-      await validateAttachmentAccess("user-attacker", "/uploads/victim-file.png", false);
+      await validateAttachmentAccess(testUserId, `/uploads/${testFilename}`, false);
+    } finally {
+      await db.execute(sql`DELETE FROM file_uploads WHERE filename = ${testFilename}`);
+    }
+  });
+
+  it("rejects when different user tries to access owned file", async () => {
+    const testFilename = `test-owned-${randomUUID()}.png`;
+    const ownerUserId = `test-owner-${randomUUID()}`;
+    const attackerUserId = `test-attacker-${randomUUID()}`;
+    await db.execute(
+      sql`INSERT INTO file_uploads (filename, user_id, purpose) VALUES (${testFilename}, ${ownerUserId}, 'test')`
+    );
+    try {
+      await validateAttachmentAccess(attackerUserId, `/uploads/${testFilename}`, false);
       throw new Error("Should have thrown");
     } catch (err: any) {
       if (!(err instanceof AttachmentAuthError)) throw err;
-      if (err.statusCode !== 403) throw new Error(`Expected 403, got ${err.statusCode}`);
+      if (err.reason !== "not_owner") throw new Error(`Expected not_owner, got ${err.reason}`);
+    } finally {
+      await db.execute(sql`DELETE FROM file_uploads WHERE filename = ${testFilename}`);
+    }
+  });
+
+  it("admin override allows access to another user's file", async () => {
+    const testFilename = `test-admin-${randomUUID()}.png`;
+    const ownerUserId = `test-owner-${randomUUID()}`;
+    const adminUserId = `test-admin-${randomUUID()}`;
+    await db.execute(
+      sql`INSERT INTO file_uploads (filename, user_id, purpose) VALUES (${testFilename}, ${ownerUserId}, 'test')`
+    );
+    try {
+      await validateAttachmentAccess(adminUserId, `/uploads/${testFilename}`, true);
+    } finally {
+      await db.execute(sql`DELETE FROM file_uploads WHERE filename = ${testFilename}`);
+    }
+  });
+
+  it("admin still denied when no ownership record exists", async () => {
+    try {
+      await validateAttachmentAccess("admin-user", `/uploads/nonexistent-${randomUUID()}.png`, true);
+      throw new Error("Should have thrown");
+    } catch (err: any) {
+      if (!(err instanceof AttachmentAuthError)) throw err;
+      if (err.reason !== "no_ownership_record") throw new Error(`Expected no_ownership_record, got ${err.reason}`);
     }
   });
 });
@@ -153,15 +201,35 @@ describe("validateAttachmentAccess — /uploads/ paths", () => {
 describe("validateAttachmentsBatch", () => {
   it("rejects entire batch on first failure", async () => {
     const attachments = [
-      { url: "/uploads/my-file.png", name: "a", type: "image/png", size: 100 },
-      { url: "/uploads/not-my-file.png", name: "b", type: "image/png", size: 100 },
+      { url: `/uploads/legit-${randomUUID()}.png`, name: "a.png" },
+      { url: `/uploads/stolen-${randomUUID()}.png`, name: "b.png" }
     ];
-
     try {
       await validateAttachmentsBatch("user-1", attachments, false);
       throw new Error("Should have thrown");
     } catch (err: any) {
       if (!(err instanceof AttachmentAuthError)) throw err;
+      if (err.statusCode !== 403) throw new Error(`Expected 403, got ${err.statusCode}`);
+    }
+  });
+
+  it("batch succeeds when owner has records for all files", async () => {
+    const testUserId = `test-batch-owner-${randomUUID()}`;
+    const file1 = `batch-a-${randomUUID()}.png`;
+    const file2 = `batch-b-${randomUUID()}.png`;
+    await db.execute(
+      sql`INSERT INTO file_uploads (filename, user_id, purpose) VALUES (${file1}, ${testUserId}, 'test')`
+    );
+    await db.execute(
+      sql`INSERT INTO file_uploads (filename, user_id, purpose) VALUES (${file2}, ${testUserId}, 'test')`
+    );
+    try {
+      await validateAttachmentsBatch(testUserId, [
+        { url: `/uploads/${file1}`, name: "a.png" },
+        { url: `/uploads/${file2}`, name: "b.png" }
+      ], false);
+    } finally {
+      await db.execute(sql`DELETE FROM file_uploads WHERE filename IN (${file1}, ${file2})`);
     }
   });
 });
@@ -170,16 +238,6 @@ describe("URL normalization edge cases", () => {
   it("handles double-encoded percent", async () => {
     const result = normalizeAttachmentUrl("/uploads/test%2520file.png");
     if (!result.includes("uploads")) throw new Error(`Unexpected result: ${result}`);
-  });
-
-  it("rejects malformed percent-encoding in relative URLs", async () => {
-    try {
-      normalizeAttachmentUrl("/uploads/file%ZZbad.png");
-      throw new Error("Should have thrown");
-    } catch (err: any) {
-      if (!(err instanceof AttachmentAuthError)) throw err;
-      if (err.reason !== "malformed_encoding") throw new Error(`Expected malformed_encoding, got ${err.reason}`);
-    }
   });
 
   it("handles null byte injection attempt", async () => {
@@ -225,14 +283,13 @@ describe("URL normalization edge cases", () => {
   });
 });
 
-describe("ingestion-level batch validation", () => {
-  it("rejects entire batch when one attachment is forged /uploads/ path with no ownership", async () => {
+describe("ingestion-level validation scenarios", () => {
+  it("rejects batch with forged /uploads/ (no ownership)", async () => {
     const attachments = [
-      { url: "/uploads/my-legit-file.png", name: "mine.png" },
-      { url: "/uploads/other-users-secret.png", name: "stolen.png" }
+      { url: `/uploads/forged-${randomUUID()}.png`, name: "stolen.png" }
     ];
     try {
-      await validateAttachmentsBatch("user-1", attachments, false);
+      await validateAttachmentsBatch("user-attacker", attachments, false);
       throw new Error("Should have thrown");
     } catch (err: any) {
       if (!(err instanceof AttachmentAuthError)) throw err;
@@ -240,24 +297,9 @@ describe("ingestion-level batch validation", () => {
     }
   });
 
-  it("rejects forged /objects/ path when ACL denies", async () => {
-    mockCanAccess = false;
+  it("rejects batch with data: URI", async () => {
     try {
-      await validateAttachmentAccess("user-1", "/objects/private/.private/other-user/secret.pdf", false);
-      throw new Error("Should have thrown");
-    } catch (err: any) {
-      if (!(err instanceof AttachmentAuthError)) throw err;
-    } finally {
-      mockCanAccess = true;
-    }
-  });
-
-  it("rejects batch with data: URI (not a legitimate client attachment)", async () => {
-    const attachments = [
-      { url: "data:image/png;base64,AAAA", name: "inline.png" }
-    ];
-    try {
-      await validateAttachmentsBatch("user-1", attachments, false);
+      await validateAttachmentsBatch("user-1", [{ url: "data:image/png;base64,AAAA", name: "inline.png" }], false);
       throw new Error("Should have thrown");
     } catch (err: any) {
       if (!(err instanceof AttachmentAuthError)) throw err;
@@ -265,48 +307,22 @@ describe("ingestion-level batch validation", () => {
     }
   });
 
-  it("rejects batch with path traversal attempt targeting /uploads/", async () => {
-    const attachments = [
-      { url: "/uploads/../../../etc/passwd", name: "passwd" }
-    ];
+  it("rejects batch with path traversal", async () => {
     try {
-      await validateAttachmentsBatch("user-1", attachments, false);
+      await validateAttachmentsBatch("user-1", [{ url: "/uploads/../../../etc/passwd", name: "passwd" }], false);
       throw new Error("Should have thrown");
     } catch (err: any) {
       if (!(err instanceof AttachmentAuthError)) throw err;
     }
   });
 
-  it("admin override still requires ownership record to exist (no record = 403)", async () => {
-    try {
-      await validateAttachmentAccess("admin-user", "/uploads/nonexistent.png", true);
-      throw new Error("Should have thrown");
-    } catch (err: any) {
-      if (!(err instanceof AttachmentAuthError)) throw err;
-      if (err.reason !== "no_ownership_record") throw new Error(`Expected no_ownership_record, got ${err.reason}`);
-    }
-  });
-
-  it("non-admin is denied access to file owned by another user (via DB)", async () => {
-    try {
-      await validateAttachmentAccess("attacker-user", "/uploads/nonexistent-victim-file.png", false);
-      throw new Error("Should have thrown");
-    } catch (err: any) {
-      if (!(err instanceof AttachmentAuthError)) throw err;
-      if (err.statusCode !== 403) throw new Error(`Expected 403, got ${err.statusCode}`);
-    }
-  });
-
-  it("admin override allows access to /objects/ without ACL check", async () => {
+  it("admin override allows /objects/ without ACL check", async () => {
     await validateAttachmentAccess("admin-user", "/objects/public/shared-file.png", true);
   });
 
-  it("rejects retry-style batch with malformed attachment (empty URL)", async () => {
-    const attachments = [
-      { url: "", name: "bad.png" }
-    ];
+  it("rejects empty URL in batch", async () => {
     try {
-      await validateAttachmentsBatch("user-1", attachments, false);
+      await validateAttachmentsBatch("user-1", [{ url: "", name: "bad.png" }], false);
       throw new Error("Should have thrown");
     } catch (err: any) {
       if (!(err instanceof AttachmentAuthError)) throw err;
