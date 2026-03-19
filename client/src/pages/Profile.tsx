@@ -78,7 +78,7 @@ export default function Profile() {
       variant: "destructive",
     });
     await clerk.signOut();
-    clerk.openSignIn();
+    clerk.redirectToSignIn({ redirectUrl: window.location.href });
   };
 
   const hasPassword = clerkUser?.passwordEnabled ?? false;

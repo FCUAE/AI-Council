@@ -72,7 +72,7 @@ const FAQ_ITEMS = [
 export default function Credits() {
   const [, setLocation] = useLocation();
   const { isAuthenticated, isLoading: authLoading } = useAuth();
-  const { openSignIn } = useClerk();
+  const clerk = useClerk();
   const { data: usage } = useUsage(isAuthenticated);
   const [selectedPack, setSelectedPack] = useState(1);
   const [loading, setLoading] = useState(false);
@@ -82,7 +82,7 @@ export default function Credits() {
 
   const handlePurchase = async () => {
     if (!isAuthenticated) {
-      openSignIn();
+      clerk.redirectToSignIn({ redirectUrl: window.location.href });
       return;
     }
 

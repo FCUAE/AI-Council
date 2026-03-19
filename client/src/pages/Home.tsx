@@ -83,7 +83,7 @@ export default function Home() {
   }, []);
 
   const { isAuthenticated, isLoading: authLoading } = useAuth();
-  const { openSignIn } = useClerk();
+  const clerk = useClerk();
   const { data: usage, refetch: refetchUsage } = useUsage(isAuthenticated);
   const createConversation = useCreateConversation();
 
@@ -343,7 +343,7 @@ export default function Home() {
       localStorage.setItem("council_pending_prompt", trimmedPrompt);
       localStorage.setItem("council_pending_models", JSON.stringify(selectedModels));
       localStorage.setItem("council_pending_chairman", chairmanModel);
-      openSignIn();
+      clerk.redirectToSignIn({ redirectUrl: window.location.href });
       return;
     }
 
