@@ -1873,7 +1873,7 @@ export async function registerRoutes(
               });
               buffer = Buffer.concat(chunks);
             } else {
-              return res.status(400).json({ message: "File not found on server or object storage" });
+              return res.status(400).json({ message: "Could not process file" });
             }
           }
 
@@ -1902,45 +1902,45 @@ export async function registerRoutes(
       let resolvedPath = resolveLocalFilePath(fileUrl);
       let tempFile: string | null = null;
 
-      if (!resolvedPath || !fs.existsSync(resolvedPath)) {
-        const objectsPathMatch = fileUrl.match(/\/objects\/(.+?)(?:\?.*)?$/);
-        if (objectsPathMatch) {
-          try {
-            const objectFile = await objectStorageService.getObjectEntityFile(`/objects/${objectsPathMatch[1]}`);
-            const canAccess = await objectStorageService.canAccessObjectEntity({
-              userId,
-              objectFile,
-              requestedPermission: ObjectPermission.READ,
-            });
-            if (!canAccess) {
-              securityLog.fileAccessDenied({ route: "/api/uploads/extract-text", userId, reason: "acl_denied" });
-              return res.status(403).json({ message: "Access denied" });
-            }
-            const chunks: Buffer[] = [];
-            const stream = objectFile.createReadStream();
-            await new Promise<void>((resolve, reject) => {
-              stream.on("data", (chunk: Buffer) => chunks.push(chunk));
-              stream.on("end", () => resolve());
-              stream.on("error", (err: Error) => reject(err));
-            });
-            const buffer = Buffer.concat(chunks);
-            const ext = path.extname(objectsPathMatch[1]) || ".tmp";
-            tempFile = path.join(path.resolve(process.cwd(), "uploads"), `tmp-${Date.now()}${ext}`);
-            fs.writeFileSync(tempFile, buffer);
-            resolvedPath = tempFile;
-          } catch (err: any) {
-            if (err?.status === 403 || err?.message?.includes("Access denied")) {
-              securityLog.fileAccessDenied({ route: "/api/uploads/extract-text", userId, reason: "object_storage_denied" });
-              return res.status(403).json({ message: "Access denied" });
-            }
-            return res.status(400).json({ message: "File not found in object storage" });
-          }
-        } else {
-          return res.status(400).json({ message: "File not found on server" });
-        }
-      }
-
       try {
+        if (!resolvedPath || !fs.existsSync(resolvedPath)) {
+          const objectsPathMatch = fileUrl.match(/\/objects\/(.+?)(?:\?.*)?$/);
+          if (objectsPathMatch) {
+            try {
+              const objectFile = await objectStorageService.getObjectEntityFile(`/objects/${objectsPathMatch[1]}`);
+              const canAccess = await objectStorageService.canAccessObjectEntity({
+                userId,
+                objectFile,
+                requestedPermission: ObjectPermission.READ,
+              });
+              if (!canAccess) {
+                securityLog.fileAccessDenied({ route: "/api/uploads/extract-text", userId, reason: "acl_denied" });
+                return res.status(403).json({ message: "Access denied" });
+              }
+              const chunks: Buffer[] = [];
+              const stream = objectFile.createReadStream();
+              await new Promise<void>((resolve, reject) => {
+                stream.on("data", (chunk: Buffer) => chunks.push(chunk));
+                stream.on("end", () => resolve());
+                stream.on("error", (err: Error) => reject(err));
+              });
+              const buffer = Buffer.concat(chunks);
+              const ext = path.extname(objectsPathMatch[1]) || ".tmp";
+              tempFile = path.join(path.resolve(process.cwd(), "uploads"), `tmp-${Date.now()}${ext}`);
+              fs.writeFileSync(tempFile, buffer);
+              resolvedPath = tempFile;
+            } catch (err: any) {
+              if (err?.status === 403 || err?.message?.includes("Access denied")) {
+                securityLog.fileAccessDenied({ route: "/api/uploads/extract-text", userId, reason: "object_storage_denied" });
+                return res.status(403).json({ message: "Access denied" });
+              }
+              return res.status(400).json({ message: "Could not process file" });
+            }
+          } else {
+            return res.status(400).json({ message: "Could not process file" });
+          }
+        }
+
         const text = await extractTextFromFile(resolvedPath, mimeType);
         const isScanned = !text && mimeType === "application/pdf";
         const charCount = text ? text.length : 0;
@@ -1958,13 +1958,13 @@ export async function registerRoutes(
           pageCount,
         });
       } finally {
-        if (tempFile && fs.existsSync(tempFile)) {
-          fs.unlinkSync(tempFile);
+        if (tempFile) {
+          try { fs.unlinkSync(tempFile); } catch {}
         }
       }
     } catch (error: any) {
       console.error("[extract-text] Error:", error.message);
-      return res.status(500).json({ message: "Failed to extract text" });
+      return res.status(500).json({ message: "Failed to process file" });
     }
   });
 

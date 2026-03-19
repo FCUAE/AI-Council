@@ -1,3 +1,5 @@
+import fs from "fs";
+import path from "path";
 import express, { type Request, Response, NextFunction } from "express";
 import rateLimit from "express-rate-limit";
 import helmet from "helmet";
@@ -383,6 +385,28 @@ async function runAppMigrations() {
   const { ensureDatabaseViews } = await import("./storage");
   await ensureDatabaseViews();
   
+  try {
+    const uploadsDir = path.resolve(process.cwd(), "uploads");
+    if (fs.existsSync(uploadsDir)) {
+      const orphanPatterns = ["pdf-render-", "tmp-"];
+      const files = fs.readdirSync(uploadsDir);
+      let cleaned = 0;
+      for (const f of files) {
+        if (orphanPatterns.some(p => f.startsWith(p))) {
+          try {
+            fs.unlinkSync(path.join(uploadsDir, f));
+            cleaned++;
+          } catch {}
+        }
+      }
+      if (cleaned > 0) {
+        console.log(`[STARTUP] Cleaned ${cleaned} orphaned temp file(s) from uploads/`);
+      }
+    }
+  } catch (err) {
+    console.warn("[STARTUP] Orphan cleanup failed:", err);
+  }
+
   await registerRoutes(httpServer, app);
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {

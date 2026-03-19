@@ -344,6 +344,22 @@
 - **Decision:** `script-src 'unsafe-inline'` must remain. `style-src 'unsafe-inline'` must remain for React CSS-in-JS, shadcn/radix component styles, and Clerk widget inline styles.
 - **Mitigation:** All other CSP directives are strict. `object-src 'none'`, `base-uri 'self'`, `form-action 'self'`, `frame-ancestors 'self'`, and `script-src-attr 'none'` (auto-added by Helmet) provide defense-in-depth.
 
+**48. Document parser & file processing hardening**
+- **Risk:** Document parsing functions (`extractPdfText`, `extractDocxText`, `renderPdfToImages`, `getPdfPageCount`) could be called directly without size guards. Orphaned temp files (`pdf-render-*`, `tmp-*`) could accumulate in uploads/ after crashes. Temp file cleanup in extract-text endpoint missed some error paths. Error messages could leak internal file paths.
+- **Fix:**
+  - Added `checkFileSize()` guard (50MB) to all four document parser functions individually, in addition to the existing check in `extractTextFromFile`
+  - Added boot-time orphan cleanup in `server/index.ts`: scans uploads/ for `pdf-render-*` and `tmp-*` patterns on startup and deletes them
+  - Restructured extract-text temp file handling: outer try/finally wraps all code paths including object storage errors and early returns, ensuring `tempFile` is always cleaned up
+  - Sanitized all client-facing error messages to generic "Could not process file" / "Failed to process file" — no internal paths or storage backend details exposed
+- **Files:** `server/documentParser.ts`, `server/routes.ts`, `server/index.ts`
+
+### Residual Risks — Document Processing
+
+- **pdftoppm memory limit:** `pdftoppm` (poppler-utils) has no memory limit flag. A maliciously crafted PDF with very high-resolution pages could consume excessive memory during rendering. Mitigated by: 30s timeout, MAX_PDF_PAGES=3 page limit, 150 DPI resolution cap, and 50MB file size guard.
+- **Decompression bombs:** `mammoth` (DOCX) and `pdf-parse` (PDF) do not have built-in protection against zip/decompression bombs. A small compressed file could expand to consume excessive memory. Mitigated by: 50MB file size guard (pre-decompression), 30s timeout, and 200KB text output cap.
+- **In-process parsing:** All document parsing runs in the main Node.js process. A crash in a native module (sharp, pdftoppm) could take down the server. Full worker isolation is not implemented. Mitigated by: process-level restart via workflow manager, timeout guards on all parsing operations.
+- **No antivirus scanning:** Uploaded files are not scanned for malware. The app relies on file type validation, magic byte checks, and serving files with appropriate Content-Disposition headers.
+
 ---
 
 ## Manual Testing Checklist

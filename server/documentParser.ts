@@ -58,8 +58,22 @@ export async function extractTextFromFile(filePath: string, mimeType: string): P
   }
 }
 
+function checkFileSize(filePath: string, label: string): boolean {
+  try {
+    const stat = fs.statSync(filePath);
+    if (stat.size > MAX_FILE_SIZE_BYTES) {
+      console.error(`[documentParser] ${label}: file too large (${stat.size} bytes, max ${MAX_FILE_SIZE_BYTES})`);
+      return false;
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 async function extractPdfText(filePath: string): Promise<string | null> {
   try {
+    if (!checkFileSize(filePath, "extractPdfText")) return null;
     const { PDFParse } = await import("pdf-parse");
     const fileBuffer = fs.readFileSync(filePath);
     const uint8 = new Uint8Array(fileBuffer);
@@ -79,6 +93,7 @@ async function extractPdfText(filePath: string): Promise<string | null> {
 
 async function extractDocxText(filePath: string): Promise<string | null> {
   try {
+    if (!checkFileSize(filePath, "extractDocxText")) return null;
     const mammoth = await import("mammoth");
     const buffer = fs.readFileSync(filePath);
     const result = await mammoth.extractRawText({ buffer });
@@ -105,6 +120,8 @@ const MAX_PDF_PAGES = 3;
 
 export function renderPdfToImages(filePath: string): string[] {
   try {
+    if (!checkFileSize(filePath, "renderPdfToImages")) return [];
+
     const uploadsDir = path.join(process.cwd(), "uploads");
     if (!fs.existsSync(uploadsDir)) {
       fs.mkdirSync(uploadsDir, { recursive: true });
@@ -132,6 +149,7 @@ export function renderPdfToImages(filePath: string): string[] {
 
 export async function getPdfPageCount(filePath: string): Promise<number> {
   try {
+    if (!checkFileSize(filePath, "getPdfPageCount")) return 0;
     const inner = async () => {
       const { PDFParse } = await import("pdf-parse");
       const fileBuffer = fs.readFileSync(filePath);
