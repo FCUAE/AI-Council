@@ -233,6 +233,7 @@ async function initStripe() {
       .catch((err: any) => console.error('Error syncing Stripe data:', err));
   } catch (error) {
     console.error('Failed to initialize Stripe:', error);
+    throw error;
   }
 }
 
@@ -342,6 +343,7 @@ async function runAppMigrations() {
     console.log('App migrations complete');
   } catch (error) {
     console.error('App migration error:', error);
+    throw error;
   } finally {
     client.release();
   }

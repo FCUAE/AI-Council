@@ -16,35 +16,34 @@ export async function withAdvisoryLock(
 ): Promise<boolean> {
   const { critical = false } = options;
   const client = await pool.connect();
+  let lockAcquired = false;
   try {
     const result = await client.query(
       `SELECT pg_try_advisory_lock($1) AS acquired`,
       [lockId]
     );
-    const acquired = result.rows[0]?.acquired === true;
+    lockAcquired = result.rows[0]?.acquired === true;
 
-    if (!acquired) {
+    if (!lockAcquired) {
       console.log(`[LOCK] Skipping "${jobName}" — advisory lock ${lockId} held by another instance`);
       return false;
     }
 
-    try {
-      await fn();
-      return true;
-    } finally {
-      await client.query(`SELECT pg_advisory_unlock($1)`, [lockId]);
-    }
+    await fn();
+    return true;
   } catch (error: any) {
     console.error(`[LOCK] Error in "${jobName}" (lock ${lockId}):`, error.message);
-    try {
-      await client.query(`SELECT pg_advisory_unlock($1)`, [lockId]);
-    } catch {
-    }
     if (critical) {
       throw error;
     }
     return false;
   } finally {
+    if (lockAcquired) {
+      try {
+        await client.query(`SELECT pg_advisory_unlock($1)`, [lockId]);
+      } catch {
+      }
+    }
     client.release();
   }
 }
