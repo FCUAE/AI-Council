@@ -435,14 +435,14 @@ function AppSidebar() {
           ) : (
             <div className="flex flex-col gap-2">
               <button
-                onClick={() => { try { clerk.openSignIn(); } catch { clerk.redirectToSignIn({ redirectUrl: window.location.href }); } }}
+                onClick={() => { try { clerk.openSignIn({ afterSignInUrl: window.location.href }); } catch { clerk.redirectToSignIn({ redirectUrl: window.location.href }); } }}
                 className="w-full text-center text-[#737373] text-sm py-2.5 rounded-lg hover:text-[#1a1a1a] hover:bg-[#f5f5f5] transition-colors border-0 bg-transparent cursor-pointer"
                 data-testid="link-signin"
               >
                 Sign in
               </button>
               <button
-                onClick={() => { try { clerk.openSignUp(); } catch { clerk.redirectToSignUp({ redirectUrl: window.location.href }); } }}
+                onClick={() => { try { clerk.openSignUp({ afterSignUpUrl: window.location.href }); } catch { clerk.redirectToSignUp({ redirectUrl: window.location.href }); } }}
                 className="w-full text-center bg-[#1a1a1a] text-white text-sm font-semibold py-2.5 rounded-lg hover:bg-[#2b2b2b] transition-colors border-0 cursor-pointer"
                 data-testid="button-getstarted"
               >
