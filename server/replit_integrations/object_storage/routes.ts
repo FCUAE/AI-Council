@@ -95,10 +95,7 @@ function hasSuspiciousFilename(filename: string): boolean {
   if (filename.includes('\0')) return true;
   const base = path.basename(filename);
   const parts = base.split('.');
-  if (parts.length > 2) {
-    const exts = parts.slice(1).map(p => '.' + p.toLowerCase());
-    if (exts.some(e => BLOCKED_EXTENSIONS.has(e))) return true;
-  }
+  if (parts.length > 2) return true;
   return false;
 }
 
