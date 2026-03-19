@@ -138,7 +138,7 @@ export class DatabaseStorage implements IStorage {
           conversationId: conversationId,
           stripeSessionId: null,
         });
-        console.log(`[REFUND] Refunded ${atomicAmount} credit(s) to user ${userId}: ${reason}`);
+        console.log(`[REFUND] Refunded ${amount} credit(s) to user ${userId}: ${reason}`);
         return true;
       });
     }
