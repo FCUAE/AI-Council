@@ -291,8 +291,9 @@ async function imageUrlToBase64(imageUrl: string, userId?: string, isAdminUser?:
 
     const localPath = resolveLocalFilePath(imageUrl);
     if (localPath && fs.existsSync(localPath)) {
-      if (userId && !isAdminUser) {
-        const filename = path.basename(localPath);
+      const filename = path.basename(localPath);
+      const isInternalRender = filename.startsWith("pdf-render-");
+      if (userId && !isAdminUser && !isInternalRender) {
         const ownerResult = await db.execute(
           sql`SELECT user_id FROM file_uploads WHERE filename = ${filename}`
         );

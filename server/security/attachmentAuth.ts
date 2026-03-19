@@ -152,10 +152,6 @@ export async function validateAttachmentAccess(
     return;
   }
 
-  if (originalUrl.startsWith("data:")) {
-    return;
-  }
-
   throw new AttachmentAuthError(400, "Invalid attachment URL", "unknown_url_pattern");
 }
 

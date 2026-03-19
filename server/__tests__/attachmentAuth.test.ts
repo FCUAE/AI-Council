@@ -125,9 +125,9 @@ describe("normalizeAttachmentUrl", () => {
     if (result !== "/objects/public/image.png") throw new Error(`Expected /objects/public/image.png, got ${result}`);
   });
 
-  it("allows data: URIs to pass through normalizeAttachmentUrl", async () => {
+  it("normalizes data: URIs to path form (rejected at validation layer)", async () => {
     const result = normalizeAttachmentUrl("data:image/png;base64,abc");
-    if (!result.startsWith("/")) throw new Error("data: URIs get normalized to path form which is fine - validateAttachmentAccess handles data: separately");
+    if (!result.startsWith("/")) throw new Error("data: URIs get normalized to path form which is then rejected by validateAttachmentAccess");
   });
 });
 
@@ -197,8 +197,15 @@ describe("URL normalization edge cases", () => {
     }
   });
 
-  it("allows data: URIs through validateAttachmentAccess", async () => {
-    await validateAttachmentAccess("user-1", "data:image/png;base64,abc123", false);
+  it("rejects data: URIs at ingestion", async () => {
+    try {
+      await validateAttachmentAccess("user-1", "data:image/png;base64,abc123", false);
+      throw new Error("Should have thrown");
+    } catch (err: any) {
+      if (!(err instanceof AttachmentAuthError)) throw err;
+      if (err.statusCode !== 400) throw new Error(`Expected 400, got ${err.statusCode}`);
+      if (err.reason !== "unknown_url_pattern") throw new Error(`Expected unknown_url_pattern, got ${err.reason}`);
+    }
   });
 
   it("rejects unsafe external URLs", async () => {
@@ -212,9 +219,93 @@ describe("URL normalization edge cases", () => {
   });
 });
 
-console.log("=== Attachment Authorization Tests ===");
-console.log("Note: Tests that require DB access (ownership checks, object storage ACL) will fail in isolation.");
-console.log("Run with full app context for integration testing.\n");
+describe("ingestion-level batch validation", () => {
+  it("rejects entire batch when one attachment is forged /uploads/ path with no ownership", async () => {
+    const attachments = [
+      { url: "/uploads/my-legit-file.png", name: "mine.png" },
+      { url: "/uploads/other-users-secret.png", name: "stolen.png" }
+    ];
+    try {
+      await validateAttachmentsBatch("user-1", attachments, false);
+      throw new Error("Should have thrown");
+    } catch (err: any) {
+      if (!(err instanceof AttachmentAuthError)) throw err;
+      if (err.statusCode !== 403) throw new Error(`Expected 403, got ${err.statusCode}`);
+    }
+  });
+
+  it("rejects forged /objects/ path when ACL denies", async () => {
+    mockCanAccess = false;
+    try {
+      await validateAttachmentAccess("user-1", "/objects/private/.private/other-user/secret.pdf", false);
+      throw new Error("Should have thrown");
+    } catch (err: any) {
+      if (!(err instanceof AttachmentAuthError)) throw err;
+    } finally {
+      mockCanAccess = true;
+    }
+  });
+
+  it("rejects batch with data: URI (not a legitimate client attachment)", async () => {
+    const attachments = [
+      { url: "data:image/png;base64,AAAA", name: "inline.png" }
+    ];
+    try {
+      await validateAttachmentsBatch("user-1", attachments, false);
+      throw new Error("Should have thrown");
+    } catch (err: any) {
+      if (!(err instanceof AttachmentAuthError)) throw err;
+      if (err.statusCode !== 400) throw new Error(`Expected 400, got ${err.statusCode}`);
+    }
+  });
+
+  it("rejects batch with path traversal attempt targeting /uploads/", async () => {
+    const attachments = [
+      { url: "/uploads/../../../etc/passwd", name: "passwd" }
+    ];
+    try {
+      await validateAttachmentsBatch("user-1", attachments, false);
+      throw new Error("Should have thrown");
+    } catch (err: any) {
+      if (!(err instanceof AttachmentAuthError)) throw err;
+    }
+  });
+
+  it("admin override still requires ownership record to exist (no record = 403)", async () => {
+    try {
+      await validateAttachmentAccess("admin-user", "/uploads/nonexistent.png", true);
+      throw new Error("Should have thrown");
+    } catch (err: any) {
+      if (!(err instanceof AttachmentAuthError)) throw err;
+      if (err.reason !== "no_ownership_record") throw new Error(`Expected no_ownership_record, got ${err.reason}`);
+    }
+  });
+
+  it("non-admin is denied access to file owned by another user (via DB)", async () => {
+    try {
+      await validateAttachmentAccess("attacker-user", "/uploads/nonexistent-victim-file.png", false);
+      throw new Error("Should have thrown");
+    } catch (err: any) {
+      if (!(err instanceof AttachmentAuthError)) throw err;
+      if (err.statusCode !== 403) throw new Error(`Expected 403, got ${err.statusCode}`);
+    }
+  });
+
+  it("rejects retry-style batch with malformed attachment (empty URL)", async () => {
+    const attachments = [
+      { url: "", name: "bad.png" }
+    ];
+    try {
+      await validateAttachmentsBatch("user-1", attachments, false);
+      throw new Error("Should have thrown");
+    } catch (err: any) {
+      if (!(err instanceof AttachmentAuthError)) throw err;
+      if (err.statusCode !== 400) throw new Error(`Expected 400, got ${err.statusCode}`);
+    }
+  });
+});
+
+console.log("=== Attachment Authorization Tests ===\n");
 
 runTests().then(({ passed, failed }) => {
   console.log(`\nTotal: ${passed} passed, ${failed} failed`);
