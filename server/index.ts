@@ -54,7 +54,8 @@ app.use(helmet({
       defaultSrc: ["'self'"],
       scriptSrc: [
         "'self'",
-        "https://*.clerk.accounts.dev", // Clerk auth widget scripts
+        "https://*.clerk.accounts.dev", // Clerk auth widget scripts (dev)
+        "https://*.clerk.com", // Clerk auth widget scripts (production)
         "https://js.stripe.com", // Stripe.js payment form
         "https://scripts.refgrowcdn.com", // RefGrow referral tracking
         "https://refgrowcdn.com", // RefGrow referral tracking (alternate domain)
@@ -64,7 +65,8 @@ app.use(helmet({
         "'self'",
         "'unsafe-inline'", // Required: React CSS-in-JS dynamic styles, Clerk widget inline styles, and shadcn/radix component styles
         "https://fonts.googleapis.com", // Google Fonts stylesheets
-        "https://*.clerk.accounts.dev", // Clerk widget stylesheets
+        "https://*.clerk.accounts.dev", // Clerk widget stylesheets (dev)
+        "https://*.clerk.com", // Clerk widget stylesheets (production)
       ],
       imgSrc: [
         "'self'",
@@ -78,7 +80,8 @@ app.use(helmet({
       ],
       connectSrc: [
         "'self'",
-        "https://*.clerk.accounts.dev", // Clerk auth API calls
+        "https://*.clerk.accounts.dev", // Clerk auth API calls (dev)
+        "https://*.clerk.com", // Clerk auth API calls (production)
         "https://clerk.com", // Clerk production API
         "https://api.stripe.com", // Stripe API for payment processing
         "https://openrouter.ai", // OpenRouter AI model API
@@ -90,7 +93,8 @@ app.use(helmet({
       frameSrc: [
         "'self'",
         "https://js.stripe.com", // Stripe checkout iframe
-        "https://*.clerk.accounts.dev", // Clerk auth modal iframe
+        "https://*.clerk.accounts.dev", // Clerk auth modal iframe (dev)
+        "https://*.clerk.com", // Clerk auth modal iframe (production)
       ],
       fontSrc: [
         "'self'",
@@ -98,14 +102,23 @@ app.use(helmet({
       ],
       objectSrc: ["'none'"], // Block all plugin content (Flash, Java, etc.)
       baseUri: ["'self'"], // Prevent base tag hijacking
-      frameAncestors: ["'self'"], // Prevent clickjacking — only same-origin framing
-      formAction: ["'self'"], // Forms can only submit to same origin
+      frameAncestors: [
+        "'self'",
+        "https://*.replit.dev", // Replit preview pane
+        "https://*.replit.app", // Replit deployed app viewer
+        "https://*.repl.co", // Replit legacy domain
+      ],
+      formAction: [
+        "'self'",
+        "https://*.clerk.accounts.dev", // Clerk auth form submissions (dev)
+        "https://*.clerk.com", // Clerk auth form submissions (production)
+      ],
       workerSrc: ["'self'", "blob:"], // Service/web workers from same origin + blob URLs
       upgradeInsecureRequests: [], // Auto-upgrade HTTP requests to HTTPS
     },
   },
   crossOriginEmbedderPolicy: false, // Must be disabled: Clerk and Stripe load cross-origin resources that don't send CORP headers
-  crossOriginOpenerPolicy: { policy: "same-origin-allow-popups" }, // Allow Stripe checkout and Clerk auth popups while isolating the main window
+  crossOriginOpenerPolicy: false, // Disabled: Clerk auth modals and Stripe checkout require cross-origin opener access for popup/modal communication
   referrerPolicy: { policy: "strict-origin-when-cross-origin" }, // Send full referrer to same-origin, only origin to cross-origin
   hsts: process.env.NODE_ENV === "production"
     ? { maxAge: 31536000, includeSubDomains: true } // 1 year HSTS in production
