@@ -52,58 +52,71 @@ app.use(helmet({
       defaultSrc: ["'self'"],
       scriptSrc: [
         "'self'",
-        "https://*.clerk.accounts.dev",
-        "https://js.stripe.com",
-        "https://scripts.refgrowcdn.com",
-        "https://refgrowcdn.com",
-        "'unsafe-inline'", // Required: Clerk SDK injects inline scripts for auth widgets
+        "https://*.clerk.accounts.dev", // Clerk auth widget scripts
+        "https://js.stripe.com", // Stripe.js payment form
+        "https://scripts.refgrowcdn.com", // RefGrow referral tracking
+        "https://refgrowcdn.com", // RefGrow referral tracking (alternate domain)
+        "'unsafe-inline'", // Required: Clerk SDK injects inline scripts for session management and auth widget rendering; nonce-based CSP not supported by Clerk as of March 2026
       ],
       styleSrc: [
         "'self'",
-        "'unsafe-inline'", // Required: React CSS-in-JS and Clerk widget inline styles
-        "https://fonts.googleapis.com",
-        "https://*.clerk.accounts.dev",
+        "'unsafe-inline'", // Required: React CSS-in-JS dynamic styles, Clerk widget inline styles, and shadcn/radix component styles
+        "https://fonts.googleapis.com", // Google Fonts stylesheets
+        "https://*.clerk.accounts.dev", // Clerk widget stylesheets
       ],
       imgSrc: [
         "'self'",
-        "data:",
-        "blob:",
-        "https://*.clerk.com",
-        "https://img.clerk.com",
-        "https://*.clerk.accounts.dev",
-        "https://*.gravatar.com",
-        "https://*.googleusercontent.com",
+        "data:", // Base64-encoded images (e.g., compressed vision API payloads)
+        "blob:", // Blob URLs for image previews
+        "https://*.clerk.com", // Clerk user avatars
+        "https://img.clerk.com", // Clerk user avatars (direct domain)
+        "https://*.clerk.accounts.dev", // Clerk dev avatar hosting
+        "https://*.gravatar.com", // Gravatar user avatars
+        "https://*.googleusercontent.com", // Google OAuth profile images
       ],
       connectSrc: [
         "'self'",
-        "https://*.clerk.accounts.dev",
-        "https://clerk.com",
-        "https://api.stripe.com",
-        "https://openrouter.ai",
-        "https://refgrowcdn.com",
-        "https://scripts.refgrowcdn.com",
-        "wss://*.pike.replit.dev",
-        "wss://*.replit.dev",
+        "https://*.clerk.accounts.dev", // Clerk auth API calls
+        "https://clerk.com", // Clerk production API
+        "https://api.stripe.com", // Stripe API for payment processing
+        "https://openrouter.ai", // OpenRouter AI model API
+        "https://refgrowcdn.com", // RefGrow tracking API
+        "https://scripts.refgrowcdn.com", // RefGrow script loading
+        "wss://*.pike.replit.dev", // Vite HMR websocket (dev only)
+        "wss://*.replit.dev", // Replit websocket connections (dev only)
       ],
       frameSrc: [
         "'self'",
-        "https://js.stripe.com",
-        "https://*.clerk.accounts.dev",
+        "https://js.stripe.com", // Stripe checkout iframe
+        "https://*.clerk.accounts.dev", // Clerk auth modal iframe
       ],
       fontSrc: [
         "'self'",
-        "https://fonts.gstatic.com",
-        "data:",
+        "https://fonts.gstatic.com", // Google Fonts files
       ],
-      objectSrc: ["'none'"],
-      baseUri: ["'self'"],
-      frameAncestors: ["'self'"],
-      formAction: ["'self'"],
-      workerSrc: ["'self'", "blob:"],
+      objectSrc: ["'none'"], // Block all plugin content (Flash, Java, etc.)
+      baseUri: ["'self'"], // Prevent base tag hijacking
+      frameAncestors: ["'self'"], // Prevent clickjacking — only same-origin framing
+      formAction: ["'self'"], // Forms can only submit to same origin
+      workerSrc: ["'self'", "blob:"], // Service/web workers from same origin + blob URLs
+      upgradeInsecureRequests: [], // Auto-upgrade HTTP requests to HTTPS
     },
   },
-  crossOriginEmbedderPolicy: false,
+  crossOriginEmbedderPolicy: false, // Must be disabled: Clerk and Stripe load cross-origin resources that don't send CORP headers
+  crossOriginOpenerPolicy: { policy: "same-origin-allow-popups" }, // Allow Stripe checkout and Clerk auth popups while isolating the main window
+  referrerPolicy: { policy: "strict-origin-when-cross-origin" }, // Send full referrer to same-origin, only origin to cross-origin
+  hsts: process.env.NODE_ENV === "production"
+    ? { maxAge: 31536000, includeSubDomains: true } // 1 year HSTS in production
+    : false, // Disable HSTS in development to avoid localhost issues
 }));
+
+app.use((_req, res, next) => {
+  res.setHeader(
+    "Permissions-Policy",
+    "camera=(), microphone=(), geolocation=(), payment=(self \"https://js.stripe.com\")"
+  );
+  next();
+});
 
 app.post(
   '/api/stripe/webhook',

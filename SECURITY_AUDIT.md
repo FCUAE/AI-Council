@@ -320,11 +320,29 @@
 **45. Per-user rate limits on uploads and support**
 - **Risk:** Upload and support endpoints only had IP-based limits.
 - **Fix:**
-  - `/api/uploads/direct`: 30/min per user
+  - `/api/uploads/direct`: 10/min per user
   - `/api/support/upload`: 10/min per user
-  - `/api/support`: 10/day per user (daily limit)
+  - `/api/support`: 3/min per user + 10/day per user (daily limit)
   - Files cleaned up on rate-limit rejection
 - **Files:** `server/replit_integrations/object_storage/routes.ts`, `server/routes.ts`
+
+**46. Security headers hardened**
+- **Risk:** Missing `Referrer-Policy`, `Permissions-Policy`, `Strict-Transport-Security`, and `Cross-Origin-Opener-Policy` headers. CSP lacked `upgrade-insecure-requests`.
+- **Fix:**
+  - `Referrer-Policy: strict-origin-when-cross-origin` — limits referrer leakage to cross-origin requests
+  - `Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(self "https://js.stripe.com")` — denies unused browser APIs, allows Stripe Payment Request API
+  - `Strict-Transport-Security: max-age=31536000; includeSubDomains` — enabled only in production to avoid dev issues
+  - `Cross-Origin-Opener-Policy: same-origin-allow-popups` — isolates window context while allowing Stripe checkout and Clerk auth popups
+  - `Cross-Origin-Embedder-Policy` remains disabled — Clerk and Stripe load cross-origin resources without CORP headers
+  - `upgrade-insecure-requests` added to CSP — auto-upgrades HTTP to HTTPS
+  - `data:` removed from `fontSrc` (unused)
+  - Every CSP directive and exception has inline documentation explaining its purpose
+- **File:** `server/index.ts`
+
+**47. CSP nonce investigation — not feasible**
+- **Investigation:** Clerk SDK (`@clerk/express`) does not support nonce-based CSP as of March 2026. Clerk dynamically injects inline `<script>` tags for session management and auth widget rendering without accepting a nonce attribute. Vite's dev server also uses inline scripts for HMR.
+- **Decision:** `script-src 'unsafe-inline'` must remain. `style-src 'unsafe-inline'` must remain for React CSS-in-JS, shadcn/radix component styles, and Clerk widget inline styles.
+- **Mitigation:** All other CSP directives are strict. `object-src 'none'`, `base-uri 'self'`, `form-action 'self'`, `frame-ancestors 'self'`, and `script-src-attr 'none'` (auto-added by Helmet) provide defense-in-depth.
 
 ---
 
@@ -347,7 +365,7 @@
 - [ ] Creating a debate while 3+ are processing triggers concurrent limit (429)
 - [ ] Retrying > 3 times per minute triggers rate limit (429)
 - [ ] Sending > 10 support messages in 24 hours triggers daily limit (429)
-- [ ] Uploading > 30 files per minute triggers upload rate limit (429)
+- [ ] Uploading > 10 files per minute triggers upload rate limit (429)
 
 ### File Upload Validation
 - [ ] Uploading a renamed `.exe` → `.png` file is rejected (magic byte mismatch)
