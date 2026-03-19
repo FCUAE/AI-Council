@@ -343,7 +343,7 @@ export default function Home() {
       localStorage.setItem("council_pending_prompt", trimmedPrompt);
       localStorage.setItem("council_pending_models", JSON.stringify(selectedModels));
       localStorage.setItem("council_pending_chairman", chairmanModel);
-      clerk.openSignIn();
+      try { clerk.openSignIn(); } catch { clerk.redirectToSignIn({ redirectUrl: window.location.href }); }
       return;
     }
 

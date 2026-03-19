@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/use-auth";
-import { SignInButton, useUser, useClerk } from "@clerk/react";
+import { useUser, useClerk } from "@clerk/react";
 import { useLocation } from "wouter";
 import { FileText, Download, CreditCard, ArrowLeft, ExternalLink, Loader2, Trash2, Check, Shield, Eye, EyeOff } from "lucide-react";
 import { useQuery, useMutation } from "@tanstack/react-query";
@@ -270,14 +270,13 @@ export default function Profile() {
       <div className="flex-1 flex flex-col items-center justify-center min-h-[60vh] text-center px-4">
         <h2 className="text-2xl font-bold text-[#1a1a1a] mb-2">Sign in required</h2>
         <p className="text-[15px] text-[#737373] mb-6">You need to sign in to access your account settings.</p>
-        <SignInButton mode="modal">
-          <button
-            className="px-6 py-3 bg-[#1a1a1a] text-white rounded-lg font-medium hover:bg-[#2b2b2b] transition-colors border-0 cursor-pointer text-[14px]"
-            data-testid="button-signin"
-          >
-            Sign In
-          </button>
-        </SignInButton>
+        <button
+          onClick={() => { try { clerk.openSignIn(); } catch { clerk.redirectToSignIn({ redirectUrl: window.location.href }); } }}
+          className="px-6 py-3 bg-[#1a1a1a] text-white rounded-lg font-medium hover:bg-[#2b2b2b] transition-colors border-0 cursor-pointer text-[14px]"
+          data-testid="button-signin"
+        >
+          Sign In
+        </button>
       </div>
     );
   }

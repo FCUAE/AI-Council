@@ -115,6 +115,8 @@ app.use(helmet({
         "https://*.clerk.com",
       ],
       workerSrc: ["'self'", "blob:"],
+      scriptSrcAttr: null,
+      upgradeInsecureRequests: null,
     },
   },
   crossOriginEmbedderPolicy: false,

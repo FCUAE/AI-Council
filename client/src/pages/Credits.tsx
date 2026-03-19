@@ -82,7 +82,7 @@ export default function Credits() {
 
   const handlePurchase = async () => {
     if (!isAuthenticated) {
-      clerk.openSignIn();
+      try { clerk.openSignIn(); } catch { clerk.redirectToSignIn({ redirectUrl: window.location.href }); }
       return;
     }
 
