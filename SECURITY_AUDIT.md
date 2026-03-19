@@ -1,12 +1,13 @@
 # Security Audit Report — AI Council
 
-**Date:** March 18, 2026  
+**Date:** March 18–19, 2026 (Phases 1–4)  
+**Last Updated:** March 19, 2026  
 **Scope:** Full codebase security audit and hardening  
-**Status:** All critical and high-priority issues fixed; medium and low items addressed or documented
+**Status:** All critical and high-priority issues fixed across 4 phases; medium and low items addressed or documented
 
 ---
 
-## Security Scorecard
+## Phase 1 Security Scorecard (Superseded — see Post Phase 4 scorecard below)
 
 | Category | Rating | Notes |
 |---|---|---|
