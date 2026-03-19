@@ -1,10 +1,6 @@
 import { normalizeAttachmentUrl, validateAttachmentAccess, validateAttachmentsBatch, AttachmentAuthError } from "../security/attachmentAuth";
 
-let mockDbRows: { user_id: string }[] = [];
 let mockCanAccess = true;
-let mockObjectFileExists = true;
-
-const originalModules: Record<string, any> = {};
 
 async function setupMocks() {
   const assert = await import("assert");
@@ -174,6 +170,16 @@ describe("URL normalization edge cases", () => {
   it("handles double-encoded percent", async () => {
     const result = normalizeAttachmentUrl("/uploads/test%2520file.png");
     if (!result.includes("uploads")) throw new Error(`Unexpected result: ${result}`);
+  });
+
+  it("rejects malformed percent-encoding in relative URLs", async () => {
+    try {
+      normalizeAttachmentUrl("/uploads/file%ZZbad.png");
+      throw new Error("Should have thrown");
+    } catch (err: any) {
+      if (!(err instanceof AttachmentAuthError)) throw err;
+      if (err.reason !== "malformed_encoding") throw new Error(`Expected malformed_encoding, got ${err.reason}`);
+    }
   });
 
   it("handles null byte injection attempt", async () => {

@@ -38,6 +38,7 @@ export function normalizeAttachmentUrl(rawUrl: string): string {
     try {
       urlStr = decodeURIComponent(urlStr);
     } catch {
+      throw new AttachmentAuthError(400, "Invalid attachment URL", "malformed_encoding");
     }
 
     const hashIdx = urlStr.indexOf("#");

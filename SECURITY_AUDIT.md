@@ -214,7 +214,9 @@ The AI Council platform underwent a 5-phase security hardening across authentica
 #### Low — Fixed
 
 **54. Attachment auth tests**
-- 28 tests covering URL normalization, ownership validation (DB-backed), batch rejection, traversal attempts, unknown URL patterns, data URI rejection, forged `/uploads/` and `/objects/` paths, admin override semantics, empty URL rejection, and unsafe external URL handling
+- 28 unit tests (`server/__tests__/attachmentAuth.test.ts`) covering URL normalization, DB-backed ownership validation, batch rejection, traversal attempts, unknown URL patterns, data URI rejection, admin override semantics, empty URL rejection, unsafe external URL handling, and malformed encoding rejection
+- 12 route-level integration tests (`server/__tests__/attachmentAuthRoutes.test.ts`) covering forged `/uploads/` and `/objects/` paths via create/add-message/retry endpoints, data URI rejection, unsafe external URL rejection, path traversal via HTTP, retry parse failure handling, and no-attachment success paths
+- Note: Route tests use `supertest` with a minimal Express app reproducing the ingestion validation pattern; they do not mock the full auth/storage stack
 
 ---
 
