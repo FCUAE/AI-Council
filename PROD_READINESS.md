@@ -1,4 +1,36 @@
-# Production Readiness Assessment
+# Production Readiness — AI Council
+
+**Date:** March 19, 2026  
+**Status:** Ready for production with acceptable residual risk
+
+---
+
+## Blockers Fixed
+
+| # | Issue | Status |
+|---|---|---|
+| 1 | Unauthenticated admin endpoint | ✅ Fixed — auth + admin guard |
+| 2 | SSRF in image URL and extract-text | ✅ Fixed — HTTPS-only allowlist, no arbitrary fetch |
+| 3 | Auth identity collision / account takeover | ✅ Fixed — email collision blocked with 409 |
+| 4 | Upload/object storage ACL bypass | ✅ Fixed — ownership tracking, fail-closed |
+| 5 | Extract-text ACL bypass | ✅ Fixed — object storage + local ACL enforcement |
+| 6 | Missing security headers | ✅ Fixed — Helmet + CSP + HSTS + Permissions-Policy |
+| 7 | Host header injection in Stripe URLs | ✅ Fixed — domain allowlist validation |
+| 8 | CSRF missing on state-changing requests | ✅ Fixed — Origin validation middleware |
+| 9 | Duplicate refund risk | ✅ Fixed — atomic settled flag check-and-set |
+| 10 | Revenue tracking race condition | ✅ Fixed — guarded by logCreditTransaction return |
+| 11 | Cancel/retry race conditions | ✅ Fixed — compare-and-set status transitions |
+
+## Remaining Risks (Non-Blocking)
+
+See `SECURITY_AUDIT.md` — Residual Risks section for full details. Key items:
+
+1. **CSP `unsafe-inline`** — Required by Clerk SDK. Standard defense-in-depth mitigations in place.
+2. **Step-up auth is JWT-age check** — Not true credential re-entry. Acceptable for current threat model.
+3. **Document parsing in main process** — No worker isolation. Mitigated by timeouts and size guards.
+4. **5 low-severity dependency vulnerabilities** — In `@google-cloud/storage` chain; require breaking change.
+
+---
 
 ## Startup Safety
 
@@ -42,30 +74,84 @@ The `process.exit` monkey-patch that suppressed non-zero exits has been removed.
 
 The one-off `correctDoubleRefundCredits` function no longer runs on every boot. It has been extracted to `scripts/fix-double-refund-credit-correction.ts` and must be intentionally invoked with `npx tsx scripts/fix-double-refund-credit-correction.ts`.
 
+---
+
+## Deployment Checklist
+
+### Pre-Deployment
+
+- [ ] All environment variables configured (see table below)
+- [ ] `ADMIN_USER_IDS` contains the correct Clerk user IDs for admin access
+- [ ] Clerk production keys (`CLERK_PROD_SECRET_KEY`, `CLERK_PROD_PUBLISHABLE_KEY`) are set
+- [ ] Stripe webhook endpoint URL points to production domain
+- [ ] Database is accessible and connection string is correct
+- [ ] `npm run build` completes without errors
+
+### Post-Deployment
+
+- [ ] Application starts without migration errors
+- [ ] Stripe webhook receives test events
+- [ ] Authentication flow works (sign in, sign out)
+- [ ] Credit purchase flow works end-to-end
+- [ ] Security headers present (check with browser dev tools or `curl -I`)
+- [ ] `Strict-Transport-Security` header present in production responses
+- [ ] Admin routes accessible only to configured admin users
+
+---
+
 ## Required Environment Variables
 
-| Variable | Required | Description |
-|----------|----------|-------------|
-| DATABASE_URL | Yes | PostgreSQL connection string |
-| CLERK_SECRET_KEY | Yes | Clerk authentication secret |
-| CLERK_PUBLISHABLE_KEY | Yes | Clerk authentication publishable key |
-| STRIPE_SECRET_KEY | Yes | Stripe API secret key |
-| OPENROUTER_API_KEY | Yes | OpenRouter API key for AI models |
-| RESEND_API_KEY | No | Resend email API key |
-| PORT | No | Server port (default: 5000) |
+| Variable | Purpose | Required | Source |
+|---|---|---|---|
+| `DATABASE_URL` | PostgreSQL connection string | Yes | Replit DB |
+| `CLERK_SECRET_KEY` | Clerk auth (dev) | Dev only | Clerk dashboard |
+| `CLERK_PUBLISHABLE_KEY` | Clerk auth (dev) | Dev only | Clerk dashboard |
+| `CLERK_PROD_SECRET_KEY` | Clerk auth (prod — overrides `CLERK_SECRET_KEY`) | Prod only | Clerk dashboard |
+| `CLERK_PROD_PUBLISHABLE_KEY` | Clerk auth (prod — overrides `CLERK_PUBLISHABLE_KEY`) | Prod only | Clerk dashboard |
+| `ADMIN_USER_IDS` | Comma-separated Clerk user IDs for admin access | Yes | Manual |
+| `SUPPORT_EMAIL` | Support email recipient (default: `support@askaicouncil.com`) | No | Manual |
+| `AI_INTEGRATIONS_OPENROUTER_API_KEY` | OpenRouter API key for AI model access | Yes | Replit integration |
+| `AI_INTEGRATIONS_OPENROUTER_BASE_URL` | OpenRouter base URL (default: `https://openrouter.ai/api/v1`) | No | Replit integration |
+| `REPLIT_DOMAINS` | Allowed origins for CSRF validation | Auto | Replit platform |
+| `REPLIT_DEV_DOMAIN` | Dev domain for CSRF + base URL | Auto | Replit platform |
+| `REPLIT_DEPLOYMENT` | Set to `1` in production by Replit | Auto | Replit platform |
+| `PORT` | Server port (default: 5000) | No | Replit platform |
+| `NODE_ENV` | `development` or `production` | Auto | Replit platform |
 
-For production deployments, also set:
-- `CLERK_PROD_SECRET_KEY` and `CLERK_PROD_PUBLISHABLE_KEY` (overrides dev keys when `NODE_ENV=production`)
+Stripe-related variables are managed by the `stripe-replit-sync` integration and do not need manual configuration.
 
-## Multi-Instance Safety
+---
 
-| Concern | Status | Mechanism |
-|---------|--------|-----------|
-| Database migrations | Safe | Advisory lock 100 |
-| Stripe initialization | Safe | Advisory lock 101 |
-| Conversation recovery | Safe | Advisory lock 102 |
-| Analytics backfill | Safe | Advisory lock 103 |
-| Credit expiration cron | Safe | Advisory lock 42 |
-| Per-user rate limiting | Safe | Postgres-backed `rate_limit_buckets` table with atomic upsert |
-| CSRF origin check | Safe | Stateless origin validation |
-| Session management | Safe | Clerk JWT-based, stateless |
+## Multi-Instance Safety Assessment
+
+The application is designed to run safely on **multiple instances** with the following safeguards:
+
+### Safe for Multi-Instance
+
+| Component | Mechanism | Notes |
+|---|---|---|
+| Database migrations | Advisory lock (ID 100) | Only one instance runs migrations; others wait |
+| Stripe initialization | Advisory lock (ID 101) | Webhook creation + backfill are serialized |
+| Stuck conversation recovery | Advisory lock (ID 102) | Prevents duplicate refunds during startup |
+| Analytics backfill | Advisory lock (ID 103) | Prevents concurrent updates |
+| Credit expiration cron | Advisory lock (ID 42) | Only one instance runs per cycle |
+| Per-user rate limiting | Postgres `rate_limit_buckets` table | Shared across instances via atomic upsert |
+| Credit transactions | Unique index on `stripe_session_id` | Prevents duplicate credit grants |
+| Refunds | Atomic `settled` flag (CAS) | Prevents duplicate refunds |
+| Status transitions | Compare-and-set WHERE clauses | Prevents race conditions on cancel/retry |
+| CSRF origin check | Stateless | Origin validation against env vars |
+| Session management | Stateless | Clerk JWT-based, no server-side sessions |
+
+### Assumptions
+
+1. **Single database** — All instances connect to the same PostgreSQL database
+2. **No sticky sessions required** — Clerk JWT auth is stateless; no server-side session state
+3. **In-flight debates are instance-bound** — A debate started on instance A cannot be cancelled from instance B's in-memory abort controller. The stale recovery job (every 5 minutes, 15-minute threshold) recovers these automatically.
+4. **Boot-time orphan cleanup is instance-local** — Each instance only cleans up temp files in its own `uploads/` directory
+
+### Operational Notes
+
+- **Startup jobs** run in the web process under advisory locks. This is simpler than separate worker processes but means startup is slightly slower. The tradeoff is acceptable for the current scale.
+- **Stale recovery interval** runs every 5 minutes and recovers conversations stuck > 15 minutes. This handles the case where an instance dies mid-debate without graceful shutdown.
+- **Graceful shutdown** waits up to 30 seconds for in-flight work, then marks remaining conversations as error and issues refunds.
+- **Credit expiration cron** runs on every instance but uses advisory locking internally to prevent concurrent execution.

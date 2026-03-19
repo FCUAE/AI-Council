@@ -1981,7 +1981,18 @@ export async function registerRoutes(
       return res.status(403).json({ success: false, message: "Forbidden" });
     }
     
-    // Find all processing messages and cancel them
+    if (conv.status !== 'processing') {
+      return res.status(409).json({ success: false, message: "Conversation is not currently processing" });
+    }
+
+    const updated = await db.update(conversations)
+      .set({ status: "cancelled" })
+      .where(sql`${conversations.id} = ${conversationId} AND ${conversations.status} = 'processing'`)
+      .returning({ id: conversations.id });
+    if (updated.length === 0) {
+      return res.status(409).json({ success: false, message: "Conversation status already changed" });
+    }
+
     const processingMessages = conv.messages
       .filter(m => m.status === 'processing')
       .map(m => m.id);
@@ -1991,7 +2002,6 @@ export async function registerRoutes(
     for (const msgId of processingMessages) {
       await storage.updateMessageStatus(msgId, "cancelled");
     }
-    await storage.updateConversationStatus(conversationId, "cancelled");
     
     securityLog.destructiveAction({ action: `conversation_cancel(id=${conversationId},cancelled=${cancelledCount})`, userId: userId! });
     console.log(`[API] Cancelled ${cancelledCount} requests for conversation ${conversationId}`);
@@ -2015,6 +2025,11 @@ export async function registerRoutes(
       return res.status(403).json({ success: false, message: "Forbidden" });
     }
     
+    const retryableConvStatuses = ['error', 'cancelled'];
+    if (!retryableConvStatuses.includes(conv.status || '')) {
+      return res.status(409).json({ success: false, message: "Conversation is not in a retryable state" });
+    }
+
     const retryableStatuses = ['processing', 'error', 'cancelled'];
     const retryMessage = conv.messages
       .filter(m => m.role === 'user' && retryableStatuses.includes(m.status || ''))
@@ -2023,13 +2038,20 @@ export async function registerRoutes(
       return res.status(400).json({ success: false, message: "No retryable message found" });
     }
     
+    const updated = await db.update(conversations)
+      .set({ status: "processing" })
+      .where(sql`${conversations.id} = ${conversationId} AND ${conversations.status} IN ('error', 'cancelled')`)
+      .returning({ id: conversations.id });
+    if (updated.length === 0) {
+      return res.status(409).json({ success: false, message: "Conversation status already changed" });
+    }
+
     securityLog.billingAnomaly({ action: "conversation_retry", userId: userId!, detail: `conversationId=${conversationId}, messageId=${retryMessage.id}` });
     
     cancelConversationMessages(conversationId, [retryMessage.id]);
     
     await storage.clearCouncilResponses(retryMessage.id);
     await storage.updateMessageStatus(retryMessage.id, "processing");
-    await storage.updateConversationStatus(conversationId, "processing");
     
     let parsedAttachments: Attachment[] | undefined;
     if (retryMessage.attachments) {
@@ -2784,7 +2806,7 @@ export async function registerRoutes(
 
           const credits = parseInt(session.metadata.credits, 10);
           if (credits && [100, 325, 900, 150, 370, 870, 10, 30, 50].includes(credits)) {
-            await storage.logCreditTransaction({
+            const inserted = await storage.logCreditTransaction({
               userId,
               type: "recovery",
               amount: credits,
@@ -2792,6 +2814,10 @@ export async function registerRoutes(
               description: `Recovery of ${credits}-credit pack from session ${session.id}`,
               stripeSessionId: session.id,
             });
+            if (!inserted) {
+              console.log(`[RECOVERY] Skipped duplicate recovery for session ${session.id}`);
+              continue;
+            }
             totalRecovered += credits;
             console.log(`[RECOVERY] Added ${credits} credits to user ${userId} via session ${session.id}`);
 

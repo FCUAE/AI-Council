@@ -31,7 +31,7 @@ export interface IStorage {
   updateUserSubscription(userId: string, status: string, stripeCustomerId?: string, stripeSubscriptionId?: string): Promise<void>;
   resetMonthlyDebates(userId: string): Promise<void>;
   incrementMonthlyDebates(userId: string): Promise<void>;
-  refundDebateCredits(userId: string, amount: number, reason: string, conversationId?: number): Promise<void>;
+  refundDebateCredits(userId: string, amount: number, reason: string, conversationId?: number): Promise<boolean>;
   getTotalCreditsPurchased(userId: string): Promise<number>;
   updateConversationReservedCredits(id: number, credits: number): Promise<void>;
   updateConversationEstimatedCredits(id: number, credits: number): Promise<void>;
@@ -118,17 +118,41 @@ export class DatabaseStorage implements IStorage {
     }).where(eq(users.id, userId));
   }
 
-  async refundDebateCredits(userId: string, amount: number, reason: string, conversationId?: number): Promise<void> {
+  async refundDebateCredits(userId: string, amount: number, reason: string, conversationId?: number): Promise<boolean> {
+    if (conversationId) {
+      return await db.transaction(async (tx) => {
+        const result = await tx.update(conversations)
+          .set({ settled: 1 })
+          .where(sql`${conversations.id} = ${conversationId} AND ${conversations.settled} = 0`)
+          .returning({ id: conversations.id });
+        if (result.length === 0) {
+          console.log(`[REFUND] Skipped duplicate refund for debate #${conversationId} (already settled)`);
+          return false;
+        }
+        await tx.insert(creditTransactions).values({
+          userId,
+          type: "refund",
+          amount: amount,
+          balanceAfter: 0,
+          description: reason,
+          conversationId: conversationId,
+          stripeSessionId: null,
+        });
+        console.log(`[REFUND] Refunded ${amount} credit(s) to user ${userId}: ${reason}`);
+        return true;
+      });
+    }
     await this.logCreditTransaction({
       userId,
       type: "refund",
       amount: amount,
       balanceAfter: 0,
       description: reason,
-      conversationId: conversationId || null,
+      conversationId: null,
       stripeSessionId: null,
     });
     console.log(`[REFUND] Refunded ${amount} credit(s) to user ${userId}: ${reason}`);
+    return true;
   }
 
   async logCreditTransaction(tx: Omit<InsertCreditTransaction, "id" | "createdAt">): Promise<boolean> {
