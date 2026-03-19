@@ -4,6 +4,18 @@ import { execFileSync } from "child_process";
 import { randomUUID } from "crypto";
 
 const MAX_TEXT_LENGTH = 200000;
+const PARSE_TIMEOUT_MS = 30_000;
+const MAX_FILE_SIZE_BYTES = 50 * 1024 * 1024;
+
+function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms);
+    promise.then(
+      (val) => { clearTimeout(timer); resolve(val); },
+      (err) => { clearTimeout(timer); reject(err); },
+    );
+  });
+}
 
 export async function extractTextFromFile(filePath: string, mimeType: string): Promise<string | null> {
   try {
@@ -12,15 +24,21 @@ export async function extractTextFromFile(filePath: string, mimeType: string): P
       return null;
     }
 
+    const stat = fs.statSync(filePath);
+    if (stat.size > MAX_FILE_SIZE_BYTES) {
+      console.error(`[documentParser] File too large: ${stat.size} bytes (max ${MAX_FILE_SIZE_BYTES})`);
+      return null;
+    }
+
     let text: string | null = null;
 
     if (mimeType === "application/pdf") {
-      text = await extractPdfText(filePath);
+      text = await withTimeout(extractPdfText(filePath), PARSE_TIMEOUT_MS, "PDF extraction");
     } else if (
       mimeType === "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
       mimeType === "application/msword"
     ) {
-      text = await extractDocxText(filePath);
+      text = await withTimeout(extractDocxText(filePath), PARSE_TIMEOUT_MS, "DOCX extraction");
     } else if (isPlainTextType(mimeType)) {
       text = fs.readFileSync(filePath, "utf-8");
     }
@@ -114,12 +132,15 @@ export function renderPdfToImages(filePath: string): string[] {
 
 export async function getPdfPageCount(filePath: string): Promise<number> {
   try {
-    const { PDFParse } = await import("pdf-parse");
-    const fileBuffer = fs.readFileSync(filePath);
-    const uint8 = new Uint8Array(fileBuffer);
-    const parser = new PDFParse(uint8);
-    const result = await parser.getText();
-    return result.total || 0;
+    const inner = async () => {
+      const { PDFParse } = await import("pdf-parse");
+      const fileBuffer = fs.readFileSync(filePath);
+      const uint8 = new Uint8Array(fileBuffer);
+      const parser = new PDFParse(uint8);
+      const result = await parser.getText();
+      return result.total || 0;
+    };
+    return await withTimeout(inner(), PARSE_TIMEOUT_MS, "PDF page count");
   } catch {
     return 0;
   }

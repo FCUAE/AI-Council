@@ -36,10 +36,20 @@ const MAGIC_BYTES: Record<string, number[][]> = {
   "image/png": [[0x89, 0x50, 0x4E, 0x47]],
   "image/jpeg": [[0xFF, 0xD8, 0xFF]],
   "image/gif": [[0x47, 0x49, 0x46, 0x38]],
-  "image/webp": [[0x52, 0x49, 0x46, 0x46]],
   "application/pdf": [[0x25, 0x50, 0x44, 0x46]],
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document": [[0x50, 0x4B, 0x03, 0x04]],
   "application/msword": [[0xD0, 0xCF, 0x11, 0xE0]],
+};
+
+const MIME_TO_EXTENSIONS: Record<string, string[]> = {
+  "image/png": [".png"],
+  "image/jpeg": [".jpg", ".jpeg"],
+  "image/gif": [".gif"],
+  "image/webp": [".webp"],
+  "application/pdf": [".pdf"],
+  "text/plain": [".txt", ".text", ".log", ".md", ".csv"],
+  "application/msword": [".doc"],
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document": [".docx"],
 };
 
 const BLOCKED_EXTENSIONS = new Set([
@@ -52,6 +62,12 @@ const BLOCKED_EXTENSIONS = new Set([
 ]);
 
 function validateMagicBytes(buffer: Buffer, mimetype: string): boolean {
+  if (mimetype === "image/webp") {
+    if (buffer.length < 12) return false;
+    const riff = buffer[0] === 0x52 && buffer[1] === 0x49 && buffer[2] === 0x46 && buffer[3] === 0x46;
+    const webp = buffer[8] === 0x57 && buffer[9] === 0x45 && buffer[10] === 0x42 && buffer[11] === 0x50;
+    return riff && webp;
+  }
   const signatures = MAGIC_BYTES[mimetype];
   if (!signatures) {
     if (mimetype === "text/plain") {
@@ -87,6 +103,10 @@ function validateUploadedFile(file: Express.Multer.File): string | null {
   }
   if (hasSuspiciousFilename(file.originalname)) {
     return "Suspicious filename detected";
+  }
+  const allowedExts = MIME_TO_EXTENSIONS[file.mimetype];
+  if (allowedExts && !allowedExts.includes(ext)) {
+    return `Extension ${ext} does not match declared type ${file.mimetype}`;
   }
   const buffer = fs.readFileSync(file.path);
   if (!validateMagicBytes(buffer, file.mimetype)) {
