@@ -190,21 +190,22 @@
 
 ---
 
-## Updated Security Scorecard
+## Security Scorecard (Post Phase 4)
 
 | Category | Rating | Notes |
 |---|---|---|
-| **Authentication** | ✅ Strong | Clerk auth; identity collision attack blocked; email uniqueness enforced |
-| **Authorization** | ✅ Strong | File ownership tracking; ACL enforcement on objects; admin checks |
+| **Authentication** | ✅ Strong | Clerk auth; identity collision blocked; step-up auth on destructive actions |
+| **Authorization** | ✅ Strong | File ownership tracking; ACL enforcement; fail-closed on missing records |
 | **Secrets Management** | ✅ Good | Secrets via env vars; `.env` gitignored |
-| **Input Validation** | ✅ Strong | Zod schemas; magic-byte file validation; extension blocklist |
-| **API Security** | ✅ Strong | IP + per-user rate limiting; CSRF origin checks; body size limits |
-| **File Upload/Serving** | ✅ Strong | Type allowlists; magic-byte checks; ownership ACL; nosniff; Content-Disposition |
-| **Security Headers** | ✅ Strong | Helmet + full CSP; frame-ancestors; form-action |
+| **Input Validation** | ✅ Strong | Zod schemas; magic-byte + extension-MIME validation; double-extension rejection |
+| **API Security** | ✅ Strong | IP + Postgres-backed per-user rate limiting; CSRF origin checks; concurrent debate limits |
+| **File Upload/Serving** | ✅ Strong | Magic bytes; extension blocklist; ownership ACL; nosniff; attachment for non-images |
+| **Security Headers** | ✅ Strong | Helmet + full CSP; Cache-Control: no-store on sensitive routes |
 | **SSRF Prevention** | ✅ Strong | IP/hostname allowlist; no arbitrary fetch |
-| **Error Handling** | ✅ Good | Generic 5xx errors; sanitized logging |
-| **Business Logic** | ✅ Good | Credit transactions with WHERE guards; typed deletion confirmation |
-| **Monitoring** | ✅ Good | Structured security event logging with PII redaction |
+| **Error Handling** | ✅ Good | Generic 5xx errors; sanitized logging; no stack traces to clients |
+| **Business Logic** | ✅ Good | Credit transactions with WHERE guards; typed deletion confirmation; concurrent limits |
+| **Monitoring** | ✅ Strong | Structured JSON security logging; 8 event types; PII redaction |
+| **Multi-Instance Safety** | ✅ Good | Advisory locks on startup; Postgres-backed rate limits; idempotent jobs |
 
 ---
 
@@ -263,14 +264,147 @@
 - **Status:** Required by Clerk SDK which injects inline scripts. Cannot be replaced with nonce-based loading until Clerk supports it. Similarly, `'unsafe-inline'` in `style-src` is required for React's dynamic styles and Clerk's style injection.
 - **Recommendation:** Revisit when Clerk adds nonce/hash support.
 
-### Phase 4 — Step-Up Auth for Destructive Actions
+### Phase 4 — Hardening (March 19, 2026)
 
 **37. Session-age check on destructive endpoints** — IMPLEMENTED (approximation)
 - `requireRecentAuth` middleware checks Clerk JWT `iat` claim; rejects sessions older than 10 minutes
 - Protected: DELETE /api/user, POST /api/stripe/cancel-subscription, POST /api/stripe/create-portal, POST /api/stripe/setup-payment
 - Frontend detects `RECENT_AUTH_REQUIRED` response code and triggers sign-out + sign-in flow
-- **Limitation**: This is a JWT-age approximation, NOT true Clerk reverification or password re-entry. It checks when the JWT was issued, not when the user last entered credentials. If Clerk silently refreshes tokens, the effective window may differ from 10 minutes. True step-up auth requires Clerk's reverification APIs not available in @clerk/express v2.
-- **Residual risk**: A compromised session token within its first 10 minutes can still perform destructive actions without additional verification.
+- **Limitation**: JWT-age approximation, not true Clerk reverification. See residual risks.
+- **Files:** `server/security/recentAuth.ts`, `client/src/pages/Profile.tsx`
+
+**38. Startup safety — advisory locks and process hardening**
+- **Risk:** Multi-instance deployments could run migrations and startup jobs concurrently, causing data corruption.
+- **Fix:** All startup jobs (migrations, Stripe sync, stale recovery, analytics backfill) now use Postgres advisory locks. Migrations and Stripe sync are critical (rethrow on error). Removed `process.exit` monkey-patch; moved one-off credit correction script to `scripts/`.
+- **File:** `server/security/advisoryLocks.ts`, `server/index.ts`
+
+**39. Distributed rate limiting (Postgres-backed)**
+- **Risk:** In-memory per-user rate limits were lost on restart and not shared across instances.
+- **Fix:** `rate_limit_buckets` table with atomic `checkPerUserLimit()` using INSERT ON CONFLICT + UPDATE. Route-scoped keys prevent cross-endpoint interference. Opportunistic cleanup of expired buckets.
+- **File:** `server/security/rateLimiter.ts`
+
+**40. Cache-Control on sensitive endpoints**
+- **Risk:** Authenticated data endpoints (user profile, usage, payment methods, invoices) could be cached by browsers or proxies.
+- **Fix:** Added `Cache-Control: no-store` at the top of all sensitive authenticated GET handlers so all code paths (success, error, early return) are covered.
+- **Files:** `server/routes.ts`, `server/replit_integrations/auth/routes.ts`
+
+**41. CSP unsafe-inline justification documented**
+- `script-src 'unsafe-inline'`: Required for Clerk SDK inline script injection for auth widgets.
+- `style-src 'unsafe-inline'`: Required for React CSS-in-JS and Clerk widget inline styles.
+- Inline comments added to CSP configuration in `server/index.ts`.
+
+**42. File upload validation hardened**
+- **Risk:** WebP magic-byte check only verified RIFF header (shared with other RIFF formats). No extension-MIME consistency check. PDF served inline. Text/plain only checked for NUL bytes.
+- **Fix:**
+  - WebP now checks both RIFF header (bytes 0-3) AND "WEBP" signature (bytes 8-11)
+  - Extension-MIME mismatch validation via `MIME_TO_EXTENSIONS` map
+  - All double-extension filenames rejected (not just blocked-extension combinations)
+  - PDF removed from `SAFE_INLINE_TYPES` — served as attachment
+  - Text/plain binary detection strengthened: rejects >5% control/non-text bytes in 8KB sample
+- **File:** `server/replit_integrations/object_storage/routes.ts`
+
+**43. Document parser hardening**
+- **Risk:** PDF/DOCX parsing had no timeout, no file size guard, could hang on malicious files.
+- **Fix:**
+  - 30-second timeout wrapper on all PDF and DOCX parsing operations
+  - 50MB file size check before parsing
+  - `getPdfPageCount` also wrapped with timeout
+- **File:** `server/documentParser.ts`
+
+**44. Concurrent debate limit**
+- **Risk:** Users could start unlimited simultaneous debates, amplifying AI API costs.
+- **Fix:** Before creating a new conversation, queries user's active debates. Rejects if >= 3 are in "processing" status.
+- **File:** `server/routes.ts`
+
+**45. Per-user rate limits on uploads and support**
+- **Risk:** Upload and support endpoints only had IP-based limits.
+- **Fix:**
+  - `/api/uploads/direct`: 30/min per user
+  - `/api/support/upload`: 10/min per user
+  - `/api/support`: 10/day per user (daily limit)
+  - Files cleaned up on rate-limit rejection
+- **Files:** `server/replit_integrations/object_storage/routes.ts`, `server/routes.ts`
+
+---
+
+## Manual Testing Checklist
+
+### Authentication & Authorization
+- [ ] Unauthenticated requests to `/api/user/usage`, `/api/conversations`, `/api/support/upload` return 401/403
+- [ ] Admin-only routes (`/api/admin/*`) reject non-admin users with 403
+- [ ] File access: user A cannot access user B's uploaded files (returns 403)
+- [ ] Files without ownership records return 403 for non-admin users
+
+### CSRF Protection
+- [ ] POST/PUT/PATCH/DELETE to `/api/*` without Origin header returns 403
+- [ ] POST to `/api/conversations` with mismatched Origin returns 403
+- [ ] GET requests work without Origin header
+- [ ] Stripe webhook POST works without Origin header (exempted)
+
+### Rate Limiting
+- [ ] Creating > 5 debates per minute triggers per-user rate limit (429)
+- [ ] Creating a debate while 3+ are processing triggers concurrent limit (429)
+- [ ] Retrying > 3 times per minute triggers rate limit (429)
+- [ ] Sending > 10 support messages in 24 hours triggers daily limit (429)
+- [ ] Uploading > 30 files per minute triggers upload rate limit (429)
+
+### File Upload Validation
+- [ ] Uploading a renamed `.exe` → `.png` file is rejected (magic byte mismatch)
+- [ ] Uploading a file with double extension (e.g., `test.pdf.exe`) is rejected
+- [ ] Uploading an SVG, HTML, or JS file is rejected (blocked extension)
+- [ ] Uploading a valid PNG, JPEG, PDF, DOCX succeeds
+- [ ] Downloaded PDFs have `Content-Disposition: attachment`
+- [ ] Downloaded images have `Content-Disposition: inline`
+
+### Account Deletion
+- [ ] DELETE `/api/user` without `{ confirmation: "DELETE" }` returns 400
+- [ ] DELETE `/api/user` with a stale session (>10 min) returns 403 RECENT_AUTH_REQUIRED
+- [ ] Frontend shows re-auth flow on RECENT_AUTH_REQUIRED
+- [ ] Successful deletion removes user from DB, Stripe, and Clerk
+
+### Sensitive Data Caching
+- [ ] GET `/api/auth/user` response includes `Cache-Control: no-store`
+- [ ] GET `/api/user/usage` response includes `Cache-Control: no-store`
+- [ ] GET `/api/stripe/payment-method` response includes `Cache-Control: no-store`
+
+### Security Headers
+- [ ] Response includes `X-Content-Type-Options: nosniff`
+- [ ] Response includes `Strict-Transport-Security` header
+- [ ] Response includes `Content-Security-Policy` header (not report-only)
+- [ ] Error responses (500) return generic message, no stack trace
+
+---
+
+## Residual Risks & Known Limitations
+
+1. **Step-up auth is JWT-age approximation** — `requireRecentAuth` checks JWT `iat`, not true credential re-entry. A compromised session within 10 minutes can still perform destructive actions. True step-up requires Clerk reverification APIs (not available in @clerk/express v2).
+
+2. **CSP `unsafe-inline`** — Required for Clerk SDK and React dynamic styles. Weakens XSS protection. Revisit when Clerk adds nonce/hash support.
+
+3. **No support attachment retention cleanup** — Support upload images persist indefinitely. A retention job (delete `purpose='support'` files older than N days) would reduce storage abuse risk.
+
+4. **Rate limit precision across restarts** — Postgres-backed rate limits survive restarts but have eventual-consistency semantics (opportunistic cleanup, no distributed clock).
+
+5. **File ownership backfill gap** — Files uploaded before the `file_uploads` table have no ownership record and are inaccessible to non-admins (fail-closed is correct, but old data is orphaned).
+
+6. **Low-severity dependency vulnerabilities** — 5 issues in `@google-cloud/storage` chain require a breaking major version change.
+
+---
+
+## Required Environment Variables
+
+| Variable | Purpose | Required |
+|---|---|---|
+| `CLERK_SECRET_KEY` | Clerk auth (dev) | Yes |
+| `CLERK_PUBLISHABLE_KEY` | Clerk auth (dev) | Yes |
+| `CLERK_PROD_SECRET_KEY` | Clerk auth (prod, overrides SECRET_KEY) | Prod only |
+| `CLERK_PROD_PUBLISHABLE_KEY` | Clerk auth (prod) | Prod only |
+| `DATABASE_URL` | PostgreSQL connection string | Yes |
+| `STRIPE_SECRET_KEY` | Stripe payments | Yes |
+| `STRIPE_WEBHOOK_SECRET` | Stripe webhook signature verification | Yes |
+| `ADMIN_USER_IDS` | Comma-separated Clerk user IDs for admin access | Yes |
+| `REPLIT_DOMAINS` | Allowed origins for CSRF validation | Auto-set by Replit |
+| `REPLIT_DEV_DOMAIN` | Dev domain for CSRF validation | Auto-set by Replit |
 
 ---
 
@@ -279,6 +413,8 @@
 1. **CAPTCHA on support form** — Consider adding CAPTCHA to prevent automated abuse.
 2. **Dependency upgrades** — `@google-cloud/storage` chain has low-severity issues requiring major version change.
 3. **DNS-level SSRF protection** — Full mitigation would require a custom HTTP agent that validates resolved IPs before connecting.
-4. **Redis-backed rate limiting** — For horizontal scaling, move per-user buckets to Redis.
+4. **Redis-backed rate limiting** — For horizontal scaling, move per-user buckets to Redis. Current Postgres-backed approach works for single/few instances.
 5. **CSP nonces** — Replace `'unsafe-inline'` with nonce-based script loading when Clerk supports it.
 6. **File ownership backfill** — Files uploaded before the `file_uploads` table exists have no ownership record. Consider a migration to backfill from conversation attachment metadata.
+7. **Support attachment retention** — Add a scheduled job to delete support-purpose uploads older than 30 days.
+8. **True step-up auth** — Upgrade to Clerk reverification when @clerk/express supports it.
