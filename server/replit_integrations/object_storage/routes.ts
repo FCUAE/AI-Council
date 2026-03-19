@@ -71,10 +71,16 @@ function validateMagicBytes(buffer: Buffer, mimetype: string): boolean {
   const signatures = MAGIC_BYTES[mimetype];
   if (!signatures) {
     if (mimetype === "text/plain") {
-      for (let i = 0; i < Math.min(buffer.length, 8192); i++) {
+      const sampleSize = Math.min(buffer.length, 8192);
+      let nonTextBytes = 0;
+      for (let i = 0; i < sampleSize; i++) {
         const byte = buffer[i];
         if (byte === 0) return false;
+        if (byte < 0x08 || (byte > 0x0D && byte < 0x20 && byte !== 0x1B)) {
+          nonTextBytes++;
+        }
       }
+      if (sampleSize > 0 && nonTextBytes / sampleSize > 0.05) return false;
       return true;
     }
     return true;
@@ -287,7 +293,7 @@ export function registerObjectStorageRoutes(app: Express): void {
     });
   });
 
-  const SAFE_INLINE_TYPES = new Set([".png", ".jpg", ".jpeg", ".gif", ".webp", ".pdf"]);
+  const SAFE_INLINE_TYPES = new Set([".png", ".jpg", ".jpeg", ".gif", ".webp"]);
 
   app.get("/uploads/:filename", async (req, res) => {
     const rawFilename = req.params.filename;
