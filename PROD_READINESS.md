@@ -20,6 +20,8 @@
 | 9 | Duplicate refund risk | ✅ Fixed — atomic settled flag check-and-set |
 | 10 | Revenue tracking race condition | ✅ Fixed — guarded by logCreditTransaction return |
 | 11 | Cancel/retry race conditions | ✅ Fixed — compare-and-set status transitions |
+| 12 | Attachment URL IDOR bypass | ✅ Fixed — centralized `attachmentAuth.ts` with URL normalization, ownership/ACL validation at ingestion (before DB write), defense-in-depth in `imageUrlToBase64`, retry re-validation |
+| 13 | Cron blocking advisory lock | ✅ Fixed — non-blocking `withAdvisoryLock` pattern aligned with startup jobs |
 
 ## Remaining Risks (Non-Blocking)
 
@@ -134,11 +136,12 @@ The application is designed to run safely on **multiple instances** with the fol
 | Stripe initialization | Advisory lock (ID 101) | Webhook creation + backfill are serialized |
 | Stuck conversation recovery | Advisory lock (ID 102) | Prevents duplicate refunds during startup |
 | Analytics backfill | Advisory lock (ID 103) | Prevents concurrent updates |
-| Credit expiration cron | Advisory lock (ID 42) | Only one instance runs per cycle |
+| Credit expiration cron | Non-blocking advisory lock (ID 42) | Skipped with log message if another instance holds lock |
 | Per-user rate limiting | Postgres `rate_limit_buckets` table | Shared across instances via atomic upsert |
 | Credit transactions | Unique index on `stripe_session_id` | Prevents duplicate credit grants |
 | Refunds | Atomic `settled` flag (CAS) | Prevents duplicate refunds |
 | Status transitions | Compare-and-set WHERE clauses | Prevents race conditions on cancel/retry |
+| Attachment authorization | `file_uploads` table + object storage ACL | Ownership checked via DB, safe across instances |
 | CSRF origin check | Stateless | Origin validation against env vars |
 | Session management | Stateless | Clerk JWT-based, no server-side sessions |
 

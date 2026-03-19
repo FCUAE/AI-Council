@@ -25,6 +25,7 @@ import { creditTransactions } from "@shared/models/auth";
 import { securityLog } from "./securityLogger";
 import { checkPerUserLimit } from "./security/rateLimiter";
 import { requireRecentAuth } from "./security/recentAuth";
+import { validateAttachmentsBatch, AttachmentAuthError } from "./security/attachmentAuth";
 
 const conversationLimiter = rateLimit({
   windowMs: 60 * 1000,
@@ -241,7 +242,7 @@ function isUrlSafeForFetch(urlStr: string): boolean {
   }
 }
 
-async function imageUrlToBase64(imageUrl: string): Promise<string | null> {
+async function imageUrlToBase64(imageUrl: string, userId?: string): Promise<string | null> {
   if (!imageUrl || typeof imageUrl !== 'string' || imageUrl.trim() === '') {
     return null;
   }
@@ -249,9 +250,21 @@ async function imageUrlToBase64(imageUrl: string): Promise<string | null> {
   try {
     const objectsPathMatch = imageUrl.match(/\/objects\/(.+?)(?:\?.*)?$/);
     if (objectsPathMatch) {
-      const objectPath = `/objects/${objectsPathMatch[1]}`;
       try {
         const objectFile = await objectStorageService.getObjectEntityFile(`/objects/${objectsPathMatch[1]}`);
+
+        if (userId) {
+          const canAccess = await objectStorageService.canAccessObjectEntity({
+            userId,
+            objectFile,
+            requestedPermission: ObjectPermission.READ,
+          });
+          if (!canAccess) {
+            securityLog.fileAccessDenied({ route: "imageUrlToBase64", userId, reason: "acl_denied_defense_in_depth" });
+            return null;
+          }
+        }
+
         const [metadata] = await objectFile.getMetadata();
         const contentType = metadata.contentType || 'image/png';
         
@@ -278,6 +291,19 @@ async function imageUrlToBase64(imageUrl: string): Promise<string | null> {
 
     const localPath = resolveLocalFilePath(imageUrl);
     if (localPath && fs.existsSync(localPath)) {
+      if (userId) {
+        const filename = path.basename(localPath);
+        const ownerResult = await db.execute(
+          sql`SELECT user_id FROM file_uploads WHERE filename = ${filename}`
+        );
+        const ownerRows = ownerResult.rows as { user_id: string }[];
+        const ownerRow = ownerRows[0];
+        if (!ownerRow || ownerRow.user_id !== userId) {
+          securityLog.fileAccessDenied({ route: "imageUrlToBase64", userId, reason: "ownership_denied_defense_in_depth" });
+          return null;
+        }
+      }
+
       const buffer = fs.readFileSync(localPath);
       const ext = path.extname(localPath).toLowerCase();
       const mimeMap: Record<string, string> = { '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.gif': 'image/gif', '.webp': 'image/webp' };
@@ -303,7 +329,6 @@ async function imageUrlToBase64(imageUrl: string): Promise<string | null> {
     const arrayBuffer = await response.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
     
-    // Compress image if needed for vision API compatibility
     const compressed = await compressImageBuffer(buffer, contentType);
     const base64 = compressed.buffer.toString('base64');
     const dataUri = `data:${compressed.contentType};base64,${base64}`;
@@ -316,9 +341,8 @@ async function imageUrlToBase64(imageUrl: string): Promise<string | null> {
   }
 }
 
-// Convert multiple image URLs to base64 data URIs
-async function convertImagesToBase64(imageUrls: string[]): Promise<string[]> {
-  const results = await Promise.all(imageUrls.map(url => imageUrlToBase64(url)));
+async function convertImagesToBase64(imageUrls: string[], userId?: string): Promise<string[]> {
+  const results = await Promise.all(imageUrls.map(url => imageUrlToBase64(url, userId)));
   return results.filter((uri): uri is string => uri !== null);
 }
 
@@ -788,7 +812,8 @@ async function callLLMWithVision(
   imageUrls: string[], 
   systemPrompt: string = "You are a helpful assistant.",
   signal?: AbortSignal,
-  maxTokens: number = 4096
+  maxTokens: number = 4096,
+  userId?: string
 ): Promise<LLMResult> {
   if (signal?.aborted) {
     throw new Error("Request cancelled");
@@ -805,7 +830,7 @@ async function callLLMWithVision(
   let base64Images: string[] = [];
   if (imageUrls.length > 0) {
     console.log(`[LLM Vision] Converting ${imageUrls.length} image(s) to base64 for ${model}...`);
-    base64Images = await convertImagesToBase64(imageUrls);
+    base64Images = await convertImagesToBase64(imageUrls, userId);
     if (base64Images.length === 0) {
       console.error(`[LLM Vision] Failed to convert any images for ${model}`);
       const fallbackPrompt = prompt + `\n\n[Note: ${imageUrls.length} image(s) were attached but could not be loaded for analysis.]`;
@@ -1299,7 +1324,7 @@ If you can't find anything to verify or challenge, you're not adding value. Scru
           : "";
         const councilSystemPrompt = stance.prompt + visionAddendum;
         const s1Result = (modelHasVision && hasImages)
-          ? await callLLMWithVision(activeModel, modelPrompt, imageUrls, councilSystemPrompt, signal, 2500)
+          ? await callLLMWithVision(activeModel, modelPrompt, imageUrls, councilSystemPrompt, signal, 2500, userId)
           : await callLLM(activeModel, modelPrompt, councilSystemPrompt, signal, 2500);
         trackUsage(activeModel, s1Result.usage, 'S1-initial', 2500);
         
@@ -1340,7 +1365,7 @@ If you can't find anything to verify or challenge, you're not adding value. Scru
               : "";
             const fbSystemPrompt = stance.prompt + fbVisionAddendum;
             const fbResult = (fbHasVision && hasImages)
-              ? await callLLMWithVision(fallbackModel, fbPrompt, imageUrls, fbSystemPrompt, signal, 2500)
+              ? await callLLMWithVision(fallbackModel, fbPrompt, imageUrls, fbSystemPrompt, signal, 2500, userId)
               : await callLLM(fallbackModel, fbPrompt, fbSystemPrompt, signal, 2500);
             trackUsage(fallbackModel, fbResult.usage, 'S1-initial', 2500);
             
@@ -1452,7 +1477,7 @@ Rules:
     let finalContent: string = "";
     try {
       const chairResult = (chairmanHasVision && hasImages)
-        ? await callLLMWithVision(selectedChairman, allContext, imageUrls, chairmanSystemPrompt, signal, CHAIRMAN_MAX_TOKENS)
+        ? await callLLMWithVision(selectedChairman, allContext, imageUrls, chairmanSystemPrompt, signal, CHAIRMAN_MAX_TOKENS, userId)
         : await callLLM(selectedChairman, allContext, chairmanSystemPrompt, signal, CHAIRMAN_MAX_TOKENS);
       finalContent = chairResult.content;
       trackUsage(selectedChairman, chairResult.usage, 'S3-chairman', CHAIRMAN_MAX_TOKENS);
@@ -1476,7 +1501,7 @@ Rules:
             fbHasVision && hasImages ? '- You can see the attached images. Incorporate visual analysis into your verdict.' : ''
           );
           const fbChairResult = (fbHasVision && hasImages)
-            ? await callLLMWithVision(fbModel, allContext, imageUrls, fbSystemPrompt, signal, CHAIRMAN_MAX_TOKENS)
+            ? await callLLMWithVision(fbModel, allContext, imageUrls, fbSystemPrompt, signal, CHAIRMAN_MAX_TOKENS, userId)
             : await callLLM(fbModel, allContext, fbSystemPrompt, signal, CHAIRMAN_MAX_TOKENS);
           finalContent = fbChairResult.content;
           trackUsage(fbModel, fbChairResult.usage, 'S3-chairman', CHAIRMAN_MAX_TOKENS);
@@ -2038,21 +2063,6 @@ export async function registerRoutes(
       return res.status(400).json({ success: false, message: "No retryable message found" });
     }
     
-    const updated = await db.update(conversations)
-      .set({ status: "processing" })
-      .where(sql`${conversations.id} = ${conversationId} AND ${conversations.status} IN ('error', 'cancelled')`)
-      .returning({ id: conversations.id });
-    if (updated.length === 0) {
-      return res.status(409).json({ success: false, message: "Conversation status already changed" });
-    }
-
-    securityLog.billingAnomaly({ action: "conversation_retry", userId: userId!, detail: `conversationId=${conversationId}, messageId=${retryMessage.id}` });
-    
-    cancelConversationMessages(conversationId, [retryMessage.id]);
-    
-    await storage.clearCouncilResponses(retryMessage.id);
-    await storage.updateMessageStatus(retryMessage.id, "processing");
-    
     let parsedAttachments: Attachment[] | undefined;
     if (retryMessage.attachments) {
       try {
@@ -2075,6 +2085,32 @@ export async function registerRoutes(
         parsedAttachments = undefined;
       }
     }
+
+    if (parsedAttachments && parsedAttachments.length > 0) {
+      try {
+        await validateAttachmentsBatch(userId!, parsedAttachments, isAdmin(req));
+      } catch (err: any) {
+        if (err instanceof AttachmentAuthError) {
+          return res.status(err.statusCode).json({ success: false, message: err.message });
+        }
+        return res.status(403).json({ success: false, message: "Access denied" });
+      }
+    }
+
+    const updated = await db.update(conversations)
+      .set({ status: "processing" })
+      .where(sql`${conversations.id} = ${conversationId} AND ${conversations.status} IN ('error', 'cancelled')`)
+      .returning({ id: conversations.id });
+    if (updated.length === 0) {
+      return res.status(409).json({ success: false, message: "Conversation status already changed" });
+    }
+
+    securityLog.billingAnomaly({ action: "conversation_retry", userId: userId!, detail: `conversationId=${conversationId}, messageId=${retryMessage.id}` });
+    
+    cancelConversationMessages(conversationId, [retryMessage.id]);
+    
+    await storage.clearCouncilResponses(retryMessage.id);
+    await storage.updateMessageStatus(retryMessage.id, "processing");
     
     processCouncilMessage(
       conversationId,
@@ -2083,7 +2119,9 @@ export async function registerRoutes(
       undefined,
       parsedAttachments,
       conv.models || DEFAULT_COUNCIL_MODELS,
-      conv.chairmanModel || DEFAULT_CHAIRMAN_MODEL
+      conv.chairmanModel || DEFAULT_CHAIRMAN_MODEL,
+      undefined,
+      userId || undefined
     ).catch((err: Error) => {
       console.error(`[Retry] Error processing retry for message ${retryMessage.id}:`, err);
     });
@@ -2308,6 +2346,17 @@ export async function registerRoutes(
         }
       }
 
+      if (attachments && attachments.length > 0) {
+        try {
+          await validateAttachmentsBatch(userId, attachments, isAdmin(req));
+        } catch (err: any) {
+          if (err instanceof AttachmentAuthError) {
+            return res.status(err.statusCode).json({ message: err.message });
+          }
+          return res.status(403).json({ message: "Access denied" });
+        }
+      }
+
       const clientAttachmentTokens = typeof req.body.attachmentTokens === 'number' ? Math.max(0, Math.round(req.body.attachmentTokens)) : 0;
       const serverAttachmentTokens = estimateAttachmentTokensFromMetadata(attachments || []);
       const attachmentTokens = Math.max(clientAttachmentTokens, serverAttachmentTokens);
@@ -2432,6 +2481,17 @@ export async function registerRoutes(
       if (conversation.userId !== userId) {
         securityLog.fileAccessDenied({ route: "/api/conversations/addMessage", userId, reason: "not_owner" });
         return res.status(403).json({ message: "Forbidden" });
+      }
+
+      if (attachments && attachments.length > 0) {
+        try {
+          await validateAttachmentsBatch(userId, attachments, isAdmin(req));
+        } catch (err: any) {
+          if (err instanceof AttachmentAuthError) {
+            return res.status(err.statusCode).json({ message: err.message });
+          }
+          return res.status(403).json({ message: "Access denied" });
+        }
       }
 
       const user = await storage.getUserById(userId);
