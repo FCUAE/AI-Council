@@ -297,6 +297,10 @@ describe("ingestion-level batch validation", () => {
     }
   });
 
+  it("admin override allows access to /objects/ without ACL check", async () => {
+    await validateAttachmentAccess("admin-user", "/objects/public/shared-file.png", true);
+  });
+
   it("rejects retry-style batch with malformed attachment (empty URL)", async () => {
     const attachments = [
       { url: "", name: "bad.png" }

@@ -128,6 +128,7 @@ export async function validateAttachmentAccess(
   }
 
   if (normalized.startsWith("/objects/")) {
+    if (isAdmin) return;
     try {
       const objectFile = await objectStorageService.getObjectEntityFile(normalized);
       const canAccess = await objectStorageService.canAccessObjectEntity({

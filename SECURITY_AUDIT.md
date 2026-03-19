@@ -157,7 +157,7 @@ The AI Council platform underwent a 5-phase security hardening across authentica
 
 **38. Startup safety — advisory locks**
 - All startup jobs (migrations, Stripe sync, stale recovery, analytics) and cron use Postgres advisory locks
-- Lock IDs: migrations=100, Stripe=101, stale-recovery=102, analytics=103, credit-expiry-cron=42
+- Lock IDs: migrations=100, Stripe=101, stale-recovery=102, analytics=103, credit-expiry-cron=42 (retained from original; unique and does not conflict with startup range)
 - Migrations and Stripe are critical (rethrow on error); cron uses non-blocking lock (skips if held)
 
 **39. Distributed rate limiting (Postgres-backed)**
@@ -214,9 +214,9 @@ The AI Council platform underwent a 5-phase security hardening across authentica
 #### Low — Fixed
 
 **54. Attachment auth tests**
-- 28 unit tests (`server/__tests__/attachmentAuth.test.ts`) covering URL normalization, DB-backed ownership validation, batch rejection, traversal attempts, unknown URL patterns, data URI rejection, admin override semantics, empty URL rejection, unsafe external URL handling, and malformed encoding rejection
-- 12 route-level integration tests (`server/__tests__/attachmentAuthRoutes.test.ts`) covering forged `/uploads/` and `/objects/` paths via create/add-message/retry endpoints, data URI rejection, unsafe external URL rejection, path traversal via HTTP, retry parse failure handling, and no-attachment success paths
-- Note: Route tests use `supertest` with a minimal Express app reproducing the ingestion validation pattern; they do not mock the full auth/storage stack
+- 30 unit tests (`server/__tests__/attachmentAuth.test.ts`) covering URL normalization, DB-backed ownership validation, batch rejection, traversal attempts, unknown URL patterns, data URI rejection, admin override for `/uploads/` and `/objects/`, malformed encoding rejection, empty URL rejection, and unsafe external URL handling
+- 14 route-level integration tests (`server/__tests__/attachmentAuthRoutes.test.ts`) using `supertest`: forged `/uploads/` and `/objects/` via create/add-message/retry endpoints, data URI rejection, unsafe external URL rejection, path traversal via HTTP, retry parse failure handling, no-attachment success paths, and add-message forged `/objects/` case
+- Route tests use a minimal Express app reproducing the ingestion validation pattern; they exercise real `validateAttachmentsBatch` against the DB but do not mock the full auth/storage stack
 
 ---
 

@@ -185,6 +185,26 @@ describe("POST /api/conversations/:id/messages — forged attachment rejection",
       });
     if (res.status !== 403) throw new Error(`Expected 403, got ${res.status}`);
   });
+
+  it("rejects forged /objects/ in add-message", async () => {
+    const app = createTestApp();
+    const res = await request(app)
+      .post("/api/conversations/1/messages")
+      .set("x-test-user-id", "user-attacker")
+      .send({
+        attachments: [{ url: "/objects/.private/other-user/doc.pdf", name: "stolen.pdf" }]
+      });
+    if (res.status < 400) throw new Error(`Expected 4xx, got ${res.status}`);
+  });
+
+  it("succeeds with no attachments in add-message", async () => {
+    const app = createTestApp();
+    const res = await request(app)
+      .post("/api/conversations/1/messages")
+      .set("x-test-user-id", "user-1")
+      .send({ attachments: [] });
+    if (res.status !== 201) throw new Error(`Expected 201, got ${res.status}`);
+  });
 });
 
 describe("POST /api/conversations/:id/retry — stored attachment re-validation", () => {
