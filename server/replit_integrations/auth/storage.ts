@@ -51,7 +51,7 @@ class AuthStorage implements IAuthStorage {
           securityLog.authCollisionBlocked({
             email: userData.email,
             existingId: existing.id,
-            newId: userData.id,
+            newId: userData.id ?? "unknown",
           });
           return { status: "email_collision_blocked", existingUserId: existing.id };
         }
