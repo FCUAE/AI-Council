@@ -13,6 +13,7 @@ const updateProfileSchema = z.object({
 
 export function registerAuthRoutes(app: Express): void {
   app.get("/api/auth/user", isAuthenticated, async (req: any, res) => {
+    res.set("Cache-Control", "no-store");
     try {
       const { userId } = getAuth(req);
       if (!userId) {
@@ -22,7 +23,6 @@ export function registerAuthRoutes(app: Express): void {
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
-      res.set("Cache-Control", "no-store");
       res.json(user);
     } catch (error) {
       console.error("Error fetching user:", error);
