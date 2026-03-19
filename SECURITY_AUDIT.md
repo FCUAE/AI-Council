@@ -9,7 +9,7 @@
 
 ## Executive Summary
 
-The AI Council platform underwent a 4-phase security hardening across authentication, authorization, billing/payments, file handling, API abuse prevention, browser security, and operational safety. **48 findings** were identified and addressed across Critical (4), High (5), Medium (15), and Low/Informational (24) severities.
+The AI Council platform underwent a 4-phase security hardening across authentication, authorization, billing/payments, file handling, API abuse prevention, browser security, and operational safety. **51 findings** were identified and addressed across Critical (5), High (6), Medium (16), and Low/Informational (24) severities.
 
 **Production Readiness Verdict:** The application is production-ready with acceptable residual risk. All critical and high-priority vulnerabilities have been fixed. Remaining risks are documented below with mitigations in place.
 

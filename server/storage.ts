@@ -124,21 +124,22 @@ export class DatabaseStorage implements IStorage {
         const result = await tx.update(conversations)
           .set({ settled: 1 })
           .where(sql`${conversations.id} = ${conversationId} AND ${conversations.settled} = 0`)
-          .returning({ id: conversations.id });
+          .returning({ id: conversations.id, reservedCredits: conversations.reservedCredits });
         if (result.length === 0) {
           console.log(`[REFUND] Skipped duplicate refund for debate #${conversationId} (already settled)`);
           return false;
         }
+        const atomicAmount = result[0].reservedCredits || amount;
         await tx.insert(creditTransactions).values({
           userId,
           type: "refund",
-          amount: amount,
+          amount: atomicAmount,
           balanceAfter: 0,
           description: reason,
           conversationId: conversationId,
           stripeSessionId: null,
         });
-        console.log(`[REFUND] Refunded ${amount} credit(s) to user ${userId}: ${reason}`);
+        console.log(`[REFUND] Refunded ${atomicAmount} credit(s) to user ${userId}: ${reason}`);
         return true;
       });
     }
