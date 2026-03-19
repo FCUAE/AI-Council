@@ -2248,6 +2248,14 @@ export async function registerRoutes(
         securityLog.rateLimitHit({ route: "conversations.create", userId });
         return res.status(429).json({ message: "You're creating debates too quickly. Please wait a moment." });
       }
+
+      const MAX_CONCURRENT_DEBATES = 3;
+      const userConversations = await storage.getConversations(userId);
+      const activeCount = userConversations.filter(c => c.status === "processing").length;
+      if (activeCount >= MAX_CONCURRENT_DEBATES) {
+        securityLog.rateLimitHit({ route: "conversations.concurrent", userId });
+        return res.status(429).json({ message: `You already have ${activeCount} active debates. Please wait for one to finish before starting another.` });
+      }
       
       const user = await storage.getUserById(userId);
       if (!user) return res.status(404).json({ message: "User not found" });
@@ -2901,6 +2909,14 @@ export async function registerRoutes(
 
   app.post("/api/support", supportLimiter, isAuthenticated, async (req, res) => {
     try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
+
+      if (!(await checkPerUserLimit(userId, 10, 86_400_000, "support.daily"))) {
+        securityLog.rateLimitHit({ route: "support.daily", userId });
+        return res.status(429).json({ message: "Daily support message limit reached. Please try again tomorrow." });
+      }
+
       const schema = z.object({
         email: z.string().email("Invalid email address"),
         message: z.string().min(1, "Message is required").max(5000, "Message is too long"),

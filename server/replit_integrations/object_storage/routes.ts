@@ -10,6 +10,7 @@ import { randomUUID } from "crypto";
 import { getAuth } from "@clerk/express";
 import { pool } from "../../db";
 import { securityLog } from "../../securityLogger";
+import { checkPerUserLimit } from "../../security/rateLimiter";
 
 const UPLOADS_DIR = path.join(process.cwd(), "uploads");
 
@@ -209,6 +210,13 @@ export function registerObjectStorageRoutes(app: Express): void {
 
   app.post("/api/uploads/direct", uploadLimiter, isAuthenticated, upload.single("file"), async (req, res) => {
     try {
+      const userId = getUserId(req);
+      if (userId && !(await checkPerUserLimit(userId, 30, 60_000, "uploads.direct"))) {
+        if (req.file) fs.unlink(req.file.path, () => {});
+        securityLog.rateLimitHit({ route: "uploads.direct", userId });
+        return res.status(429).json({ error: "Too many uploads. Please wait." });
+      }
+
       if (!req.file) {
         return res.status(400).json({ error: "No file provided" });
       }
@@ -224,7 +232,6 @@ export function registerObjectStorageRoutes(app: Express): void {
         return res.status(400).json({ error: "File validation failed. Please upload a valid file." });
       }
 
-      const userId = getUserId(req);
       if (userId) {
         await recordFileUpload(req.file.filename, userId, 'debate');
       }
@@ -257,6 +264,13 @@ export function registerObjectStorageRoutes(app: Express): void {
         return res.status(400).json({ error: err.message || "Invalid file" });
       }
 
+      const userId = getUserId(req);
+      if (userId && !(await checkPerUserLimit(userId, 10, 60_000, "support.upload"))) {
+        if (req.file) fs.unlink(req.file.path, () => {});
+        securityLog.rateLimitHit({ route: "support.upload", userId });
+        return res.status(429).json({ error: "Too many uploads. Please wait." });
+      }
+
       if (!req.file) {
         return res.status(400).json({ error: "No image file provided" });
       }
@@ -272,7 +286,6 @@ export function registerObjectStorageRoutes(app: Express): void {
         return res.status(400).json({ error: "File validation failed." });
       }
 
-      const userId = getUserId(req);
       if (userId) {
         await recordFileUpload(req.file.filename, userId, 'support');
       }
