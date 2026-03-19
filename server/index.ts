@@ -167,7 +167,7 @@ const STATE_CHANGING_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 
 app.use("/api/", (req: Request, res: Response, next: NextFunction) => {
   if (!STATE_CHANGING_METHODS.has(req.method)) return next();
-  if (req.path === "/api/stripe/webhook") return next();
+  if (req.originalUrl.startsWith("/api/stripe/webhook")) return next();
 
   const origin = req.headers.origin;
   const allowed = getAllowedOrigins();
