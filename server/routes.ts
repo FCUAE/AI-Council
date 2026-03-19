@@ -1973,6 +1973,7 @@ export async function registerRoutes(
       return res.status(404).json({ success: false, message: "Conversation not found" });
     }
     if (conv.userId !== userId) {
+      securityLog.fileAccessDenied({ route: "/api/conversations/cancel", userId: userId!, reason: "not_owner" });
       return res.status(403).json({ success: false, message: "Forbidden" });
     }
     
@@ -1983,12 +1984,12 @@ export async function registerRoutes(
     
     const cancelledCount = cancelConversationMessages(conversationId, processingMessages);
     
-    // Update statuses
     for (const msgId of processingMessages) {
       await storage.updateMessageStatus(msgId, "cancelled");
     }
     await storage.updateConversationStatus(conversationId, "cancelled");
     
+    securityLog.destructiveAction({ action: `conversation_cancel(id=${conversationId},cancelled=${cancelledCount})`, userId: userId! });
     console.log(`[API] Cancelled ${cancelledCount} requests for conversation ${conversationId}`);
     res.json({ success: true, message: `Cancelled ${cancelledCount} active request(s)`, cancelled: cancelledCount });
   });
@@ -2006,6 +2007,7 @@ export async function registerRoutes(
       return res.status(404).json({ success: false, message: "Conversation not found" });
     }
     if (conv.userId !== userId) {
+      securityLog.fileAccessDenied({ route: "/api/conversations/retry", userId: userId!, reason: "not_owner" });
       return res.status(403).json({ success: false, message: "Forbidden" });
     }
     
@@ -2016,6 +2018,8 @@ export async function registerRoutes(
     if (!retryMessage) {
       return res.status(400).json({ success: false, message: "No retryable message found" });
     }
+    
+    securityLog.billingAnomaly({ action: "conversation_retry", userId: userId!, detail: `conversationId=${conversationId}, messageId=${retryMessage.id}` });
     
     cancelConversationMessages(conversationId, [retryMessage.id]);
     
@@ -2749,6 +2753,8 @@ export async function registerRoutes(
         return res.status(429).json({ message: "Too many recovery requests. Please wait." });
       }
 
+      securityLog.billingAnomaly({ action: "recover_credits", userId, detail: "initiated" });
+      
       const stripe = await getUncachableStripeClient();
       const user = await storage.getUserById(userId);
       if (!user?.stripeCustomerId) {
@@ -2821,6 +2827,8 @@ export async function registerRoutes(
         return res.status(429).json({ message: "Too many sync requests. Please wait." });
       }
       
+      securityLog.billingAnomaly({ action: "sync_credits", userId, detail: "initiated" });
+      
       const { sessionId } = req.body || {};
       if (!sessionId || typeof sessionId !== 'string') {
         return res.status(400).json({ message: "Missing checkout session ID" });
@@ -2840,6 +2848,7 @@ export async function registerRoutes(
       }
       
       if (session.metadata?.userId !== userId) {
+        securityLog.billingAnomaly({ action: "sync_credits_forbidden", userId, detail: `sessionId=${sessionId}, ownerUserId=${session.metadata?.userId}` });
         return res.status(403).json({ message: "Session does not belong to this user" });
       }
       

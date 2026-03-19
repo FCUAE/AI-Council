@@ -253,9 +253,9 @@
 - **Fix:** Added per-user rate limits to all four endpoints with appropriate thresholds.
 - **File:** `server/routes.ts`
 
-**35. Admin routes and billing mutations not logged**
-- **Risk:** Admin access to support messages, analytics, and analytics refresh were not captured in security logs. Subscription cancellation had no audit trail.
-- **Fix:** Added `securityLog.adminAccess()` to all admin route handlers. Added `securityLog.billingAnomaly()` to subscription cancellation.
+**35. Admin routes, billing mutations, and authorization denials not logged**
+- **Risk:** Admin access to support messages, analytics, and analytics refresh were not captured in security logs. Subscription cancellation, credit recovery, credit sync, conversation retry, and conversation cancel had no audit trail. Several 403 deny paths (cancel/retry ownership, sync-credits session ownership) lacked structured logging.
+- **Fix:** Added `securityLog.adminAccess()` to all admin route handlers. Added `securityLog.billingAnomaly()` to subscription cancellation, credit recovery, credit sync, conversation retry, and sync-credits session ownership mismatch. Added `securityLog.destructiveAction()` to conversation cancel. Added `securityLog.fileAccessDenied()` to retry and cancel ownership denials.
 - **File:** `server/routes.ts`
 
 ### Low — Documented (No Fix Needed)
