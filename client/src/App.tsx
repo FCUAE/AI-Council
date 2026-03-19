@@ -1,7 +1,7 @@
 import { Switch, Route, useLocation } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
-import { ClerkProvider, UserButton, useAuth as useClerkAuth, useClerk } from "@clerk/react";
+import { ClerkProvider, SignInButton, SignUpButton, UserButton, useAuth as useClerkAuth, useClerk } from "@clerk/react";
 import NotFound from "@/pages/not-found";
 import Home from "@/pages/Home";
 import Chat from "@/pages/Chat";
@@ -434,20 +434,22 @@ function AppSidebar() {
             </>
           ) : (
             <div className="flex flex-col gap-2">
-              <button
-                onClick={() => clerk.redirectToSignIn({ redirectUrl: window.location.href })}
-                className="w-full text-center text-[#737373] text-sm py-2.5 rounded-lg hover:text-[#1a1a1a] hover:bg-[#f5f5f5] transition-colors border-0 bg-transparent cursor-pointer"
-                data-testid="link-signin"
-              >
-                Sign in
-              </button>
-              <button
-                onClick={() => clerk.redirectToSignUp({ redirectUrl: window.location.href })}
-                className="w-full text-center bg-[#1a1a1a] text-white text-sm font-semibold py-2.5 rounded-lg hover:bg-[#2b2b2b] transition-colors border-0 cursor-pointer"
-                data-testid="button-getstarted"
-              >
-                Get started free
-              </button>
+              <SignInButton mode="modal">
+                <button
+                  className="w-full text-center text-[#737373] text-sm py-2.5 rounded-lg hover:text-[#1a1a1a] hover:bg-[#f5f5f5] transition-colors border-0 bg-transparent cursor-pointer"
+                  data-testid="link-signin"
+                >
+                  Sign in
+                </button>
+              </SignInButton>
+              <SignUpButton mode="modal">
+                <button
+                  className="w-full text-center bg-[#1a1a1a] text-white text-sm font-semibold py-2.5 rounded-lg hover:bg-[#2b2b2b] transition-colors border-0 cursor-pointer"
+                  data-testid="button-getstarted"
+                >
+                  Get started free
+                </button>
+              </SignUpButton>
             </div>
           )}
         </div>
@@ -622,36 +624,28 @@ function Router() {
 }
 
 function LoggedOutHeader() {
-  const clerk = useClerk();
-
-  const handleSignIn = () => {
-    clerk.redirectToSignIn({ redirectUrl: window.location.href });
-  };
-
-  const handleSignUp = () => {
-    clerk.redirectToSignUp({ redirectUrl: window.location.href });
-  };
-
   return (
     <header className="flex items-center justify-between p-4 lg:px-8 lg:py-5 border-b border-[#eaeaea] bg-white relative z-[100]">
       <div className="flex items-center">
         <img src={logoImg} alt="AI Council" className="h-8 w-auto" data-testid="img-logo-header" />
       </div>
       <div className="flex items-center gap-3" style={{ position: 'relative', zIndex: 9999 }}>
-        <button
-          onClick={handleSignIn}
-          className="hidden sm:flex items-center justify-center gap-2 bg-white border border-[#eaeaea] text-[#1a1a1a] text-sm font-medium py-2 px-4 rounded-lg shadow-sm hover:bg-[#fafafa] hover:border-[#d4d4d4] transition-all cursor-pointer"
-          data-testid="button-login"
-        >
-          Log In
-        </button>
-        <button
-          onClick={handleSignUp}
-          className="flex items-center justify-center gap-2 bg-[#1a1a1a] text-white text-sm font-medium py-2 px-4 lg:px-5 rounded-lg shadow-sm hover:bg-[#2b2b2b] transition-colors border-0 cursor-pointer"
-          data-testid="button-get-free"
-        >
-          Get 8 Free Debates
-        </button>
+        <SignInButton mode="modal">
+          <button
+            className="hidden sm:flex items-center justify-center gap-2 bg-white border border-[#eaeaea] text-[#1a1a1a] text-sm font-medium py-2 px-4 rounded-lg shadow-sm hover:bg-[#fafafa] hover:border-[#d4d4d4] transition-all cursor-pointer"
+            data-testid="button-login"
+          >
+            Log In
+          </button>
+        </SignInButton>
+        <SignUpButton mode="modal">
+          <button
+            className="flex items-center justify-center gap-2 bg-[#1a1a1a] text-white text-sm font-medium py-2 px-4 lg:px-5 rounded-lg shadow-sm hover:bg-[#2b2b2b] transition-colors border-0 cursor-pointer"
+            data-testid="button-get-free"
+          >
+            Get 8 Free Debates
+          </button>
+        </SignUpButton>
       </div>
     </header>
   );
