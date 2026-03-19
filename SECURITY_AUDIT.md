@@ -9,9 +9,9 @@
 
 ## Executive Summary
 
-The AI Council platform underwent a 5-phase security hardening across authentication, authorization, billing/payments, file handling, AI/attachment processing safety, API abuse prevention, browser security, and operational safety. **54 findings** were identified and addressed across Critical (6), High (6), Medium (17), and Low/Informational (25) severities.
+The AI Council platform underwent a 6-phase security hardening across authentication, authorization, billing/payments, file handling, AI/attachment processing safety, API abuse prevention, browser security, startup safety, and operational safety. **55 findings** were identified and addressed across Critical (7), High (6), Medium (17), and Low/Informational (25) severities.
 
-**Production Readiness Verdict:** The application is production-ready with acceptable residual risk. All critical and high-priority vulnerabilities have been fixed. Remaining risks are documented below with mitigations in place.
+**Production Readiness Verdict:** The application is production-ready. All critical and high-priority vulnerabilities have been fixed. No instance can serve traffic before critical startup prerequisites complete. Remaining residual risks are documented below with mitigations in place.
 
 ---
 
@@ -31,7 +31,7 @@ The AI Council platform underwent a 5-phase security hardening across authentica
 | **Error Handling** | ✅ Good | Generic "Internal Server Error" for 5xx; sanitized document parser errors; no stack traces to clients |
 | **Logging & Monitoring** | ✅ Strong | Structured JSON security logging (8 event types); PII redaction; billing audit trail; no secrets logged |
 | **AI/Attachment Processing** | ✅ Strong | Centralized `attachmentAuth.ts` with URL normalization; ownership/ACL validated at ingestion (before DB write); defense-in-depth in `imageUrlToBase64`; retry re-validates attachments; file existence ≠ authorization |
-| **Multi-Instance Safety** | ✅ Good | Advisory locks on migrations, Stripe, recovery, analytics, cron; Postgres-backed rate limits; idempotent startup jobs; non-blocking cron lock |
+| **Multi-Instance Safety** | ✅ Strong | Single blocking advisory lock (ID 200) on critical startup chain (migrations → Stripe → views) with 120s timeout; non-critical jobs use non-blocking locks; Postgres-backed rate limits; idempotent startup jobs |
 
 ---
 
@@ -217,6 +217,21 @@ The AI Council platform underwent a 5-phase security hardening across authentica
 - 31 unit tests (`server/__tests__/attachmentAuth.test.ts`): URL normalization, DB-backed ownership validation (owner success, non-owner denial, admin override success, admin no-record denial), batch validation (full batch success, first-failure rejection), traversal attempts, unknown URL patterns, data URI rejection, admin override for `/objects/`, malformed encoding rejection, empty URL rejection, unsafe external URL handling
 - 14 route-level integration tests (`server/__tests__/attachmentAuthRoutes.test.ts`) using `supertest`: forged `/uploads/` and `/objects/` via create/add-message/retry endpoints, data URI rejection, unsafe external URL rejection, path traversal via HTTP, retry parse failure handling (JSON error, non-array, empty URL), success paths for each endpoint
 - Route tests use a minimal Express app reproducing the ingestion validation pattern; they exercise real `validateAttachmentsBatch` against the DB
+
+### Phase 6 — Startup Lock Safety
+
+#### Critical — Fixed
+
+**55. Unsafe startup lock semantics for critical jobs**
+- **Risk:** Critical startup jobs (migrations, Stripe init, ensureDatabaseViews) used non-blocking `pg_try_advisory_lock`. If one instance held the lock, other instances silently skipped the job and continued booting — potentially serving traffic before the database schema or Stripe products were ready. Additionally, `ensureDatabaseViews` ran without any lock protection, allowing concurrent execution across instances despite depending on migration schema.
+- **Fix:** Added `withBlockingAdvisoryLock` function using `pg_advisory_lock` (blocking). All three critical jobs now run as a single ordered chain under one blocking lock (ID 200):
+  - Lock acquire, job execution, and lock release all use the same DB session (same pool client)
+  - Non-lock-holder instances block and wait instead of skipping
+  - 120-second wall-clock timer (`process.exit(1)`) + SQL `statement_timeout` prevents indefinite hangs — covers both lock-wait and callback execution
+  - Observable logging at every stage: attempting → waiting (if blocked) → acquired → each step name → completed with elapsed time
+  - Any error in the chain crashes the process, preventing misconfigured instances from serving traffic
+  - Non-critical jobs (stale recovery, analytics backfill, cron) remain on non-blocking locks — unchanged
+  - No instance can reach `httpServer.listen()` until the critical chain completes
 
 ---
 

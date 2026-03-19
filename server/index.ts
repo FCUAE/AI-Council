@@ -16,7 +16,7 @@ import { conversations } from '@shared/schema';
 import { startCreditExpirationCron } from './cron';
 import { storage } from './storage';
 import { securityLog } from './securityLogger';
-import { withAdvisoryLock, LOCK_IDS } from './security/advisoryLocks';
+import { withAdvisoryLock, withBlockingAdvisoryLock, LOCK_IDS } from './security/advisoryLocks';
 import { startRateLimitCleanup } from './security/rateLimiter';
 
 if (process.env.NODE_ENV === "production") {
@@ -377,13 +377,21 @@ async function runAppMigrations() {
   await setupAuth(app);
   registerAuthRoutes(app);
   
-  // Startup jobs run in the web process under advisory lock protection.
-  // See PROD_READINESS.md for the operational tradeoff vs. separate workers.
-  await withAdvisoryLock(LOCK_IDS.APP_MIGRATIONS, "App Migrations", runAppMigrations, { critical: true });
-  await withAdvisoryLock(LOCK_IDS.STRIPE_INIT, "Stripe Init", initStripe, { critical: true });
-
-  const { ensureDatabaseViews } = await import("./storage");
-  await ensureDatabaseViews();
+  await withBlockingAdvisoryLock(
+    LOCK_IDS.CRITICAL_STARTUP,
+    "Critical Startup (migrations → Stripe → views)",
+    async () => {
+      console.log("[STARTUP] Running app migrations...");
+      await runAppMigrations();
+      console.log("[STARTUP] Running Stripe init...");
+      await initStripe();
+      console.log("[STARTUP] Ensuring database views...");
+      const { ensureDatabaseViews } = await import("./storage");
+      await ensureDatabaseViews();
+      console.log("[STARTUP] Critical startup chain complete.");
+    },
+    { timeoutMs: 120_000 }
+  );
   
   try {
     const uploadsDir = path.resolve(process.cwd(), "uploads");

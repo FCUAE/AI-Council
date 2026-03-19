@@ -1,7 +1,7 @@
 # Production Readiness — AI Council
 
 **Date:** March 19, 2026  
-**Status:** Ready for production with acceptable residual risk
+**Status:** Ready for production — all launch blockers resolved
 
 ---
 
@@ -22,6 +22,7 @@
 | 11 | Cancel/retry race conditions | ✅ Fixed — compare-and-set status transitions |
 | 12 | Attachment URL IDOR bypass | ✅ Fixed — centralized `attachmentAuth.ts` with URL normalization, ownership/ACL validation at ingestion (before DB write), defense-in-depth in `imageUrlToBase64`, retry re-validation |
 | 13 | Cron blocking advisory lock | ✅ Fixed — non-blocking `withAdvisoryLock` pattern aligned with startup jobs |
+| 14 | Unsafe startup lock semantics | ✅ Fixed — single blocking `pg_advisory_lock` chain for critical startup; 120s timeout; non-lock-holders wait |
 
 ## Remaining Risks (Non-Blocking)
 
@@ -36,37 +37,50 @@ See `SECURITY_AUDIT.md` — Residual Risks section for full details. Key items:
 
 ## Startup Safety
 
-### Advisory Lock Protection
+### Critical Startup Chain — Blocking Lock
 
-All startup jobs that mutate shared state are protected by Postgres advisory locks (`pg_try_advisory_lock`), which prevents duplicate execution across multiple instances.
+The three critical startup jobs run as a single ordered chain under one **blocking** Postgres advisory lock (`pg_advisory_lock`, lock ID 200). No instance can reach `httpServer.listen()` until the entire chain completes:
 
-| Job | Lock ID | Criticality | Failure Behavior |
-|-----|---------|-------------|------------------|
-| App Migrations | 100 | Critical | Crashes process on failure |
-| Stripe Init | 101 | Critical | Crashes process on failure |
-| Stuck Conversation Recovery | 102 | Non-critical | Logs error, continues startup |
-| Analytics Backfill | 103 | Non-critical | Logs error, continues startup |
-| Credit Expiration Cron | 42 | Non-critical | Skips cycle if locked |
+1. **App Migrations** — DDL, indexes, triggers
+2. **Stripe Init** — schema, webhook, data sync
+3. **ensureDatabaseViews** — summary tables that depend on migration schema
 
-When a lock is already held by another instance, the job is silently skipped with a log message. This is safe because only one instance needs to run migrations, init, and recovery.
+| Behavior | Detail |
+|----------|--------|
+| Lock type | `pg_advisory_lock` (blocking) — non-lock-holder waits |
+| Same session | Lock acquire → job execution → lock release all use the same pool client |
+| Timeout | 120 seconds wall-clock timer (`process.exit(1)`) + SQL `statement_timeout`; covers both lock-wait and callback execution |
+| Failure | Any error in the chain crashes the process (prevents serving on bad state) |
+| Observability | Logs: attempting lock → waiting (if blocked) → acquired → each step → completed with elapsed time |
+
+### Non-Critical Startup Jobs — Non-Blocking Lock
+
+| Job | Lock ID | Failure Behavior |
+|-----|---------|------------------|
+| Stuck Conversation Recovery | 102 | Skipped if locked; logs error on failure, continues |
+| Analytics Backfill | 103 | Skipped if locked; logs error on failure, continues |
+| Credit Expiration Cron | 42 | Skipped if locked; runs on interval |
+
+These use `pg_try_advisory_lock` (non-blocking). If another instance holds the lock, the job is skipped with a log message. This is safe because these jobs are idempotent and non-essential for serving traffic.
+
+### Startup Lock Validation
+
+The blocking lock behavior was validated as follows:
+1. Instance A starts → acquires lock 200 immediately → runs migrations, Stripe init, views in order → releases lock → proceeds to `listen()`
+2. If instance B starts while A holds lock 200, B logs "waiting for Critical Startup" and blocks until A releases
+3. B does NOT reach `registerRoutes` or `httpServer.listen()` while waiting
+4. After A releases, B acquires lock, runs the chain (idempotent — IF NOT EXISTS / sync), completes, proceeds to `listen()`
+5. If the chain takes >120s, `statement_timeout` fires and the process crashes (preventing indefinite hangs)
 
 ### Operational Tradeoff: In-Process Startup Jobs
 
-Startup jobs (migrations, Stripe init, recovery, analytics backfill) run inside the web server process rather than in separate worker entrypoints. This is an intentional tradeoff:
+Startup jobs run inside the web server process. This is intentional:
 
-**Why this approach:**
-- Simpler deployment: single process to manage
-- Advisory locks prevent duplicate execution across instances
-- Critical jobs (migrations, Stripe) crash the process on failure, preventing a misconfigured instance from serving traffic
+**Why:** Simpler deployment (single process); blocking locks guarantee no traffic before readiness; critical failures crash the process for health check restart.
 
-**Residual risks:**
-- Startup time increases slightly due to sequential job execution
-- A long-running migration blocks the web server from accepting traffic until complete
-- In a multi-instance deployment, only one instance runs each job; others skip and proceed
+**Residual risk:** Startup time increases slightly due to sequential execution. A long-running migration blocks all instances from serving traffic until the lock holder completes.
 
-**Mitigation path (future):**
-- Extract startup jobs to a separate `scripts/startup.ts` entrypoint that runs before the web server starts
-- Use Replit's deployment lifecycle hooks to run migrations before the web process
+**Mitigation path (future):** Extract to a `scripts/startup.ts` entrypoint or use deployment lifecycle hooks to run before the web process.
 
 ### Removed: process.exit Suppression
 
@@ -132,8 +146,7 @@ The application is designed to run safely on **multiple instances** with the fol
 
 | Component | Mechanism | Notes |
 |---|---|---|
-| Database migrations | Advisory lock (ID 100) | Only one instance runs migrations; others wait |
-| Stripe initialization | Advisory lock (ID 101) | Webhook creation + backfill are serialized |
+| Critical startup chain | Blocking advisory lock (ID 200) | Migrations → Stripe → views run in strict order; non-holders wait; 120s timeout |
 | Stuck conversation recovery | Advisory lock (ID 102) | Prevents duplicate refunds during startup |
 | Analytics backfill | Advisory lock (ID 103) | Prevents concurrent updates |
 | Credit expiration cron | Non-blocking advisory lock (ID 42) | Skipped with log message if another instance holds lock |

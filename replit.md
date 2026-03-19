@@ -74,6 +74,7 @@ The backend implements a council deliberation pattern:
 - **Object storage ACL**: `/objects/` and `/api/uploads/extract-text` enforce `canAccessObjectEntity` ACL check. Unauthenticated access to owned files returns 403.
 - **Account deletion hardening**: Requires `{ confirmation: "DELETE" }` body. Frontend enforces typed "DELETE" confirmation input.
 - **Security logging**: Centralized `server/securityLogger.ts` logs auth collisions, file access denials, admin access, CSRF mismatches, billing mutations, upload validation failures, rate limit hits, and destructive actions. PII redacted.
+- **Startup safety**: Critical startup jobs (migrations, Stripe init, database views) run as a single ordered chain under a blocking advisory lock (`pg_advisory_lock`, lock ID 200, 120s timeout). Non-lock-holder instances wait instead of skipping. Implemented in `server/security/advisoryLocks.ts` via `withBlockingAdvisoryLock`. Non-critical jobs (stale recovery, analytics, cron) use non-blocking `pg_try_advisory_lock`.
 - **Legacy routes removed**: `/api/queries` endpoints deleted (were unauthenticated)
 
 ### Credits & Payments
