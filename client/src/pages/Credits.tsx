@@ -135,30 +135,7 @@ export default function Credits() {
             <ArrowLeft className="w-3.5 h-3.5" />
             Back to Council
           </button>
-          <h1
-            className="text-3xl md:text-4xl font-semibold text-[#1a1a1a] tracking-[-0.7px] mb-2"
-            data-testid="text-credits-title"
-          >
-            Get More Credits
-          </h1>
-          <p className="text-[15px] text-[#737373]">
-            Purchase additional credits to continue running debates with top AI models.
-          </p>
         </div>
-
-        {usage && (
-          <div className="flex items-center gap-3 mb-6 p-4 bg-white rounded-xl border border-[#eaeaea] shadow-[0_1px_3px_rgba(0,0,0,0.02)]" data-testid="current-balance">
-            <div className="w-10 h-10 bg-[#f5f5f5] rounded-lg flex items-center justify-center">
-              <Coins className="w-5 h-5 text-[#737373]" />
-            </div>
-            <div>
-              <p className="text-[13px] text-[#737373]">Current Balance</p>
-              <p className="text-[17px] font-semibold text-[#1a1a1a]" data-testid="text-credit-balance">
-                {usage.debateCredits} credit{usage.debateCredits !== 1 ? "s" : ""}
-              </p>
-            </div>
-          </div>
-        )}
 
         <div
           className="mb-8 rounded-2xl bg-gradient-to-br from-[#f8f6ff] via-[#f0f4ff] to-[#f6f8ff] border border-[#e8e4f0] p-8 md:p-10 text-center"
