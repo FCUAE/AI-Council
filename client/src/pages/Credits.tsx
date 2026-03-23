@@ -354,36 +354,36 @@ export default function Credits() {
             </div>
           </div>
 
-          <div className="lg:col-span-2 flex flex-row items-center justify-between px-1 order-2 lg:order-3">
-            <div className="flex items-center gap-2 text-[13px] text-[#737373]">
-              <Check className="w-3.5 h-3.5 text-[#737373]" />
-              <span>Credits valid for ~60 days after purchase</span>
-              <TooltipProvider delayDuration={0}>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <button type="button" className="inline-flex items-center gap-1 cursor-help" aria-label="Credit validity info" data-testid="btn-credit-validity-info">
-                      <Info className="w-3.5 h-3.5 text-[#737373]" />
-                    </button>
-                  </TooltipTrigger>
-                  <TooltipContent
-                    side="right"
-                    className="max-w-[320px] bg-[#1a1a1a] text-white text-[13px] leading-relaxed px-4 py-3 border-none rounded-lg shadow-lg"
-                  >
-                    Your credits stay active for 60 days after your most recent purchase. Buy any pack before they expire and your full balance — including leftover credits — gets a fresh 60-day window.
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            </div>
-            <div className="flex items-center gap-2 text-[13px] text-[#737373]">
-              <Check className="w-3.5 h-3.5 text-[#737373]" />
-              <span>Full model access with any purchase</span>
-            </div>
-            <div className="flex items-center gap-2 text-[13px] text-[#737373]">
-              <Check className="w-3.5 h-3.5 text-[#737373]" />
-              <span>One-time payment, no subscription</span>
-            </div>
-          </div>
+        </div>
 
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mt-4 px-1 gap-3 sm:gap-0">
+          <div className="flex items-center gap-2 text-[13px] text-[#737373]">
+            <Check className="w-3.5 h-3.5 text-[#737373]" />
+            <span>Credits valid for ~60 days after purchase</span>
+            <TooltipProvider delayDuration={0}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button type="button" className="inline-flex items-center gap-1 cursor-help" aria-label="Credit validity info" data-testid="btn-credit-validity-info">
+                    <Info className="w-3.5 h-3.5 text-[#737373]" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent
+                  side="right"
+                  className="max-w-[320px] bg-[#1a1a1a] text-white text-[13px] leading-relaxed px-4 py-3 border-none rounded-lg shadow-lg"
+                >
+                  Your credits stay active for 60 days after your most recent purchase. Buy any pack before they expire and your full balance — including leftover credits — gets a fresh 60-day window.
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
+          <div className="flex items-center gap-2 text-[13px] text-[#737373]">
+            <Check className="w-3.5 h-3.5 text-[#737373]" />
+            <span>Full model access with any purchase</span>
+          </div>
+          <div className="flex items-center gap-2 text-[13px] text-[#737373]">
+            <Check className="w-3.5 h-3.5 text-[#737373]" />
+            <span>One-time payment, no subscription</span>
+          </div>
         </div>
 
         <div className="mt-12 mb-8" data-testid="faq-section">
