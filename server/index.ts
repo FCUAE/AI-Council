@@ -18,6 +18,11 @@ import { storage } from './storage';
 import { securityLog } from './securityLogger';
 import { withAdvisoryLock, withBlockingAdvisoryLock, LOCK_IDS } from './security/advisoryLocks';
 import { startRateLimitCleanup } from './security/rateLimiter';
+import { runStartupValidation } from './security/envValidation';
+import { startSupportCleanupCron } from './security/supportCleanup';
+import { safeErrorMessage } from './security/safeError';
+
+runStartupValidation();
 
 if (process.env.NODE_ENV === "production") {
   if (process.env.CLERK_PROD_SECRET_KEY) {
@@ -157,8 +162,10 @@ app.post(
       }
       await WebhookHandlers.processWebhook(req.body as Buffer, sig);
       res.status(200).json({ received: true });
-    } catch (error: any) {
-      console.error('Webhook error:', error.message);
+    } catch (error: unknown) {
+      const msg = safeErrorMessage(error);
+      console.error('Webhook error:', msg);
+      securityLog.webhookFailure({ source: "stripe", reason: msg });
       res.status(400).json({ error: 'Webhook processing error' });
     }
   }
@@ -267,9 +274,13 @@ async function initStripe() {
 
     stripeSync.syncBackfill()
       .then(() => console.log('Stripe data synced'))
-      .catch((err: any) => console.error('Error syncing Stripe data:', err));
-  } catch (error) {
-    console.error('Failed to initialize Stripe:', error);
+      .catch((err: unknown) => console.error('Error syncing Stripe data:', safeErrorMessage(err)));
+  } catch (error: unknown) {
+    if (process.env.NODE_ENV === "production") {
+      console.error('Failed to initialize Stripe:', safeErrorMessage(error));
+    } else {
+      console.error('Failed to initialize Stripe:', error);
+    }
     throw error;
   }
 }
@@ -385,8 +396,12 @@ async function runAppMigrations(client: import('pg').PoolClient) {
       );
     `);
     console.log('App migrations complete');
-  } catch (error) {
-    console.error('App migration error:', error);
+  } catch (error: unknown) {
+    if (process.env.NODE_ENV === "production") {
+      console.error('App migration error:', safeErrorMessage(error));
+    } else {
+      console.error('App migration error:', error);
+    }
     throw error;
   }
 }
@@ -435,12 +450,38 @@ async function runAppMigrations(client: import('pg').PoolClient) {
 
   await registerRoutes(httpServer, app);
 
+  app.get("/healthz", async (_req: Request, res: Response) => {
+    try {
+      await Promise.race([
+        (async () => {
+          const client = await pool.connect();
+          try {
+            await client.query("SELECT 1");
+          } finally {
+            client.release();
+          }
+        })(),
+        new Promise((_, reject) => setTimeout(() => reject(new Error("timeout")), 2000)),
+      ]);
+      res.status(200).json({ ok: true });
+    } catch {
+      res.status(503).json({ ok: false });
+    }
+  });
+
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
     const message = status >= 500 ? "Internal Server Error" : (err.message || "Internal Server Error");
 
     res.status(status).json({ message });
-    console.error(`[error] ${err.stack || err.message || err}`);
+    if (process.env.NODE_ENV === "production") {
+      const errType = err?.constructor?.name || "Error";
+      const route = _req?.path || "unknown";
+      const safeMsg = safeErrorMessage(err).slice(0, 200);
+      console.error(`[error] ${errType} on ${route}: ${safeMsg}`);
+    } else {
+      console.error(`[error] ${err.stack || err.message || err}`);
+    }
   });
 
   if (process.env.NODE_ENV === "production") {
@@ -495,6 +536,7 @@ async function runAppMigrations(client: import('pg').PoolClient) {
       log(`serving on port ${port}`);
       startCreditExpirationCron();
       startRateLimitCleanup();
+      startSupportCleanupCron();
     },
   );
 

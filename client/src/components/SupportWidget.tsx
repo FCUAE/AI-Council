@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { MessageCircleQuestion, X, Send, CheckCircle, ImagePlus, LogIn } from "lucide-react";
 import { authFetch } from "@/lib/clerk-token";
-import { useAuth } from "@clerk/react";
+import { useAuth, useUser } from "@clerk/react";
 
 interface AttachedImage {
   file: File;
@@ -14,7 +14,9 @@ const ALLOWED_TYPES = ["image/png", "image/jpeg", "image/gif", "image/webp"];
 
 export default function SupportWidget() {
   const { isSignedIn, isLoaded: authLoaded } = useAuth();
+  const { user: clerkUser } = useUser();
   const [open, setOpen] = useState(false);
+  const emailPrefilled = useRef(false);
 
   useEffect(() => {
     const handler = () => setOpen(true);
@@ -23,6 +25,13 @@ export default function SupportWidget() {
   }, []);
 
   const [email, setEmail] = useState("");
+
+  useEffect(() => {
+    if (!emailPrefilled.current && clerkUser?.primaryEmailAddress?.emailAddress) {
+      setEmail(clerkUser.primaryEmailAddress.emailAddress);
+      emailPrefilled.current = true;
+    }
+  }, [clerkUser?.primaryEmailAddress?.emailAddress]);
   const [message, setMessage] = useState("");
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);

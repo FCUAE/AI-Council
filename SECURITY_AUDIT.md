@@ -233,6 +233,38 @@ The AI Council platform underwent a 6-phase security hardening across authentica
   - Non-critical jobs (stale recovery, analytics backfill, cron) remain on non-blocking locks — unchanged
   - No instance can reach `httpServer.listen()` until the critical chain completes
 
+### Phase 7 — Low-Risk Security Hardening
+
+#### Medium — Fixed
+
+**56. Production error logging leaks stack traces and file paths**
+- **Risk:** Global error handler and major try/catch paths logged full stack traces in production, exposing internal file paths and implementation details to log aggregators
+- **Fix:** Environment-aware logging: production logs only error type, route, and truncated safe message (200 char max); development retains full stack traces for debugging. Applied to global error handler, Stripe init, app migrations, and object storage serving.
+
+**57. No startup environment validation**
+- **Risk:** App could start with missing or malformed critical env vars, leading to cryptic runtime failures
+- **Fix:** `server/security/envValidation.ts` validates DATABASE_URL, Clerk keys (production requires prod keys), OpenRouter API key, and ADMIN_USER_IDS format. Fails fast with clear safe log messages. Never prints secret values.
+
+**58. No readiness endpoint**
+- **Risk:** No way for load balancers or health checks to determine if the app is healthy
+- **Fix:** `GET /healthz` returns 200 + `{ ok: true }` when DB is reachable (SELECT 1 with 2s timeout), 503 + `{ ok: false }` otherwise. No error details, secrets, or topology exposed.
+
+**59. Support attachment retention — no cleanup**
+- **Risk:** Support-purpose uploads accumulated indefinitely, consuming storage
+- **Fix:** `server/security/supportCleanup.ts` runs daily, deletes support uploads older than 30 days identified exclusively via `file_uploads.purpose = 'support'` metadata. Missing files do not crash cleanup. Debate/user files never touched.
+
+**60. Incomplete security event logging**
+- **Risk:** Webhook failures, support abuse, and repeated rate limit hits lacked structured security log points
+- **Fix:** Extended `securityLogger.ts` with `webhookFailure` and `supportAbuse` event types. Added log points for: Stripe webhook processing failures, support per-minute and daily rate limit hits. All log points are lightweight console.log with PII redaction.
+
+#### Low — Addressed
+
+**61. Support widget email not prefilled**
+- **Fix:** SupportWidget.tsx prefills email field once from Clerk user profile using a ref to prevent overwriting user edits on subsequent profile loads.
+
+**62. Dependency hygiene review**
+- Security-sensitive packages reviewed: helmet (8.1.0), express-rate-limit (8.3.1), multer (2.1.1), sharp (0.34.5) — all at latest within semver ranges via `^` prefix. Clerk, Stripe, and parser libraries (pdf-parse, mammoth) intentionally not upgraded per guardrails. No breaking changes introduced.
+
 ---
 
 ## Residual Risks & Known Limitations
@@ -259,7 +291,7 @@ The AI Council platform underwent a 6-phase security hardening across authentica
 
 8. **File ownership backfill gap** — Files uploaded before the `file_uploads` table have no ownership record. Fail-closed (403 for non-admins) is the correct behavior, but old data is inaccessible.
 
-9. **Support attachment retention** — Support upload images persist indefinitely. No retention job exists.
+9. **Support attachment retention** — ~~Support upload images persist indefinitely. No retention job exists.~~ **Resolved in Phase 7:** Daily cleanup job removes support-purpose uploads older than 30 days via `file_uploads.purpose` metadata.
 
 10. **Low-severity dependency vulnerabilities** — 5 issues in `@google-cloud/storage` chain require a breaking major version change.
 
@@ -298,9 +330,11 @@ The AI Council platform underwent a 6-phase security hardening across authentica
 
 - No API keys, auth tokens, or Stripe secrets are logged
 - Stripe catch blocks log `error.message` only (not full error objects)
+- Production error handler logs only error type, route, and safe message summary — no stack traces or internal file paths
 - User IDs and conversation IDs in logs are appropriate for operational debugging
-- `securityLog` redacts PII (emails) via structured event types
+- `securityLog` redacts PII (emails) via structured event types (10 event types: auth_collision_blocked, file_access_denied, destructive_action, admin_access, csrf_origin_mismatch, billing_anomaly, upload_validation_failure, rate_limit_hit, webhook_failure, support_abuse)
 - Client-facing errors are generic (no SQL, paths, or internal details)
+- Startup environment validation never prints secret values
 
 ## XSS Review
 

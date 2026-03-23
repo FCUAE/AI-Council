@@ -120,16 +120,26 @@ export class ObjectStorageService {
       // Stream the file to the response
       const stream = file.createReadStream();
 
-      stream.on("error", (err) => {
-        console.error("Stream error:", err);
+      stream.on("error", (err: unknown) => {
+        if (process.env.NODE_ENV === "production") {
+          const msg = err instanceof Error ? err.message : "unknown";
+          console.error("Stream error:", msg);
+        } else {
+          console.error("Stream error:", err);
+        }
         if (!res.headersSent) {
           res.status(500).json({ error: "Error streaming file" });
         }
       });
 
       stream.pipe(res);
-    } catch (error) {
-      console.error("Error downloading file:", error);
+    } catch (error: unknown) {
+      if (process.env.NODE_ENV === "production") {
+        const msg = error instanceof Error ? error.message : "unknown";
+        console.error("Error downloading file:", msg);
+      } else {
+        console.error("Error downloading file:", error);
+      }
       if (!res.headersSent) {
         res.status(500).json({ error: "Error downloading file" });
       }

@@ -52,8 +52,13 @@ export async function extractTextFromFile(filePath: string, mimeType: string): P
     }
 
     return text;
-  } catch (error) {
-    console.error(`[documentParser] Failed to extract text from ${filePath}:`, error);
+  } catch (error: unknown) {
+    if (process.env.NODE_ENV === "production") {
+      const msg = error instanceof Error ? error.message : "unknown error";
+      console.error(`[documentParser] Failed to extract text: ${msg}`);
+    } else {
+      console.error(`[documentParser] Failed to extract text from ${filePath}:`, error);
+    }
     return null;
   }
 }
@@ -85,8 +90,13 @@ async function extractPdfText(filePath: string): Promise<string | null> {
       return null;
     }
     return cleaned;
-  } catch (error) {
-    console.error("[documentParser] PDF extraction failed:", error);
+  } catch (error: unknown) {
+    if (process.env.NODE_ENV === "production") {
+      const msg = error instanceof Error ? error.message : "unknown error";
+      console.error("[documentParser] PDF extraction failed:", msg);
+    } else {
+      console.error("[documentParser] PDF extraction failed:", error);
+    }
     return null;
   }
 }
@@ -98,8 +108,13 @@ async function extractDocxText(filePath: string): Promise<string | null> {
     const buffer = fs.readFileSync(filePath);
     const result = await mammoth.extractRawText({ buffer });
     return result.value || null;
-  } catch (error) {
-    console.error("[documentParser] DOCX extraction failed:", error);
+  } catch (error: unknown) {
+    if (process.env.NODE_ENV === "production") {
+      const msg = error instanceof Error ? error.message : "unknown error";
+      console.error("[documentParser] DOCX extraction failed:", msg);
+    } else {
+      console.error("[documentParser] DOCX extraction failed:", error);
+    }
     return null;
   }
 }
@@ -141,8 +156,13 @@ export function renderPdfToImages(filePath: string): string[] {
 
     console.log(`[documentParser] Rendered ${rendered.length} page(s) from PDF as images`);
     return rendered;
-  } catch (error) {
-    console.error("[documentParser] PDF-to-image rendering failed:", error);
+  } catch (error: unknown) {
+    if (process.env.NODE_ENV === "production") {
+      const msg = error instanceof Error ? error.message : "unknown error";
+      console.error("[documentParser] PDF-to-image rendering failed:", msg);
+    } else {
+      console.error("[documentParser] PDF-to-image rendering failed:", error);
+    }
     return [];
   }
 }

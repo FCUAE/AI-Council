@@ -71,8 +71,13 @@ export async function sendCreditExpiryWarning(email: string, userName: string | 
 
     console.log(`[email] Sent expiry warning to ${email} (${credits} credits, ${daysLeft} days left)`);
     return true;
-  } catch (error) {
-    console.error(`[email] Failed to send expiry warning to ${email}:`, error);
+  } catch (error: unknown) {
+    if (process.env.NODE_ENV === "production") {
+      const msg = error instanceof Error ? error.message : "unknown";
+      console.error(`[email] Failed to send expiry warning:`, msg);
+    } else {
+      console.error(`[email] Failed to send expiry warning:`, error);
+    }
     return false;
   }
 }
@@ -114,8 +119,13 @@ export async function sendCreditExpiryFinalWarning(email: string, userName: stri
 
     console.log(`[email] Sent final expiry warning to ${email} (${credits} credits, 48h left)`);
     return true;
-  } catch (error) {
-    console.error(`[email] Failed to send final expiry warning to ${email}:`, error);
+  } catch (error: unknown) {
+    if (process.env.NODE_ENV === "production") {
+      const msg = error instanceof Error ? error.message : "unknown";
+      console.error(`[email] Failed to send final expiry warning:`, msg);
+    } else {
+      console.error(`[email] Failed to send final expiry warning:`, error);
+    }
     return false;
   }
 }
@@ -156,8 +166,13 @@ export async function sendSupportMessage(senderEmail: string, message: string, i
 
     console.log(`[email] Sent support message from ${senderEmail}`);
     return true;
-  } catch (error) {
-    console.error(`[email] Failed to send support message from ${senderEmail}:`, error);
+  } catch (error: unknown) {
+    if (process.env.NODE_ENV === "production") {
+      const msg = error instanceof Error ? error.message : "unknown";
+      console.error(`[email] Failed to send support message:`, msg);
+    } else {
+      console.error(`[email] Failed to send support message:`, error);
+    }
     return false;
   }
 }
@@ -190,8 +205,13 @@ export async function sendCreditExpiredNotice(email: string, userName: string | 
 
     console.log(`[email] Sent expiry notice to ${email} (${expiredCredits} credits expired)`);
     return true;
-  } catch (error) {
-    console.error(`[email] Failed to send expiry notice to ${email}:`, error);
+  } catch (error: unknown) {
+    if (process.env.NODE_ENV === "production") {
+      const msg = error instanceof Error ? error.message : "unknown";
+      console.error(`[email] Failed to send expiry notice:`, msg);
+    } else {
+      console.error(`[email] Failed to send expiry notice:`, error);
+    }
     return false;
   }
 }

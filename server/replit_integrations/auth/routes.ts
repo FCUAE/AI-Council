@@ -24,8 +24,13 @@ export function registerAuthRoutes(app: Express): void {
         return res.status(404).json({ message: "User not found" });
       }
       res.json(user);
-    } catch (error) {
-      console.error("Error fetching user:", error);
+    } catch (error: unknown) {
+      if (process.env.NODE_ENV === "production") {
+        const msg = error instanceof Error ? error.message : "unknown";
+        console.error("Error fetching user:", msg);
+      } else {
+        console.error("Error fetching user:", error);
+      }
       res.status(500).json({ message: "Failed to fetch user" });
     }
   });
@@ -57,14 +62,20 @@ export function registerAuthRoutes(app: Express): void {
             email,
             name: [firstName, lastName].filter(Boolean).join(" "),
           });
-        } catch (stripeError) {
-          console.error("Failed to update Stripe customer email:", stripeError);
+        } catch (stripeError: unknown) {
+          const msg = stripeError instanceof Error ? stripeError.message : "unknown";
+          console.error("Failed to update Stripe customer email:", msg);
         }
       }
 
       res.json(result.user);
-    } catch (error) {
-      console.error("Error updating profile:", error);
+    } catch (error: unknown) {
+      if (process.env.NODE_ENV === "production") {
+        const msg = error instanceof Error ? error.message : "unknown";
+        console.error("Error updating profile:", msg);
+      } else {
+        console.error("Error updating profile:", error);
+      }
       res.status(500).json({ message: "Failed to update profile" });
     }
   });

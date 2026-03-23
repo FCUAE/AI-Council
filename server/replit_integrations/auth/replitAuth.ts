@@ -37,11 +37,16 @@ export const isAuthenticated: RequestHandler = async (req: Request, res: Respons
 
   try {
     await syncClerkUser(userId);
-  } catch (error: any) {
-    if (error?.message?.includes("Email address is already associated")) {
+  } catch (error: unknown) {
+    const msg = error instanceof Error ? error.message : "";
+    if (msg.includes("Email address is already associated")) {
       return res.status(409).json({ message: "This email is already linked to another account. Please contact support." });
     }
-    console.error("Error syncing Clerk user:", error);
+    if (process.env.NODE_ENV === "production") {
+      console.error("Error syncing Clerk user:", msg || "unknown");
+    } else {
+      console.error("Error syncing Clerk user:", error);
+    }
     return res.status(500).json({ message: "Authentication error" });
   }
 

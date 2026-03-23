@@ -6,7 +6,9 @@ type SecurityEventType =
   | "csrf_origin_mismatch"
   | "billing_anomaly"
   | "upload_validation_failure"
-  | "rate_limit_hit";
+  | "rate_limit_hit"
+  | "webhook_failure"
+  | "support_abuse";
 
 interface SecurityEvent {
   event: SecurityEventType;
@@ -97,6 +99,23 @@ export const securityLog = {
       event: "rate_limit_hit",
       route: data.route,
       userId: data.userId ? redactId(data.userId) : "ip-limited",
+    });
+  },
+
+  webhookFailure(data: { source: string; reason: string }) {
+    logSecurityEvent({
+      event: "webhook_failure",
+      source: data.source,
+      reason: data.reason,
+    });
+  },
+
+  supportAbuse(data: { route: string; userId: string; reason: string }) {
+    logSecurityEvent({
+      event: "support_abuse",
+      route: data.route,
+      userId: redactId(data.userId),
+      reason: data.reason,
     });
   },
 };

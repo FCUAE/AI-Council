@@ -24,6 +24,18 @@
 | 13 | Cron blocking advisory lock | ✅ Fixed — non-blocking `withAdvisoryLock` pattern aligned with startup jobs |
 | 14 | Unsafe startup lock semantics | ✅ Fixed — single blocking `pg_advisory_lock` chain for critical startup; 120s timeout; non-lock-holders wait |
 
+## Phase 7 — Low-Risk Security Hardening (March 23, 2026)
+
+| # | Improvement | Status |
+|---|---|---|
+| 15 | Production error logging hardened | ✅ Done — production logs safe summaries only (type + route + message), dev keeps full stacks |
+| 16 | Startup environment validation | ✅ Done — `server/security/envValidation.ts` validates critical env vars, fails fast, never prints secrets |
+| 17 | Readiness endpoint | ✅ Done — `GET /healthz` returns 200/503 with DB check (2s timeout), no secrets exposed |
+| 18 | Support attachment cleanup | ✅ Done — daily cleanup of support-purpose uploads older than 30 days via `file_uploads.purpose` metadata |
+| 19 | Security event counter logging | ✅ Done — `webhookFailure` and `supportAbuse` event types added to securityLogger |
+| 20 | Dependency hygiene | ✅ Reviewed — security packages at latest compatible versions; Clerk/Stripe/parser upgrades skipped per guardrails |
+| 21 | Support email prefill | ✅ Done — email prefilled once from Clerk profile; ref prevents overwriting user edits |
+
 ## Remaining Risks (Non-Blocking)
 
 See `SECURITY_AUDIT.md` — Residual Risks section for full details. Key items:
@@ -106,6 +118,7 @@ The one-off `correctDoubleRefundCredits` function no longer runs on every boot. 
 ### Post-Deployment
 
 - [ ] Application starts without migration errors
+- [ ] `GET /healthz` returns `{ ok: true }` with status 200
 - [ ] Stripe webhook receives test events
 - [ ] Authentication flow works (sign in, sign out)
 - [ ] Credit purchase flow works end-to-end

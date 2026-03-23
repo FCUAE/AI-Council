@@ -186,8 +186,13 @@ async function recordFileUpload(filename: string, userId: string, purpose: strin
     } finally {
       client.release();
     }
-  } catch (err) {
-    console.error('[file_uploads] Failed to record upload:', err);
+  } catch (err: unknown) {
+    if (process.env.NODE_ENV === "production") {
+      const msg = err instanceof Error ? err.message : "unknown error";
+      console.error('[file_uploads] Failed to record upload:', msg);
+    } else {
+      console.error('[file_uploads] Failed to record upload:', err);
+    }
   }
 }
 
@@ -246,8 +251,13 @@ export function registerObjectStorageRoutes(app: Express): void {
           contentType: req.file.mimetype,
         },
       });
-    } catch (error) {
-      console.error("Error uploading file:", error);
+    } catch (error: unknown) {
+      if (process.env.NODE_ENV === "production") {
+        const msg = error instanceof Error ? error.message : "unknown";
+        console.error("Error uploading file:", msg);
+      } else {
+        console.error("Error uploading file:", error);
+      }
       res.status(500).json({ error: "Failed to upload file" });
     }
   });
@@ -381,7 +391,12 @@ export function registerObjectStorageRoutes(app: Express): void {
       if (error instanceof ObjectNotFoundError) {
         return res.status(403).json({ error: "Access denied" });
       }
-      console.error("Error serving object:", error);
+      if (process.env.NODE_ENV === "production") {
+        const msg = error instanceof Error ? error.message : "unknown";
+        console.error("Error serving object:", msg);
+      } else {
+        console.error("Error serving object:", error);
+      }
       return res.status(500).json({ error: "Failed to serve object" });
     }
   });

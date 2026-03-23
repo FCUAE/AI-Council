@@ -1645,7 +1645,12 @@ Output format:
         }
       }
     } else {
-      console.error("Error processing council message:", error);
+      if (process.env.NODE_ENV === "production") {
+        const msg = error instanceof Error ? error.message : "unknown";
+        console.error("Error processing council message:", msg);
+      } else {
+        console.error("Error processing council message:", error);
+      }
       const errorReason = categorizeError(error);
       await storage.updateConversationStatus(conversationId, "error", errorReason);
       if (creditCost && userId) {
@@ -1825,7 +1830,7 @@ export async function registerRoutes(
     if (objectStorageUrls.length > 0) {
       Promise.allSettled(
         objectStorageUrls.map(url => objectStorageService.deleteObjectEntityFile(url))
-      ).catch(err => console.error(`[DELETE] Attachment cleanup error:`, err));
+      ).catch(err => console.error(`[DELETE] Attachment cleanup error:`, err instanceof Error ? err.message : err));
     }
     res.json({ message: "Conversation deleted" });
   });
@@ -2126,8 +2131,13 @@ export async function registerRoutes(
       undefined,
       userId || undefined,
       isAdmin(req)
-    ).catch((err: Error) => {
-      console.error(`[Retry] Error processing retry for message ${retryMessage.id}:`, err);
+    ).catch((err: unknown) => {
+      if (process.env.NODE_ENV === "production") {
+        const msg = err instanceof Error ? err.message : "unknown";
+        console.error(`[Retry] Error processing retry for message ${retryMessage.id}:`, msg);
+      } else {
+        console.error(`[Retry] Error processing retry for message ${retryMessage.id}:`, err);
+      }
     });
     
     console.log(`[API] Retry initiated for conversation ${conversationId}, message ${retryMessage.id}`);
@@ -2307,8 +2317,13 @@ export async function registerRoutes(
       const userTier = getUserTier(totalPurchased, user.debateCredits);
 
       res.json({ creditCost, reserveAmount, userTier });
-    } catch (err) {
-      console.error("[ESTIMATE_COST] Error:", err);
+    } catch (err: unknown) {
+      if (process.env.NODE_ENV === "production") {
+        const msg = err instanceof Error ? err.message : "unknown";
+        console.error("[ESTIMATE_COST] Error:", msg);
+      } else {
+        console.error("[ESTIMATE_COST] Error:", err);
+      }
       res.status(500).json({ message: "Failed to estimate cost" });
     }
   });
@@ -3020,10 +3035,12 @@ export async function registerRoutes(
 
       if (!(await checkPerUserLimit(userId, 3, 60_000, "support"))) {
         securityLog.rateLimitHit({ route: "support", userId });
+        securityLog.supportAbuse({ route: "support", userId, reason: "per_minute_limit" });
         return res.status(429).json({ message: "Too many support messages. Please wait a moment." });
       }
       if (!(await checkPerUserLimit(userId, 10, 86_400_000, "support.daily"))) {
         securityLog.rateLimitHit({ route: "support.daily", userId });
+        securityLog.supportAbuse({ route: "support.daily", userId, reason: "daily_limit" });
         return res.status(429).json({ message: "Daily support message limit reached. Please try again tomorrow." });
       }
 
@@ -3070,7 +3087,12 @@ export async function registerRoutes(
       if (error instanceof z.ZodError) {
         return res.status(400).json({ message: error.errors[0]?.message || "Invalid input" });
       }
-      console.error("Support message error:", error);
+      if (process.env.NODE_ENV === "production") {
+        const msg = error instanceof Error ? error.message : "unknown";
+        console.error("Support message error:", msg);
+      } else {
+        console.error("Support message error:", error);
+      }
       res.status(500).json({ message: "Failed to send message. Please try again." });
     }
   });
@@ -3086,8 +3108,13 @@ export async function registerRoutes(
     try {
       const messages = await storage.getSupportMessages();
       res.json(messages);
-    } catch (error) {
-      console.error("Failed to fetch support messages:", error);
+    } catch (error: unknown) {
+      if (process.env.NODE_ENV === "production") {
+        const msg = error instanceof Error ? error.message : "unknown";
+        console.error("Failed to fetch support messages:", msg);
+      } else {
+        console.error("Failed to fetch support messages:", error);
+      }
       res.status(500).json({ message: "Failed to fetch support messages" });
     }
   });
@@ -3103,8 +3130,13 @@ export async function registerRoutes(
     try {
       const analytics = await storage.getPlatformAnalytics();
       res.json(analytics);
-    } catch (error) {
-      console.error("Failed to fetch analytics:", error);
+    } catch (error: unknown) {
+      if (process.env.NODE_ENV === "production") {
+        const msg = error instanceof Error ? error.message : "unknown";
+        console.error("Failed to fetch analytics:", msg);
+      } else {
+        console.error("Failed to fetch analytics:", error);
+      }
       res.status(500).json({ message: "Failed to fetch analytics" });
     }
   });
@@ -3121,8 +3153,13 @@ export async function registerRoutes(
       await storage.backfillAnalytics();
       const analytics = await storage.getPlatformAnalytics();
       res.json({ message: "Analytics refreshed successfully", analytics });
-    } catch (error) {
-      console.error("Failed to refresh analytics:", error);
+    } catch (error: unknown) {
+      if (process.env.NODE_ENV === "production") {
+        const msg = error instanceof Error ? error.message : "unknown";
+        console.error("Failed to refresh analytics:", msg);
+      } else {
+        console.error("Failed to refresh analytics:", error);
+      }
       res.status(500).json({ message: "Failed to refresh analytics" });
     }
   });
