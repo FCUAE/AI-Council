@@ -2670,7 +2670,7 @@ export async function registerRoutes(
           ...(referral ? { referral_code: String(referral) } : {}),
         },
         success_url: `${baseUrl}/?checkout=success&credits=${packSize}&session_id={CHECKOUT_SESSION_ID}`,
-        cancel_url: `${baseUrl}/?checkout=cancel`,
+        cancel_url: `${baseUrl}/credits`,
       });
       
       res.json({ url: session.url });
