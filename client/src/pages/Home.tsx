@@ -214,8 +214,13 @@ export default function Home() {
     
     const allFiles = Array.from(files);
 
+    const resetInput = () => {
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    };
+
     if (uploadedFiles.length + allFiles.length > MAX_FILES) {
       setError("Maximum 30 files per debate.");
+      resetInput();
       return;
     }
 
@@ -233,7 +238,10 @@ export default function Home() {
       validFiles.push({ file, fileId });
     }
 
-    if (validFiles.length === 0) return;
+    if (validFiles.length === 0) {
+      resetInput();
+      return;
+    }
 
     const remaining = MAX_FILES - uploadedFiles.length;
     const trimmedFiles = validFiles.slice(0, remaining);
@@ -317,6 +325,7 @@ export default function Home() {
     }
 
     setIsUploading(false);
+    resetInput();
   };
 
   const removeFile = (index: number) => {
