@@ -84,6 +84,7 @@ app.use(helmet({
         "https://clerk.askaicouncil.com",
         "https://*.gravatar.com",
         "https://*.googleusercontent.com",
+        "https://refgrow.com",
       ],
       connectSrc: [
         "'self'",
@@ -96,6 +97,7 @@ app.use(helmet({
         "https://openrouter.ai",
         "https://refgrowcdn.com",
         "https://scripts.refgrowcdn.com",
+        "https://refgrow.com",
         "wss://*.pike.replit.dev",
         "wss://*.replit.dev",
         "wss://*.replit.app",
