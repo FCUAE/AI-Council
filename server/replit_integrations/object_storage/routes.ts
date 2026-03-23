@@ -96,7 +96,12 @@ function hasSuspiciousFilename(filename: string): boolean {
   if (filename.includes('\0')) return true;
   const base = path.basename(filename);
   const parts = base.split('.');
-  if (parts.length > 2) return true;
+  if (parts.length > 2) {
+    const nonFinalExtensions = parts.slice(1, -1);
+    for (const ext of nonFinalExtensions) {
+      if (BLOCKED_EXTENSIONS.has(`.${ext.toLowerCase()}`)) return true;
+    }
+  }
   return false;
 }
 
