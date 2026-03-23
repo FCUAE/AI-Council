@@ -354,7 +354,7 @@ export default function Credits() {
             </div>
           </div>
 
-          <div className="lg:col-span-2 space-y-2 px-1 order-2 lg:order-3">
+          <div className="lg:col-span-2 flex flex-row items-center justify-between px-1 order-2 lg:order-3">
             <div className="flex items-center gap-2 text-[13px] text-[#737373]">
               <Check className="w-3.5 h-3.5 text-[#737373]" />
               <span>Credits valid for ~60 days after purchase</span>
