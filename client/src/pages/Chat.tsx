@@ -4,7 +4,7 @@ import { useConversationStatus } from "@/hooks/use-conversation-status";
 import { useAuth } from "@/hooks/use-auth";
 import { useUsage } from "@/hooks/use-usage";
 import { EvidenceVault } from "@/components/council";
-import { Loader, Paperclip, X, Image, FileText, ArrowUp, StopCircle, Copy, Check, Clock, Gavel, User, RefreshCw, AlertTriangle, MessageCircle, Plus, Info } from "lucide-react";
+import { Loader, Paperclip, X, Image, FileText, ArrowUp, StopCircle, Copy, Check, Clock, Star, User, RefreshCw, AlertTriangle, MessageCircle, Plus, Info } from "lucide-react";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
 import { authFetch } from "@/lib/clerk-token";
 import { queryClient } from "@/lib/queryClient";
@@ -941,7 +941,7 @@ export default function Chat() {
                         <div className="px-6 py-5 border-b border-[#eaeaea] flex items-center justify-between">
                           <div className="flex items-center gap-3">
                             <div className="w-10 h-10 rounded-full bg-[#4f46e5] flex items-center justify-center shadow-sm">
-                              <Gavel className="w-5 h-5 text-white" />
+                              <Star className="w-5 h-5 text-white" />
                             </div>
                             <div>
                               <h2 className="text-lg font-bold text-[#1a1a1a]">The Verdict</h2>
@@ -1160,7 +1160,7 @@ export default function Chat() {
                             ))}
                             <div className="w-px h-4 bg-[#d1d5db] mx-0.5 shrink-0" />
                             <div className="flex items-center gap-1.5 text-[12px] font-medium text-[#1a1a1a] bg-white border border-[#eaeaea] px-2.5 py-1 rounded-md shadow-sm w-[150px] min-w-[150px] max-w-[150px] shrink-0">
-                              <Gavel className="w-[10px] h-[10px] text-[#737373] flex-shrink-0" />
+                              <Star className="w-[10px] h-[10px] text-[#737373] flex-shrink-0" />
                               <span className="truncate">Lead: {getModelName(chairmanModel)}</span>
                             </div>
                           {(messageValue?.trim().length ?? 0) >= 1 && (
@@ -1276,7 +1276,7 @@ function PhaseSection({
           ) : state === 'active' ? (
             <Loader className="w-4 h-4 text-[#4f46e5] animate-spin" />
           ) : phaseNum === 3 ? (
-            <Gavel className="w-4 h-4 text-[#737373]" />
+            <Star className="w-4 h-4 text-[#737373]" />
           ) : (
             <div className="w-4 h-4 rounded-full bg-[#d1d5db]" />
           )}
@@ -1363,7 +1363,7 @@ function PhaseSection({
         <div className={`ml-11 bg-white rounded-xl border border-[#eaeaea] p-5 shadow-sm ${state === 'pending' ? 'opacity-60' : ''}`}>
           <div className="flex items-center gap-3">
             <div className={`w-8 h-8 rounded-full flex items-center justify-center ${state === 'active' ? 'bg-[#eef2ff] animate-pulse' : 'bg-[#f5f5f5]'}`}>
-              <Gavel className={`w-4 h-4 ${state === 'active' ? 'text-[#4f46e5]' : 'text-[#737373]'}`} />
+              <Star className={`w-4 h-4 ${state === 'active' ? 'text-[#4f46e5]' : 'text-[#737373]'}`} />
             </div>
             <div>
               <div className="text-[13px] font-semibold text-[#1a1a1a] mb-0.5">

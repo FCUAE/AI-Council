@@ -17,7 +17,7 @@ interface CostEstimate {
 }
 import { compressImageIfNeeded, isImageFile } from "@/lib/imageCompression";
 import { authFetch } from "@/lib/clerk-token";
-import { Brain, MessageSquareMore, Trophy, ArrowUp, Paperclip, X, Gavel, Info } from "lucide-react";
+import { Brain, MessageSquareMore, Star, ArrowUp, Paperclip, X, Info } from "lucide-react";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
 import { 
   Document,
@@ -404,7 +404,7 @@ export default function Home() {
       description: "The AIs debate, challenging each other to find the strongest solution.",
     },
     {
-      icon: <Trophy className="w-[15px] h-[15px] text-[#737373]" />,
+      icon: <Star className="w-[15px] h-[15px] text-[#737373]" />,
       title: "Step 3",
       description: "A Lead AI takes the best parts of the debate and builds your final result.",
       hasLeadBadge: true,
