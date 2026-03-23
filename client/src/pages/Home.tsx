@@ -477,6 +477,16 @@ export default function Home() {
               </div>
             ))}
           </div>
+
+          <div
+            className="flex items-start gap-3 bg-white border border-[#eaeaea] rounded-2xl shadow-[0px_1px_3px_rgba(0,0,0,0.02)] px-5 py-4 mb-6"
+            data-testid="notice-ai-council"
+          >
+            <Info className="w-4 h-4 text-[#a3a3a3] mt-0.5 flex-shrink-0" />
+            <p className="font-normal text-[13px] leading-[20px] text-[#737373] tracking-[-0.3px]">
+              Not just another LLM. Meet your AI Council: a debate system that delivers premium advice without the $1000+ expert fees.
+            </p>
+          </div>
         </div>
       </div>
 
