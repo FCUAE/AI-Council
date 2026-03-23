@@ -2647,46 +2647,22 @@ export async function registerRoutes(
         await storage.updateUserSubscription(userId, user.subscriptionStatus, customerId);
       }
       
-      let priceId: string | undefined;
-      
-      const priceResult = await db.execute(
-        sql`SELECT p.id FROM stripe.prices p JOIN stripe.products pr ON p.product = pr.id WHERE p.active = true AND pr.name = ${pack.name} ORDER BY p.created DESC LIMIT 1`
-      );
-      
-      if (priceResult.rows.length > 0) {
-        priceId = priceResult.rows[0].id as string;
-      } else {
-        const products = await stripe.products.list({ active: true, limit: 100 });
-        const matchingProduct = products.data.find(p => p.name === pack.name);
-        if (matchingProduct) {
-          const prices = await stripe.prices.list({ product: matchingProduct.id, active: true, limit: 10 });
-          if (prices.data.length > 0) {
-            priceId = prices.data[0].id;
-          }
-        }
-      }
-      
-      if (!priceId) {
-        console.log(`[STRIPE] Product "${pack.name}" not found, auto-creating...`);
-        const product = await stripe.products.create({
-          name: pack.name,
-          description: pack.description,
-          metadata: pack.metadata,
-        });
-        const price = await stripe.prices.create({
-          product: product.id,
-          unit_amount: pack.unitAmount,
-          currency: 'usd',
-        });
-        priceId = price.id;
-        console.log(`[STRIPE] Created ${pack.name}: product=${product.id}, price=${priceId} ($${pack.unitAmount / 100})`);
-      }
-      
       const baseUrl = getBaseUrl(req);
       const session = await stripe.checkout.sessions.create({
         customer: customerId,
         payment_method_types: ['card'],
-        line_items: [{ price: priceId, quantity: 1 }],
+        line_items: [{
+          price_data: {
+            currency: 'usd',
+            unit_amount: pack.unitAmount,
+            product_data: {
+              name: pack.name,
+              description: pack.description,
+              metadata: pack.metadata,
+            },
+          },
+          quantity: 1,
+        }],
         mode: 'payment',
         metadata: {
           userId,
