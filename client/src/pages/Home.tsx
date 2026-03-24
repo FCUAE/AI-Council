@@ -17,7 +17,7 @@ interface CostEstimate {
 }
 import { compressImageIfNeeded, isImageFile } from "@/lib/imageCompression";
 import { authFetch } from "@/lib/clerk-token";
-import { Brain, MessageSquareMore, Star, Paperclip, X, Info } from "lucide-react";
+import { Brain, MessageSquareMore, Star, Paperclip, X, Info, Send } from "lucide-react";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
 import { 
   Document,
@@ -562,7 +562,7 @@ export default function Home() {
                   ref={textareaRef}
                   placeholder="Share your toughest problem. The more you explain, the stronger the outcome."
                   rows={1}
-                  className={`w-full resize-none border-0 outline-none bg-transparent font-normal text-[15px] leading-[25px] text-[#1a1a1a] tracking-[-0.5px] placeholder:text-[rgba(26,26,26,0.5)] pr-24 ${error ? 'bg-red-50/50' : ''}`}
+                  className={`w-full resize-none border-0 outline-none bg-transparent font-normal text-[15px] leading-[25px] text-[#1a1a1a] tracking-[-0.5px] placeholder:text-[rgba(26,26,26,0.5)] pr-[88px] ${error ? 'bg-red-50/50' : ''}`}
                   value={prompt}
                   onChange={(e) => {
                     setPrompt(e.target.value);
@@ -585,7 +585,7 @@ export default function Home() {
                   }}
                 />
                 
-                <div className="absolute bottom-2 right-28 w-10 h-8 bg-gradient-to-r from-transparent to-white pointer-events-none" />
+                <div className="absolute bottom-2 right-[88px] w-10 h-8 bg-gradient-to-r from-transparent to-white pointer-events-none" />
                 <button
                   type="submit"
                   disabled={createConversation.isPending || (isAuthenticated && (!canSubmit || costPending))}
@@ -596,7 +596,7 @@ export default function Home() {
                   {createConversation.isPending ? (
                     <span className="w-4 h-4 border-2 border-transparent border-t-white rounded-full animate-spin" />
                   ) : (
-                    <span className="text-white text-sm font-medium whitespace-nowrap">Start Debate &gt;</span>
+                    <><span className="text-white text-sm font-medium">Debate</span><Send className="w-3.5 h-3.5 text-white ml-1.5" /></>
                   )}
                 </button>
               </div>

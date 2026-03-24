@@ -4,7 +4,7 @@ import { useConversationStatus } from "@/hooks/use-conversation-status";
 import { useAuth } from "@/hooks/use-auth";
 import { useUsage } from "@/hooks/use-usage";
 import { EvidenceVault } from "@/components/council";
-import { Loader, Paperclip, X, Image, FileText, StopCircle, Copy, Check, Clock, Star, User, RefreshCw, AlertTriangle, MessageCircle, Plus, Info } from "lucide-react";
+import { Loader, Paperclip, X, Image, FileText, StopCircle, Copy, Check, Clock, Star, User, RefreshCw, AlertTriangle, MessageCircle, Plus, Info, Send } from "lucide-react";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
 import { authFetch } from "@/lib/clerk-token";
 import { queryClient } from "@/lib/queryClient";
@@ -1165,9 +1165,9 @@ export default function Chat() {
                         rows={2}
                         onInput={adjustTextareaHeight}
                         onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSubmit(onSubmit)(); } }}
-                        className="w-full resize-none outline-none text-[15px] placeholder-[#737373]/50 min-h-[60px] bg-transparent leading-relaxed pr-28 font-sans text-[#1a1a1a]"
+                        className="w-full resize-none outline-none text-[15px] placeholder-[#737373]/50 min-h-[60px] bg-transparent leading-relaxed pr-[88px] font-sans text-[#1a1a1a]"
                       />
-                      <div className="absolute bottom-4 right-28 w-10 h-8 bg-gradient-to-r from-transparent to-white pointer-events-none" />
+                      <div className="absolute bottom-4 right-[88px] w-10 h-8 bg-gradient-to-r from-transparent to-white pointer-events-none" />
                       <button
                         type="submit"
                         disabled={addMessage.isPending || !canSubmitReply || costPending}
@@ -1175,7 +1175,7 @@ export default function Chat() {
                         data-testid="button-send"
                         title="Run Council"
                       >
-                        {addMessage.isPending ? <Loader className="w-4 h-4 text-white animate-spin" /> : <span className="text-white text-sm font-medium whitespace-nowrap">Start Debate &gt;</span>}
+                        {addMessage.isPending ? <Loader className="w-4 h-4 text-white animate-spin" /> : <><span className="text-white text-sm font-medium">Debate</span><Send className="w-3.5 h-3.5 text-white ml-1.5" /></>}
                       </button>
                     </div>
 
