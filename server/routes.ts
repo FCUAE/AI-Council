@@ -535,6 +535,7 @@ interface LLMUsage {
 interface LLMResult {
   content: string;
   usage: LLMUsage;
+  finishReason?: string;
 }
 
 interface OpenRouterUsage {
@@ -557,6 +558,7 @@ interface OpenRouterStreamChoice {
   delta?: OpenRouterDelta;
   message?: { content?: string };
   text?: string;
+  finish_reason?: string | null;
 }
 
 function isAnthropicModel(model: string): boolean {
@@ -644,14 +646,18 @@ async function nonStreamLLMResponse(
 
     const msg = response.choices[0]?.message as OpenRouterMessage;
     const content = msg?.content || msg?.reasoning_content || '';
+    const finishReason = response.choices[0]?.finish_reason || undefined;
     const responseUsage = response.usage as OpenRouterUsage | undefined;
     const usage: LLMUsage = {
       promptTokens: responseUsage?.prompt_tokens || 0,
       completionTokens: responseUsage?.completion_tokens || 0,
       totalCost: responseUsage?.total_cost,
     };
-    console.log(`[LLM] ${model} non-stream: ${content.length} chars, tokens: ${usage.promptTokens}in/${usage.completionTokens}out`);
-    return { content: content || "No response generated.", usage };
+    if (finishReason === 'length') {
+      console.warn(`[LLM TRUNCATED] ${model} non-stream response was truncated (finish_reason=length, ${usage.completionTokens} tokens used)`);
+    }
+    console.log(`[LLM] ${model} non-stream: ${content.length} chars, tokens: ${usage.promptTokens}in/${usage.completionTokens}out, finish_reason=${finishReason}`);
+    return { content: content || "No response generated.", usage, finishReason };
   } catch (error: any) {
     clearTimeout(timer);
     if (signal?.aborted) {
@@ -703,6 +709,7 @@ async function streamLLMResponse(
     let reasoningResult = '';
     let chunkCount = 0;
     let streamUsage: LLMUsage = { promptTokens: 0, completionTokens: 0 };
+    let streamFinishReason: string | undefined;
     for await (const chunk of stream) {
       clearTimeout(inactivityTimer);
       inactivityTimer = setTimeout(() => inactivityController.abort("inactivity_timeout"), INACTIVITY_TIMEOUT_MS);
@@ -717,6 +724,10 @@ async function streamLLMResponse(
       if (choice?.message?.content) result += choice.message.content;
       if (choice?.text) result += choice.text;
 
+      if (choice?.finish_reason) {
+        streamFinishReason = choice.finish_reason;
+      }
+
       const chunkUsage = (chunk as unknown as { usage?: OpenRouterUsage }).usage;
       if (chunkUsage) {
         streamUsage = {
@@ -728,7 +739,10 @@ async function streamLLMResponse(
     }
     clearTimeout(inactivityTimer);
     
-    console.log(`[LLM] ${model}: ${chunkCount} chunks, content=${result.length} chars, reasoning=${reasoningResult.length} chars`);
+    if (streamFinishReason === 'length') {
+      console.warn(`[LLM TRUNCATED] ${model} stream response was truncated (finish_reason=length, ${streamUsage.completionTokens} tokens used)`);
+    }
+    console.log(`[LLM] ${model}: ${chunkCount} chunks, content=${result.length} chars, reasoning=${reasoningResult.length} chars, finish_reason=${streamFinishReason}`);
     
     if (chunkCount === 0) {
       console.log(`[LLM] ${model}: streaming returned 0 chunks, retrying with non-streaming`);
@@ -739,10 +753,10 @@ async function streamLLMResponse(
     
     if (!result && reasoningResult) {
       console.log(`[LLM] Model ${model} returned reasoning tokens only, using as response`);
-      return { content: reasoningResult, usage: streamUsage };
+      return { content: reasoningResult, usage: streamUsage, finishReason: streamFinishReason };
     }
     
-    return { content: result || "No response generated.", usage: streamUsage };
+    return { content: result || "No response generated.", usage: streamUsage, finishReason: streamFinishReason };
   } catch (error: any) {
     clearTimeout(inactivityTimer);
     if (signal?.aborted) {
@@ -1462,6 +1476,13 @@ ${peerReviews.map(r => `[${r.model}'s Cross-Examination]: ${r.content}`).join("\
     }
     const chairmanHasVision = isVisionCapable(selectedChairman);
     
+    const DELIVERABLE_KEYWORDS = /\b(produce|create|write|build|design|draft|generate|develop|compose|craft|prepare|outline|plan|make|construct|formulate|devise|put together|come up with|give me|provide)\b/i;
+    const isDeliverableRequest = DELIVERABLE_KEYWORDS.test(prompt);
+    const CHAIRMAN_MAX_TOKENS = isDeliverableRequest ? 8000 : 4000;
+    const budgetTokens = CHAIRMAN_MAX_TOKENS;
+    const reserveTokens = Math.round(budgetTokens * 0.1);
+    console.log(`[CHAIRMAN] Deliverable detected: ${isDeliverableRequest}, max_tokens: ${CHAIRMAN_MAX_TOKENS}`);
+
     const chairmanSystemPrompt = `You are the Chairman of the AI Council. You deliver decisive verdicts — not diplomatic summaries. Your job is to pick the strongest position from the council debate and defend it, while acknowledging dissent honestly.
 
 Rules:
@@ -1472,17 +1493,35 @@ Rules:
 - If they disagreed, pick the winner and explain why the loser lost.
 - Cover every question the user raised — no exceptions. Breadth over depth.
 - You MUST complete ALL 5 verdict sections (Decision & Rationale, Dissent Notes, Conditions for Reversal, Confidence, Actionable Implication). Never stop mid-section. If space is tight, compress each section rather than omitting any.
-- CRITICAL OUTPUT BUDGET: You have approximately 3,500 tokens of output space. Plan your response so that all 5 sections fit within roughly 3,200 tokens, reserving the final ~300 tokens as a wrap-up zone. When you sense you are running low on space, immediately begin wrapping up with a brief closing that summarizes your key recommendation. Never end mid-sentence or mid-section — compress earlier sections rather than risking an incomplete ending.
+- CRITICAL OUTPUT BUDGET: You have approximately ${budgetTokens.toLocaleString()} tokens of output space. Plan your response so that all 5 sections fit within roughly ${(budgetTokens - reserveTokens).toLocaleString()} tokens, reserving the final ~${reserveTokens.toLocaleString()} tokens as a wrap-up zone. When you sense you are running low on space, immediately begin wrapping up with a brief closing that summarizes your key recommendation. Never end mid-sentence or mid-section — compress earlier sections rather than risking an incomplete ending.
 - Use markdown: ## headers for major sections, **bold** for key conclusions, bullet points for actions.${chairmanHasVision && hasImages ? '\n- You can see the attached images. Incorporate visual analysis into your verdict.' : ''}`;
 
-    const CHAIRMAN_MAX_TOKENS = 3500;
     let finalContent: string = "";
+    let chairmanFinishReason: string | undefined;
     try {
       const chairResult = (chairmanHasVision && hasImages)
         ? await callLLMWithVision(selectedChairman, allContext, imageUrls, chairmanSystemPrompt, signal, CHAIRMAN_MAX_TOKENS, userId, isAdminUser)
         : await callLLM(selectedChairman, allContext, chairmanSystemPrompt, signal, CHAIRMAN_MAX_TOKENS);
       finalContent = chairResult.content;
+      chairmanFinishReason = chairResult.finishReason;
       trackUsage(selectedChairman, chairResult.usage, 'S3-chairman', CHAIRMAN_MAX_TOKENS);
+
+      if (chairmanFinishReason === 'length' && finalContent.length > 0) {
+        console.log(`[CHAIRMAN CONTINUATION] Response was truncated, attempting continuation...`);
+        try {
+          const continuationPrompt = `You were generating a chairman verdict but your response was cut off. Here is what you wrote so far:\n\n${finalContent.slice(-6000)}\n\n--- CONTINUE FROM EXACTLY WHERE YOU LEFT OFF ---\nComplete the remaining content. Do NOT repeat any content already written above. Pick up mid-sentence if needed. Ensure all 5 verdict sections are completed.`;
+          const continuationMaxTokens = Math.min(4000, CHAIRMAN_MAX_TOKENS);
+          const contResult = (chairmanHasVision && hasImages)
+            ? await callLLMWithVision(selectedChairman, continuationPrompt, imageUrls, chairmanSystemPrompt, signal, continuationMaxTokens, userId, isAdminUser)
+            : await callLLM(selectedChairman, continuationPrompt, chairmanSystemPrompt, signal, continuationMaxTokens);
+          finalContent = finalContent + contResult.content;
+          trackUsage(selectedChairman, contResult.usage, 'S3-chairman-continuation', continuationMaxTokens);
+          console.log(`[CHAIRMAN CONTINUATION] Successfully appended ${contResult.content.length} chars (finish_reason=${contResult.finishReason})`);
+        } catch (contError: any) {
+          if (contError.message === "Request cancelled") throw contError;
+          console.error(`[CHAIRMAN CONTINUATION] Failed: ${contError.message}, using truncated response`);
+        }
+      }
     } catch (chairmanError: any) {
       if (chairmanError.message === "Request cancelled") throw chairmanError;
       console.error(`[CHAIRMAN] ${selectedChairman} failed: ${chairmanError.message}`);
@@ -1507,6 +1546,24 @@ Rules:
             : await callLLM(fbModel, allContext, fbSystemPrompt, signal, CHAIRMAN_MAX_TOKENS);
           finalContent = fbChairResult.content;
           trackUsage(fbModel, fbChairResult.usage, 'S3-chairman', CHAIRMAN_MAX_TOKENS);
+
+          if (fbChairResult.finishReason === 'length' && finalContent.length > 0) {
+            console.log(`[CHAIRMAN FALLBACK CONTINUATION] Fallback response was truncated, attempting continuation...`);
+            try {
+              const contPrompt = `You were generating a chairman verdict but your response was cut off. Here is what you wrote so far:\n\n${finalContent.slice(-6000)}\n\n--- CONTINUE FROM EXACTLY WHERE YOU LEFT OFF ---\nComplete the remaining content. Do NOT repeat any content already written above. Pick up mid-sentence if needed. Ensure all 5 verdict sections are completed.`;
+              const contMaxTokens = Math.min(4000, CHAIRMAN_MAX_TOKENS);
+              const contResult = (fbHasVision && hasImages)
+                ? await callLLMWithVision(fbModel, contPrompt, imageUrls, fbSystemPrompt, signal, contMaxTokens, userId, isAdminUser)
+                : await callLLM(fbModel, contPrompt, fbSystemPrompt, signal, contMaxTokens);
+              finalContent = finalContent + contResult.content;
+              trackUsage(fbModel, contResult.usage, 'S3-chairman-continuation', contMaxTokens);
+              console.log(`[CHAIRMAN FALLBACK CONTINUATION] Appended ${contResult.content.length} chars`);
+            } catch (contError: any) {
+              if (contError.message === "Request cancelled") throw contError;
+              console.error(`[CHAIRMAN FALLBACK CONTINUATION] Failed: ${contError.message}, using truncated response`);
+            }
+          }
+
           console.log(`[CHAIRMAN FALLBACK] ${fbModel} succeeded as chairman substitute`);
           recovered = true;
           break;
