@@ -441,8 +441,8 @@ export default function Chat() {
     });
   }, []);
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  const scrollToBottom = (behavior: ScrollBehavior = "smooth") => {
+    messagesEndRef.current?.scrollIntoView({ behavior });
   };
 
   useEffect(() => {
@@ -457,6 +457,14 @@ export default function Chat() {
   useEffect(() => {
     scrollToBottom();
   }, [conversation?.messages]);
+
+  const isProcessing = conversation?.status === "processing";
+
+  useEffect(() => {
+    if (isProcessing) {
+      scrollToBottom("auto");
+    }
+  }, [isProcessing, conversationStatus]);
 
   const userCredits = usage?.debateCredits ?? 0;
   const hasEnoughCreditsForReply = userCredits >= creditCost;
@@ -473,6 +481,7 @@ export default function Chat() {
       return;
     }
     try {
+      scrollToBottom("auto");
       await addMessage.mutateAsync({
         conversationId: id,
         prompt: data.message,
@@ -569,7 +578,6 @@ export default function Chat() {
     return null;
   }, [conversation?.messages]);
 
-  const isProcessing = conversation?.status === "processing";
   const elapsed = useElapsedTime(conversationStatus?.startedAt);
 
   const errorInfo = useMemo(() => {
