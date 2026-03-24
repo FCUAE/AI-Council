@@ -47,12 +47,6 @@ process.on("SIGHUP", () => {});
 const app = express();
 const httpServer = createServer(app);
 
-declare module "http" {
-  interface IncomingMessage {
-    rawBody: unknown;
-  }
-}
-
 app.use(helmet({
   contentSecurityPolicy: {
     directives: {
@@ -148,7 +142,7 @@ app.use(helmet({
 
 app.post(
   '/api/stripe/webhook',
-  express.raw({ type: 'application/json' }),
+  express.raw({ type: 'application/json', limit: '1mb' }),
   async (req, res) => {
     const signature = req.headers['stripe-signature'];
     if (!signature) {
@@ -174,9 +168,6 @@ app.post(
 app.use(
   express.json({
     limit: '1mb',
-    verify: (req, _res, buf) => {
-      req.rawBody = buf;
-    },
   }),
 );
 

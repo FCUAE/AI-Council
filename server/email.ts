@@ -2,6 +2,15 @@ import { Resend } from 'resend';
 
 const SUPPORT_EMAIL = process.env.SUPPORT_EMAIL || 'support@askaicouncil.com';
 
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 let connectionSettings: any;
 
 async function getCredentials() {
@@ -43,7 +52,9 @@ async function getUncachableResendClient() {
 export async function sendCreditExpiryWarning(email: string, userName: string | null, credits: number, daysLeft: number): Promise<boolean> {
   try {
     const { client, fromEmail } = await getUncachableResendClient();
-    const name = userName || 'there';
+    const name = escapeHtml(userName || 'there');
+    const safeCredits = escapeHtml(String(credits));
+    const safeDaysLeft = escapeHtml(String(daysLeft));
 
     await client.emails.send({
       from: fromEmail,
@@ -53,7 +64,7 @@ export async function sendCreditExpiryWarning(email: string, userName: string | 
         <div style="font-family: 'Inter', -apple-system, sans-serif; max-width: 560px; margin: 0 auto; padding: 40px 24px; color: #1a1a1a;">
           <h2 style="font-size: 20px; font-weight: 600; margin-bottom: 16px;">Hey ${name},</h2>
           <p style="font-size: 15px; line-height: 1.6; color: #4b5563; margin-bottom: 16px;">
-            Just a heads up — you have <strong>${credits} unused credits</strong> on AI Council that will expire in about <strong>${daysLeft} days</strong>.
+            Just a heads up — you have <strong>${safeCredits} unused credits</strong> on AI Council that will expire in about <strong>${safeDaysLeft} days</strong>.
           </p>
           <p style="font-size: 15px; line-height: 1.6; color: #4b5563; margin-bottom: 24px;">
             Don't let them go to waste! Use them to get expert AI debates on any question — from business strategy to code architecture to marketing campaigns.
@@ -85,7 +96,8 @@ export async function sendCreditExpiryWarning(email: string, userName: string | 
 export async function sendCreditExpiryFinalWarning(email: string, userName: string | null, credits: number): Promise<boolean> {
   try {
     const { client, fromEmail } = await getUncachableResendClient();
-    const name = userName || 'there';
+    const name = escapeHtml(userName || 'there');
+    const safeCredits = escapeHtml(String(credits));
 
     await client.emails.send({
       from: fromEmail,
@@ -95,10 +107,10 @@ export async function sendCreditExpiryFinalWarning(email: string, userName: stri
         <div style="font-family: 'Inter', -apple-system, sans-serif; max-width: 560px; margin: 0 auto; padding: 40px 24px; color: #1a1a1a;">
           <h2 style="font-size: 20px; font-weight: 600; margin-bottom: 16px;">Hey ${name},</h2>
           <p style="font-size: 15px; line-height: 1.6; color: #4b5563; margin-bottom: 16px;">
-            ⏳ <strong>Your ${credits} credits expire in less than 48 hours.</strong>
+            ⏳ <strong>Your ${safeCredits} credits expire in less than 48 hours.</strong>
           </p>
           <p style="font-size: 15px; line-height: 1.6; color: #4b5563; margin-bottom: 16px;">
-            Once they're gone, they're gone — but you can save them. <strong>Purchase any credit pack now and your entire balance (including your current ${credits} credits) gets a fresh 60-day window.</strong>
+            Once they're gone, they're gone — but you can save them. <strong>Purchase any credit pack now and your entire balance (including your current ${safeCredits} credits) gets a fresh 60-day window.</strong>
           </p>
           <p style="font-size: 15px; line-height: 1.6; color: #4b5563; margin-bottom: 24px;">
             Or use them before they expire — start an AI debate on anything you've been thinking about.
@@ -134,13 +146,16 @@ export async function sendSupportMessage(senderEmail: string, message: string, i
   try {
     const { client, fromEmail } = await getUncachableResendClient();
 
+    const safeSenderEmail = escapeHtml(senderEmail);
+    const safeMessage = escapeHtml(message);
+
     const imageSection = imageUrls && imageUrls.length > 0
       ? `
         <div style="margin-top: 16px;">
           <p style="font-size: 14px; color: #6b7280; margin-bottom: 8px;"><strong>Attachments (${imageUrls.length}):</strong></p>
           ${imageUrls.map((url, i) => `
             <div style="margin-bottom: 8px;">
-              <a href="${url}" target="_blank" rel="noopener" style="color: #2563eb; font-size: 14px; text-decoration: underline;">View image ${i + 1}</a>
+              <a href="${escapeHtml(url)}" target="_blank" rel="noopener" style="color: #2563eb; font-size: 14px; text-decoration: underline;">View image ${i + 1}</a>
             </div>
           `).join('')}
         </div>
@@ -155,9 +170,9 @@ export async function sendSupportMessage(senderEmail: string, message: string, i
       html: `
         <div style="font-family: 'Inter', -apple-system, sans-serif; max-width: 560px; margin: 0 auto; padding: 40px 24px; color: #1a1a1a;">
           <h2 style="font-size: 20px; font-weight: 600; margin-bottom: 16px;">New support message</h2>
-          <p style="font-size: 14px; color: #6b7280; margin-bottom: 8px;"><strong>From:</strong> ${senderEmail}</p>
+          <p style="font-size: 14px; color: #6b7280; margin-bottom: 8px;"><strong>From:</strong> ${safeSenderEmail}</p>
           <div style="background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px; margin-top: 12px;">
-            <p style="font-size: 15px; line-height: 1.6; color: #1a1a1a; white-space: pre-wrap; margin: 0;">${message.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</p>
+            <p style="font-size: 15px; line-height: 1.6; color: #1a1a1a; white-space: pre-wrap; margin: 0;">${safeMessage}</p>
           </div>
           ${imageSection}
         </div>
@@ -180,7 +195,8 @@ export async function sendSupportMessage(senderEmail: string, message: string, i
 export async function sendCreditExpiredNotice(email: string, userName: string | null, expiredCredits: number): Promise<boolean> {
   try {
     const { client, fromEmail } = await getUncachableResendClient();
-    const name = userName || 'there';
+    const name = escapeHtml(userName || 'there');
+    const safeExpiredCredits = escapeHtml(String(expiredCredits));
 
     await client.emails.send({
       from: fromEmail,
@@ -190,7 +206,7 @@ export async function sendCreditExpiredNotice(email: string, userName: string | 
         <div style="font-family: 'Inter', -apple-system, sans-serif; max-width: 560px; margin: 0 auto; padding: 40px 24px; color: #1a1a1a;">
           <h2 style="font-size: 20px; font-weight: 600; margin-bottom: 16px;">Hey ${name},</h2>
           <p style="font-size: 15px; line-height: 1.6; color: #4b5563; margin-bottom: 16px;">
-            Your <strong>${expiredCredits} AI Council credits</strong> have expired after 60 days of inactivity.
+            Your <strong>${safeExpiredCredits} AI Council credits</strong> have expired after 60 days of inactivity.
           </p>
           <p style="font-size: 15px; line-height: 1.6; color: #4b5563; margin-bottom: 24px;">
             Ready to get back to smarter decisions? Grab a fresh credit pack and put the world's best AI models to work on your toughest problems.

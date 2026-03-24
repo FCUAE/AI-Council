@@ -36,6 +36,15 @@
 | 20 | Dependency hygiene | ✅ Reviewed — security packages at latest compatible versions; Clerk/Stripe/parser upgrades skipped per guardrails |
 | 21 | Support email prefill | ✅ Done — email prefilled once from Clerk profile; ref prevents overwriting user edits |
 
+## Phase 8 — Runtime Security Hardening (March 24, 2026)
+
+| # | Improvement | Status |
+|---|---|---|
+| 22 | HTML injection in email templates | ✅ Done — `escapeHtml()` applied to all user-supplied values in 4 email templates |
+| 23 | Stripe webhook raw body parser size limit | ✅ Done — `limit: '1mb'` added to `express.raw()` on webhook route |
+| 24 | Unused rawBody duplication removed | ✅ Done — `verify` callback and type extension removed from `express.json()` |
+| 25 | Dead auth dependencies removed | ✅ Done — `passport`, `passport-local`, `express-session` and `@types/*` uninstalled |
+
 ## Remaining Risks (Non-Blocking)
 
 See `SECURITY_AUDIT.md` — Residual Risks section for full details. Key items:

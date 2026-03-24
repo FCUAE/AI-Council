@@ -9,7 +9,7 @@
 
 ## Executive Summary
 
-The AI Council platform underwent a 6-phase security hardening across authentication, authorization, billing/payments, file handling, AI/attachment processing safety, API abuse prevention, browser security, startup safety, and operational safety. **55 findings** were identified and addressed across Critical (7), High (6), Medium (17), and Low/Informational (25) severities.
+The AI Council platform underwent a 6-phase security hardening across authentication, authorization, billing/payments, file handling, AI/attachment processing safety, API abuse prevention, browser security, startup safety, and operational safety. **66 findings** were identified and addressed across Critical (7), High (6), Medium (21), and Low/Informational (32) severities.
 
 **Production Readiness Verdict:** The application is production-ready. All critical and high-priority vulnerabilities have been fixed. No instance can serve traffic before critical startup prerequisites complete. Remaining residual risks are documented below with mitigations in place.
 
@@ -265,6 +265,28 @@ The AI Council platform underwent a 6-phase security hardening across authentica
 **62. Dependency hygiene review**
 - Security-sensitive packages reviewed: helmet (8.1.0), express-rate-limit (8.3.1), multer (2.1.1), sharp (0.34.5) — all at latest within semver ranges via `^` prefix. Clerk, Stripe, and parser libraries (pdf-parse, mammoth) intentionally not upgraded per guardrails. No breaking changes introduced.
 
+### Phase 8 — Runtime Security Hardening (March 24, 2026)
+
+#### Medium — Fixed
+
+**63. HTML injection in email templates**
+- **Risk:** User-supplied values (`userName`, `credits`, `daysLeft`, `senderEmail`, `message`, `imageUrls`) were interpolated directly into HTML email templates without escaping. A malicious display name or support message could inject arbitrary HTML/JavaScript into emails rendered by recipients' email clients.
+- **Fix:** Added `escapeHtml()` helper in `server/email.ts` that escapes `&`, `<`, `>`, `"`, `'`. Applied to all user-supplied values interpolated into HTML context across all 4 email templates (expiry warning, final warning, expired notice, support message). Email subject lines use raw values (plain text context, not HTML).
+
+**64. Stripe webhook raw body parser missing size limit**
+- **Risk:** The `express.raw()` middleware on `/api/stripe/webhook` had no explicit `limit`, defaulting to 100KB. While not a critical issue, explicitly setting the limit makes the defense intentional and consistent with the JSON body parser.
+- **Fix:** Added `limit: '1mb'` to `express.raw({ type: 'application/json' })` on the webhook route, matching the JSON parser limit.
+
+**65. Unused rawBody duplication on all JSON requests**
+- **Risk:** The `express.json()` middleware had a `verify` callback that stored `req.rawBody = buf` on every incoming JSON request. This was originally for Stripe webhook signature verification but became dead code after the webhook route switched to `express.raw()`. Every JSON request unnecessarily duplicated its body buffer in memory.
+- **Fix:** Removed the `verify` callback from `express.json()` and the `rawBody` type extension from the Express `IncomingMessage` interface.
+
+#### Low — Fixed
+
+**66. Dead authentication dependencies in package.json**
+- **Risk:** `passport`, `passport-local`, `express-session`, and their `@types/*` packages remained in `package.json` despite all authentication being handled by Clerk. These added unnecessary attack surface and could confuse future maintainers.
+- **Fix:** Uninstalled `passport`, `passport-local`, `express-session`, `@types/passport`, `@types/passport-local`, `@types/express-session`, `@types/connect-pg-simple`. Removed `express-session` from `script/build.ts` bundling allowlist. No code changes required — none of these packages were imported anywhere.
+
 ---
 
 ## Residual Risks & Known Limitations
@@ -342,7 +364,7 @@ The AI Council platform underwent a 6-phase security hardening across authentica
 - React (frontend) auto-escapes JSX output
 - CSP blocks script loading from unauthorized sources
 - `object-src: 'none'`, `base-uri: 'self'`, `form-action: 'self'` provide defense-in-depth
-- User input is never interpolated into HTML on the server
+- User input in email templates is escaped via `escapeHtml()` before interpolation into HTML context (Phase 8)
 
 ---
 
