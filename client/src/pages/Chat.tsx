@@ -4,7 +4,7 @@ import { useConversationStatus } from "@/hooks/use-conversation-status";
 import { useAuth } from "@/hooks/use-auth";
 import { useUsage } from "@/hooks/use-usage";
 import { EvidenceVault } from "@/components/council";
-import { Loader, Paperclip, X, Image, FileText, ArrowUp, StopCircle, Copy, Check, Clock, Star, User, RefreshCw, AlertTriangle, MessageCircle, Plus, Info } from "lucide-react";
+import { Loader, Paperclip, X, Image, FileText, StopCircle, Copy, Check, Clock, Star, User, RefreshCw, AlertTriangle, MessageCircle, Plus, Info } from "lucide-react";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
 import { authFetch } from "@/lib/clerk-token";
 import { queryClient } from "@/lib/queryClient";
@@ -1165,17 +1165,17 @@ export default function Chat() {
                         rows={2}
                         onInput={adjustTextareaHeight}
                         onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSubmit(onSubmit)(); } }}
-                        className="w-full resize-none outline-none text-[15px] placeholder-[#737373]/50 min-h-[60px] bg-transparent leading-relaxed pr-12 font-sans text-[#1a1a1a]"
+                        className="w-full resize-none outline-none text-[15px] placeholder-[#737373]/50 min-h-[60px] bg-transparent leading-relaxed pr-28 font-sans text-[#1a1a1a]"
                       />
-                      <div className="absolute bottom-4 right-12 w-10 h-8 bg-gradient-to-r from-transparent to-white pointer-events-none" />
+                      <div className="absolute bottom-4 right-28 w-10 h-8 bg-gradient-to-r from-transparent to-white pointer-events-none" />
                       <button
                         type="submit"
                         disabled={addMessage.isPending || !canSubmitReply || costPending}
-                        className="absolute bottom-4 right-4 w-8 h-8 bg-[#1a1a1a] hover:bg-[#2b2b2b] rounded-lg flex items-center justify-center shadow-sm border-0 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        className="absolute bottom-4 right-4 h-8 px-4 bg-[#1a1a1a] hover:bg-[#2b2b2b] rounded-lg flex items-center justify-center shadow-sm border-0 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                         data-testid="button-send"
                         title="Run Council"
                       >
-                        {addMessage.isPending ? <Loader className="w-4 h-4 text-white animate-spin" /> : <ArrowUp className="w-4 h-4 text-white" />}
+                        {addMessage.isPending ? <Loader className="w-4 h-4 text-white animate-spin" /> : <span className="text-white text-sm font-medium whitespace-nowrap">Start Debate &gt;</span>}
                       </button>
                     </div>
 
