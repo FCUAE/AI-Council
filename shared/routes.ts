@@ -85,7 +85,9 @@ export const api = {
           type: z.string(),
           size: z.number()
         })).max(30).optional(),
-        expectedCost: z.number().int().positive().optional()
+        expectedCost: z.number().int().positive().optional(),
+        models: z.array(z.string()).length(3).optional(),
+        chairmanModel: z.string().optional()
       }),
       responses: {
         201: z.custom<typeof messages.$inferSelect>(),

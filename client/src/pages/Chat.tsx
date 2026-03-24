@@ -13,7 +13,7 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRef, useEffect, useMemo, useState, useCallback } from "react";
-import { DEFAULT_COUNCIL_MODELS, DEFAULT_CHAIRMAN_MODEL, getModelById, getDebateCreditCost } from "@shared/models";
+import { DEFAULT_COUNCIL_MODELS, DEFAULT_CHAIRMAN_MODEL, getModelById, getDebateCreditCost, FREE_TIER_CREDITS } from "@shared/models";
 
 
 interface CostEstimate {
@@ -216,13 +216,18 @@ export default function Chat() {
     }
   }, [id, isRetrying]);
 
-  const councilModels = useMemo(() => {
-    return conversation?.models || DEFAULT_COUNCIL_MODELS;
-  }, [conversation?.models]);
+  const [councilModelsOverride, setCouncilModelsOverride] = useState<string[] | null>(null);
+  const [chairmanModelOverride, setChairmanModelOverride] = useState<string | null>(null);
 
-  const chairmanModel = useMemo(() => {
-    return conversation?.chairmanModel || DEFAULT_CHAIRMAN_MODEL;
-  }, [conversation?.chairmanModel]);
+  useEffect(() => {
+    setCouncilModelsOverride(null);
+    setChairmanModelOverride(null);
+  }, [conversation?.models, conversation?.chairmanModel]);
+
+  const councilModels = councilModelsOverride || conversation?.models || DEFAULT_COUNCIL_MODELS;
+  const chairmanModel = chairmanModelOverride || conversation?.chairmanModel || DEFAULT_CHAIRMAN_MODEL;
+
+  const isFreeUser = !usage?.isSubscribed && (usage?.deliberationCount || 0) <= FREE_TIER_CREDITS && (usage?.debateCredits || 0) <= FREE_TIER_CREDITS;
 
   const totalAttachmentTokens = useMemo(() => {
     let sum = 0;
@@ -254,6 +259,23 @@ export default function Chat() {
   const estimateAbortRef = useRef<AbortController | null>(null);
 
   const costEstimateConfirmed = serverEstimate !== null && !isEstimating;
+
+  const handleSelectCouncilModel = useCallback((slotIndex: number, modelId: string) => {
+    setCouncilModelsOverride(prev => {
+      const current = prev || conversation?.models || DEFAULT_COUNCIL_MODELS;
+      const updated = [...current];
+      updated[slotIndex] = modelId;
+      return updated;
+    });
+    setServerEstimate(null);
+    setEstimateRetryCount(c => c + 1);
+  }, [conversation?.models]);
+
+  const handleSelectChairmanModel = useCallback((modelId: string) => {
+    setChairmanModelOverride(modelId);
+    setServerEstimate(null);
+    setEstimateRetryCount(c => c + 1);
+  }, []);
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -488,6 +510,8 @@ export default function Chat() {
         attachments: uploadedFiles.length > 0 ? uploadedFiles : undefined,
         attachmentTokens: totalAttachmentTokens > 0 ? totalAttachmentTokens : undefined,
         expectedCost: creditCost > 0 ? creditCost : undefined,
+        models: councilModelsOverride || undefined,
+        chairmanModel: chairmanModelOverride || undefined,
       });
       reset();
       setUploadedFiles([]);
@@ -1170,16 +1194,24 @@ export default function Chat() {
                           <div className="flex items-center gap-1.5 min-w-0 flex-nowrap overflow-visible">
                             <span className="text-[11px] font-medium text-[#737373] uppercase tracking-wider mr-1 shrink-0">Council:</span>
                             {councilModels.map((modelId, index) => (
-                              <span key={modelId} className="flex items-center gap-1.5 text-[12px] font-medium text-[#1a1a1a] bg-white border border-[#eaeaea] px-2 py-1 rounded-md shadow-sm w-[120px] min-w-[120px] max-w-[120px] shrink-0">
-                                <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: MODEL_COLORS[index % 3] }} />
-                                <span className="truncate">{getModelName(modelId)}</span>
-                              </span>
+                              <InlineModelChip
+                                key={index}
+                                modelId={modelId}
+                                slotIndex={index}
+                                selectedModels={councilModels}
+                                onSelectModel={handleSelectCouncilModel}
+                                isFreeUser={isFreeUser}
+                                onLockedModelClick={() => setLocation("/credits")}
+                                dotColor={MODEL_COLORS[index]}
+                              />
                             ))}
                             <div className="w-px h-4 bg-[#d1d5db] mx-0.5 shrink-0" />
-                            <div className="flex items-center gap-1.5 text-[12px] font-medium text-[#1a1a1a] bg-white border border-[#eaeaea] px-2.5 py-1 rounded-md shadow-sm w-[150px] min-w-[150px] max-w-[150px] shrink-0">
-                              <Star className="w-[10px] h-[10px] text-[#737373] flex-shrink-0" />
-                              <span className="truncate">Lead: {getModelName(chairmanModel)}</span>
-                            </div>
+                            <ChairmanChip
+                              modelId={chairmanModel}
+                              onSelectModel={handleSelectChairmanModel}
+                              isFreeUser={isFreeUser}
+                              onLockedModelClick={() => setLocation("/credits")}
+                            />
                           {(messageValue?.trim().length ?? 0) >= 1 && (
                             !costEstimateConfirmed ? (
                               <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-1 rounded-md text-[#737373] bg-[#f5f5f5] border border-[#eaeaea] animate-pulse" data-testid="badge-credit-cost">
@@ -1221,7 +1253,6 @@ export default function Chat() {
                           )}
                         </div>
                       </div>
-                      <p className="text-[11px] text-[#999] text-center pt-2 m-0" data-testid="text-council-note">The AI Council cannot be changed mid-chat. Start a new chat to switch models.</p>
                     </div>
 
                   </div>

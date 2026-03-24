@@ -147,11 +147,11 @@ export function useDeleteConversation() {
 export function useAddMessage() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ conversationId, prompt, attachments, attachmentTokens, expectedCost }: { conversationId: number; prompt: string; attachments?: Attachment[]; attachmentTokens?: number; expectedCost?: number }) => {
+    mutationFn: async ({ conversationId, prompt, attachments, attachmentTokens, expectedCost, models, chairmanModel }: { conversationId: number; prompt: string; attachments?: Attachment[]; attachmentTokens?: number; expectedCost?: number; models?: string[]; chairmanModel?: string }) => {
       const res = await authFetch(`/api/conversations/${conversationId}/messages`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt, attachments, attachmentTokens, expectedCost }),
+        body: JSON.stringify({ prompt, attachments, attachmentTokens, expectedCost, models, chairmanModel }),
       });
       if (res.status === 409) {
         const data = await res.json();

@@ -2536,7 +2536,7 @@ export async function registerRoutes(
       }
 
       const conversationId = Number(req.params.id);
-      const { prompt, attachments, expectedCost } = api.conversations.addMessage.input.parse(req.body);
+      const { prompt, attachments, expectedCost, models: clientModels, chairmanModel: clientChairman } = api.conversations.addMessage.input.parse(req.body);
 
       if (attachments && attachments.length > 30) {
         return res.status(400).json({ message: "Too many attachments. Maximum is 30." });
@@ -2573,10 +2573,20 @@ export async function registerRoutes(
       const user = await storage.getUserById(userId);
       if (!user) return res.status(404).json({ message: "User not found" });
 
-      const effectiveModels = conversation.models && conversation.models.length === 3
-        ? conversation.models
-        : DEFAULT_COUNCIL_MODELS;
-      const effectiveChairman = conversation.chairmanModel || DEFAULT_CHAIRMAN_MODEL;
+      const validModelIds = new Set(AVAILABLE_MODELS.map(m => m.id));
+      const clientModelsValid = clientModels && clientModels.length === 3 && clientModels.every(m => validModelIds.has(m));
+      const clientChairmanValid = clientChairman && validModelIds.has(clientChairman);
+
+      const effectiveModels = clientModelsValid
+        ? clientModels
+        : (conversation.models && conversation.models.length === 3 ? conversation.models : DEFAULT_COUNCIL_MODELS);
+      const effectiveChairman = clientChairmanValid
+        ? clientChairman
+        : (conversation.chairmanModel || DEFAULT_CHAIRMAN_MODEL);
+
+      if (clientModelsValid || clientChairmanValid) {
+        await storage.updateConversationModels(conversationId, effectiveModels, effectiveChairman);
+      }
 
       const clientAttachmentTokens = typeof req.body.attachmentTokens === 'number' ? Math.max(0, Math.round(req.body.attachmentTokens)) : 0;
       const serverAttachmentTokens = estimateAttachmentTokensFromMetadata(attachments || []);
