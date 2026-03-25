@@ -861,9 +861,9 @@ export const AVAILABLE_MODELS: ModelConfig[] = [
 ];
 
 export const DEFAULT_COUNCIL_MODELS = [
-  "openai/gpt-4o",
-  "anthropic/claude-3.5-sonnet",
-  "google/gemini-2.5-flash"
+  "google/gemini-2.5-flash",
+  "anthropic/claude-sonnet-4.6",
+  "deepseek/deepseek-v3.2"
 ];
 
 export const MODEL_FALLBACKS: Record<string, string[]> = {
@@ -912,7 +912,7 @@ export const MODEL_FALLBACKS: Record<string, string[]> = {
   "google/gemini-3.1-pro-preview": ["google/gemini-3-pro-preview", "openai/gpt-5.2"],
 };
 
-export const DEFAULT_CHAIRMAN_MODEL = "openai/gpt-4o";
+export const DEFAULT_CHAIRMAN_MODEL = "openai/gpt-5.2";
 
 export function getModelById(id: string): ModelConfig | undefined {
   return AVAILABLE_MODELS.find(m => m.id === id);
