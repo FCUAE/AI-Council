@@ -36,6 +36,7 @@ import SupportWidget from "@/components/SupportWidget";
 import { setClerkTokenGetter, authFetch } from "@/lib/clerk-token";
 import { useToast } from "@/hooks/use-toast";
 import { trackRefgrowSignup } from "@/hooks/use-refgrow";
+import { FREE_TIER_CREDITS } from "@shared/models";
 
 function formatRelativeTime(dateString: string | Date): string {
   const date = typeof dateString === 'string' ? new Date(dateString) : dateString;
@@ -183,6 +184,8 @@ function AppSidebar() {
   const maxCredits = Math.max(usage?.debateCredits || 0, 100);
   const progressWidth = usage ? Math.min((usage.debateCredits / maxCredits) * 100, 100) : 0;
 
+  const isFreeUser = usage && !usage.isSubscribed && (usage.deliberationCount || 0) <= FREE_TIER_CREDITS && (usage.debateCredits || 0) <= FREE_TIER_CREDITS;
+  const freeDebateEstimate = usage ? Math.floor(usage.debateCredits / 2) : 0;
   const debateEstimate = usage ? {
     low: Math.floor(usage.debateCredits / 8),
     high: Math.floor(usage.debateCredits / 3),
@@ -349,7 +352,10 @@ function AppSidebar() {
                 </div>
                 <div className="flex items-center gap-1 mb-1">
                   <span className="text-[12px] text-[#737373]/70" data-testid="text-debate-estimate">
-                    ≈ <strong>{debateEstimate.low} to {debateEstimate.high}</strong> Council debates
+                    {isFreeUser
+                      ? <>≈ up to <strong>{freeDebateEstimate}</strong> Council debates</>
+                      : <>≈ <strong>{debateEstimate.low} to {debateEstimate.high}</strong> Council debates</>
+                    }
                   </span>
                   <TooltipProvider delayDuration={200}>
                     <Tooltip>
@@ -663,7 +669,7 @@ function LoggedOutHeader() {
           className="flex items-center justify-center gap-2 bg-[#1a1a1a] text-white text-sm font-medium py-2 px-4 lg:px-5 rounded-lg shadow-sm hover:bg-[#2b2b2b] transition-colors border-0 cursor-pointer"
           data-testid="button-get-free"
         >
-          Get 8 Free Debates
+          Get 12 Free Debates
         </button>
       </div>
     </header>
