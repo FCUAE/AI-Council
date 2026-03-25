@@ -955,6 +955,94 @@ function estimateAttachmentTokensFromMetadata(attachments: Attachment[]): number
 
 const PROCESS_TIMEOUT_MS = 10 * 60 * 1000;
 
+interface VerdictLedgerEntry {
+  id: string;
+  topic: string;
+  conclusion: string;
+  caveat: string;
+  status: string;
+}
+
+function extractKeyConclusion(verdictContent: string, verdictNumber: number, userQuestion: string): VerdictLedgerEntry {
+  const kcMatch = verdictContent.match(/## Key Conclusion\s*\n([\s\S]*?)(?=\n## |\n---|\n<|$)/i);
+  
+  let conclusion = "";
+  let caveat = "";
+  let status = "ACTIVE";
+  
+  if (kcMatch) {
+    const block = kcMatch[1].trim();
+    const caveatMatch = block.match(/Caveat:\s*(.+)/i);
+    const statusMatch = block.match(/Status:\s*(.+)/i);
+    
+    if (caveatMatch) caveat = caveatMatch[1].trim();
+    if (statusMatch) status = statusMatch[1].trim();
+    
+    conclusion = block
+      .replace(/Caveat:\s*.+/i, '')
+      .replace(/Status:\s*.+/i, '')
+      .trim();
+  } else {
+    const decisionMatch = verdictContent.match(/## Decision & Rationale\s*\n([\s\S]*?)(?=\n## )/i);
+    if (decisionMatch) {
+      const lines = decisionMatch[1].trim().split('\n').filter(l => l.trim());
+      conclusion = lines.slice(0, 3).join(' ').slice(0, 500);
+    } else {
+      const lines = verdictContent.split('\n').filter(l => l.trim() && !l.startsWith('#'));
+      conclusion = lines.slice(0, 3).join(' ').slice(0, 500);
+    }
+    caveat = "Auto-extracted; no structured Key Conclusion block found.";
+  }
+  
+  const topic = userQuestion.slice(0, 100).replace(/\n/g, ' ');
+  
+  return {
+    id: `V${verdictNumber}`,
+    topic,
+    conclusion,
+    caveat,
+    status
+  };
+}
+
+function parseLedgerEntries(ledgerJson: string | null): VerdictLedgerEntry[] {
+  if (!ledgerJson) return [];
+  try {
+    return JSON.parse(ledgerJson);
+  } catch {
+    return [];
+  }
+}
+
+function compressOldLedgerEntries(entries: VerdictLedgerEntry[]): VerdictLedgerEntry[] {
+  if (entries.length <= 7) return entries;
+  const recentCount = 4;
+  const old = entries.slice(0, entries.length - recentCount);
+  const recent = entries.slice(entries.length - recentCount);
+  const compressed = old.map(e => ({
+    ...e,
+    conclusion: e.conclusion.split('.').slice(0, 1).join('.') + '.',
+    caveat: ''
+  }));
+  return [...compressed, ...recent];
+}
+
+function escapeXmlContent(str: string): string {
+  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function formatVerdictLedgerXml(entries: VerdictLedgerEntry[]): string {
+  if (entries.length === 0) return "";
+  const formatted = compressOldLedgerEntries(entries);
+  const items = formatted.map(e => 
+    `  <verdict id="${escapeXmlContent(e.id)}" topic="${escapeXmlContent(e.topic)}">
+    <conclusion>${escapeXmlContent(e.conclusion)}</conclusion>${e.caveat ? `\n    <caveat>${escapeXmlContent(e.caveat)}</caveat>` : ''}
+    <status>${escapeXmlContent(e.status)}</status>
+  </verdict>`
+  ).join('\n');
+  return `<verdict_ledger>\n${items}\n</verdict_ledger>`;
+}
+
 async function processCouncilMessage(conversationId: number, userMessageId: number, prompt: string, previousContext?: string, attachments?: Attachment[], customModels?: string[], chairmanModel?: string, creditCost?: number, userId?: string, isAdminUser?: boolean) {
   const controller = createAbortController(userMessageId);
   const signal = controller.signal;
@@ -984,14 +1072,27 @@ async function processCouncilMessage(conversationId: number, userMessageId: numb
     const initialResponses: { model: string; content: string }[] = [];
     const peerReviews: { model: string; content: string }[] = [];
     
+    const hasLedger = previousContext && previousContext.startsWith('<verdict_ledger>');
     const contextPrefix = previousContext 
-      ? `<previous_deliberation_summary>
+      ? (hasLedger
+        ? `<previous_deliberation_context>
+${previousContext}
+</previous_deliberation_context>
+
+<instruction>The council previously reached the conclusions listed in the verdict ledger above. For your response:
+1. Identify what is NEW in this follow-up question
+2. Identify what CHANGES or challenges prior conclusions
+3. Identify what REMAINS VALID from prior verdicts
+Reference prior verdicts by number (e.g., V1, V2). Begin your response with a 1-sentence continuity statement: "This builds on V{n}, which concluded [X]. I am [affirming/refining/challenging] that conclusion because..."</instruction>
+
+<user_followup>`
+        : `<previous_deliberation_summary>
 ${previousContext}
 </previous_deliberation_summary>
 
 <instruction>Build on the previous deliberation. Do not repeat settled points. Focus on what is new or unresolved.</instruction>
 
-<user_followup>` 
+<user_followup>`)
       : "";
     const contextSuffix = previousContext ? `</user_followup>` : "";
     
@@ -1442,19 +1543,25 @@ If you can't find anything to verify or challenge, you're not adding value. Scru
     if (signal.aborted) throw new Error("Request cancelled");
     
     // Stage 3: Chairman Synthesis - anti-averaging verdict with peer reviews and images
+    const existingLedger = parseLedgerEntries((await storage.getConversation(conversationId))?.verdictLedger ?? null);
+    const verdictLedgerBlock = previousContext && existingLedger.length > 0 
+      ? `\n\nPRIOR VERDICT HISTORY — You must reference these prior rulings in your reconciliation block:\n${formatVerdictLedgerXml(existingLedger)}\n` 
+      : "";
+
     const allContext = `Based on both the initial opinions AND the cross-examination, deliver your verdict. You MUST address every question or topic the user raised — do not skip any.
 
 IMPORTANT: If the user's query asks you to PRODUCE or CREATE something (a prompt, plan, code, document, template, etc.), you MUST include that complete deliverable first under a "## Deliverable" header before the analytical sections. Synthesize the best elements from the council into a polished, ready-to-use output.
 
-Your verdict MUST follow this structure:
+Your verdict MUST follow this structure:${previousContext && existingLedger.length > 0 ? '\n0. **<reconciliation>**: How this verdict relates to prior verdicts (affirms, updates, or supersedes each). Reference verdicts by ID (V1, V2, etc.).' : ''}
 1. **Decision & Rationale**: Take a clear position. Do NOT average the council members' views — choose the strongest position and explain why. If the user asked multiple questions, give each one a clear decision.
 2. **Dissent Notes**: Summarize the strongest opposing view from the council that you did NOT adopt, and why it fell short.
 3. **Conditions for Reversal**: Under what specific conditions would the opposing view become correct? Include what specific evidence or information, if available, would most change your recommendation.
 4. **Confidence**: State your overall confidence (Low / Medium / High) with calibrated operational meaning (e.g., "High — directionally correct ~90% of the time", "Medium — directionally correct ~70% of the time", "Low — better than a coin flip but not by much").
 5. **Actionable Implication**: What should the user concretely do with this verdict? Give a specific next step, decision, or action — not a restatement of the rationale.
+6. **Key Conclusion**: Your mandatory structured conclusion (2-3 sentence ruling + caveat + status).
 
 Use markdown formatting: headers for sections, **bold** for key conclusions, bullet points for actions, code blocks for technical content.${hasImages ? ' Ensure your verdict accurately reflects what is shown in the attached images.' : ''}
-
+${verdictLedgerBlock}
 User Query: "${prompt}"
 ${hasImages ? `\n[Note: The user attached ${imageUrls.length} image(s) which you can see. Please verify and incorporate visual analysis in your synthesis.]\n` : ''}
 STAGE 1 — Initial Answers from Council Members:
@@ -1493,8 +1600,14 @@ Rules:
 - If they disagreed, pick the winner and explain why the loser lost.
 - Cover every question the user raised — no exceptions. Breadth over depth.
 - You MUST complete ALL 5 verdict sections (Decision & Rationale, Dissent Notes, Conditions for Reversal, Confidence, Actionable Implication). Never stop mid-section. If space is tight, compress each section rather than omitting any.
-- CRITICAL OUTPUT BUDGET: You have approximately ${budgetTokens.toLocaleString()} tokens of output space. Plan your response so that all 5 sections fit within roughly ${(budgetTokens - reserveTokens).toLocaleString()} tokens, reserving the final ~${reserveTokens.toLocaleString()} tokens as a wrap-up zone. When you sense you are running low on space, immediately begin wrapping up with a brief closing that summarizes your key recommendation. Never end mid-sentence or mid-section — compress earlier sections rather than risking an incomplete ending.
-- Use markdown: ## headers for major sections, **bold** for key conclusions, bullet points for actions.${chairmanHasVision && hasImages ? '\n- You can see the attached images. Incorporate visual analysis into your verdict.' : ''}`;
+- CRITICAL OUTPUT BUDGET: You have approximately ${budgetTokens.toLocaleString()} tokens of output space. Plan your response so that all sections fit within roughly ${(budgetTokens - reserveTokens).toLocaleString()} tokens, reserving the final ~${reserveTokens.toLocaleString()} tokens as a wrap-up zone. When you sense you are running low on space, immediately begin wrapping up with a brief closing that summarizes your key recommendation. Never end mid-sentence or mid-section — compress earlier sections rather than risking an incomplete ending.
+- Use markdown: ## headers for major sections, **bold** for key conclusions, bullet points for actions.${chairmanHasVision && hasImages ? '\n- You can see the attached images. Incorporate visual analysis into your verdict.' : ''}
+- VERDICT LEDGER: You MUST end every verdict with a "## Key Conclusion" section using this exact format:
+  ## Key Conclusion
+  [2-3 sentence ruling summarizing your core decision]. Caveat: [1 sentence conditional or qualification]. Status: ACTIVE
+  If this verdict supersedes a prior verdict, use: Status: SUPERSEDES V{n} on {scope}
+  This section is mandatory — never omit it.${previousContext && existingLedger.length > 0 ? `
+- RECONCILIATION: Before your verdict sections, write a <reconciliation> block that briefly explains how this verdict relates to each relevant prior verdict (affirms, updates, or supersedes). Reference prior verdicts by their ID (V1, V2, etc.). Keep it concise — 1-2 sentences per prior verdict.` : ''}`;
 
     let finalContent: string = "";
     let chairmanFinishReason: string | undefined;
@@ -1631,38 +1744,15 @@ Rules:
       }
     }
 
-    if (previousContext) {
-      try {
-        const updatedConv = await storage.getConversation(conversationId);
-        if (updatedConv && updatedConv.messages.length >= 4) {
-          const allMessages = updatedConv.messages
-            .map(m => `${m.role === 'user' ? 'User' : 'Chairman'}: ${m.content}`)
-            .join("\n\n");
-          if (allMessages.length > 2000) {
-            const summaryModel = "openai/gpt-4o-mini";
-            const summaryResult = await callLLM(
-              summaryModel,
-              `Compress the following AI Council deliberation into a structured summary for use as context in follow-up questions. Preserve disagreements and open questions. Omit redundant agreement.
-
-Conversation:
-${allMessages}
-
-Output format:
-<decisions>[Bullet list of conclusions reached]</decisions>
-<contested_points>[Points where council members disagreed — include both sides]</contested_points>
-<caveats>[Important qualifications or conditions mentioned]</caveats>
-<open_questions>[Unresolved questions or areas needing more information]</open_questions>`,
-              "You are a precision summarizer for an AI Council. Your summary will be used as context for follow-up questions. Preserve: (1) all decisions made, (2) contested points with both sides, (3) caveats and conditions, (4) open questions. Discard: redundant agreement, pleasantries, repeated points. Target ~1500 tokens.",
-              signal
-            );
-            trackUsage(summaryModel, summaryResult.usage, 'summary');
-            await storage.updateConversationSummary(conversationId, summaryResult.content);
-            console.log(`[SUMMARIZE] Generated context summary for debate #${conversationId} (${summaryResult.content.length} chars)`);
-          }
-        }
-      } catch (sumErr: any) {
-        console.error(`[SUMMARIZE] Error generating summary for debate #${conversationId}:`, sumErr.message);
-      }
+    try {
+      const currentLedger = parseLedgerEntries(existingLedger.length > 0 ? JSON.stringify(existingLedger) : null);
+      const verdictNumber = currentLedger.length + 1;
+      const entry = extractKeyConclusion(finalContent, verdictNumber, prompt);
+      const updatedLedger = [...currentLedger, entry];
+      await storage.updateConversationVerdictLedger(conversationId, JSON.stringify(updatedLedger));
+      console.log(`[LEDGER] Stored verdict V${verdictNumber} for debate #${conversationId}: "${entry.conclusion.slice(0, 80)}..."`);
+    } catch (ledgerErr: any) {
+      console.error(`[LEDGER] Error updating verdict ledger for debate #${conversationId}:`, ledgerErr.message);
     }
     
     clearTimeout(processTimer);
@@ -2341,10 +2431,11 @@ export async function registerRoutes(
             : DEFAULT_COUNCIL_MODELS;
           effectiveChairman = conversation.chairmanModel || DEFAULT_CHAIRMAN_MODEL;
 
-          const messageCount = conversation.messages.length;
-          if (messageCount >= 4 && conversation.contextSummary) {
-            priorContextTokens = Math.ceil(conversation.contextSummary.length / 4);
-          } else {
+          const ledgerEntries = parseLedgerEntries(conversation.verdictLedger ?? null);
+          if (ledgerEntries.length > 0) {
+            const ledgerXml = formatVerdictLedgerXml(ledgerEntries);
+            priorContextTokens = Math.ceil(ledgerXml.length / 4);
+          } else if (conversation.messages.length > 0) {
             const context = conversation.messages
               .map(m => `${m.role === 'user' ? 'User' : 'Chairman'}: ${m.content}`)
               .join("\n\n");
@@ -2596,14 +2687,17 @@ export async function registerRoutes(
       let context: string;
       let priorContextTokens = 0;
 
-      if (messageCount >= 4 && conversation.contextSummary) {
-        context = conversation.contextSummary;
+      const ledgerEntries = parseLedgerEntries(conversation.verdictLedger ?? null);
+      if (ledgerEntries.length > 0) {
+        context = formatVerdictLedgerXml(ledgerEntries);
         priorContextTokens = Math.ceil(context.length / 4);
-      } else {
+      } else if (messageCount > 0) {
         context = conversation.messages
           .map(m => `${m.role === 'user' ? 'User' : 'Chairman'}: ${m.content}`)
           .join("\n\n");
         priorContextTokens = Math.ceil(context.length / 4);
+      } else {
+        context = "";
       }
 
       const creditCost = getDebateCreditCost(effectiveModels, effectiveChairman, attachmentTokens, priorContextTokens);

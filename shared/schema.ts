@@ -36,6 +36,7 @@ export const conversations = pgTable("conversations", {
   promptTokens: integer("prompt_tokens").default(0),
   completionTokens: integer("completion_tokens").default(0),
   contextSummary: text("context_summary"),
+  verdictLedger: text("verdict_ledger"),
   errorReason: text("error_reason"),
   createdAt: timestamp("created_at").defaultNow(),
 });

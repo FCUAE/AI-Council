@@ -39,6 +39,7 @@ export interface IStorage {
   updateConversationApiCost(id: number, apiCost: number): Promise<void>;
   updateConversationTokens(id: number, promptTokens: number, completionTokens: number): Promise<void>;
   updateConversationSummary(id: number, summary: string): Promise<void>;
+  updateConversationVerdictLedger(id: number, ledger: string): Promise<void>;
   updateConversationModels(id: number, models: string[], chairmanModel: string): Promise<void>;
   recoverStuckConversations(): Promise<number>;
   recoverStaleConversations(staleMinutes: number): Promise<number>;
@@ -282,6 +283,10 @@ export class DatabaseStorage implements IStorage {
 
   async updateConversationSummary(id: number, summary: string): Promise<void> {
     await db.update(conversations).set({ contextSummary: summary }).where(eq(conversations.id, id));
+  }
+
+  async updateConversationVerdictLedger(id: number, ledger: string): Promise<void> {
+    await db.update(conversations).set({ verdictLedger: ledger }).where(eq(conversations.id, id));
   }
 
   async updateConversationModels(id: number, models: string[], chairmanModel: string): Promise<void> {
