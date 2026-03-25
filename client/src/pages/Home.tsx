@@ -653,7 +653,6 @@ export default function Home() {
                       <span 
                         className="inline-flex items-center gap-1 text-[11px] font-medium tracking-[-0.5px] px-2 py-0.5 rounded-md text-[#737373] animate-pulse"
                         data-testid="text-credit-cost"
-                        title="Estimating cost..."
                       >
                         Estimating...
                         <TooltipProvider delayDuration={200}>
@@ -679,7 +678,6 @@ export default function Home() {
                               : 'text-[#737373]'
                         }`}
                         data-testid="text-credit-cost"
-                        title={`This debate costs ${creditCost} credit${creditCost > 1 ? 's' : ''} based on your selected models`}
                       >
                         {creditCost} {creditCost === 1 ? 'credit' : 'credits'}
                         <TooltipProvider delayDuration={200}>

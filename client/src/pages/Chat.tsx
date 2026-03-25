@@ -1234,7 +1234,7 @@ export default function Chat() {
                                 !hasEnoughCreditsForReply
                                   ? 'text-red-500 bg-red-50 border border-red-200'
                                   : 'text-amber-700 bg-amber-50 border border-amber-200'
-                              }`} data-testid="badge-credit-cost" title={`${creditCost} credit${creditCost !== 1 ? 's' : ''} will be charged for this debate.`}>
+                              }`} data-testid="badge-credit-cost">
                                 {creditCost} credits
                                 <TooltipProvider delayDuration={200}>
                                   <Tooltip>
