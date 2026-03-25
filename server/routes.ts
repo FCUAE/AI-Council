@@ -1757,10 +1757,9 @@ Rules:
     }
 
     try {
-      const currentLedger = parseLedgerEntries(existingLedger.length > 0 ? JSON.stringify(existingLedger) : null);
-      const verdictNumber = currentLedger.length + 1;
+      const verdictNumber = existingLedger.length + 1;
       const entry = extractKeyConclusion(finalContent, verdictNumber, prompt);
-      const updatedLedger = [...currentLedger, entry];
+      const updatedLedger = [...existingLedger, entry];
       await storage.updateConversationVerdictLedger(conversationId, JSON.stringify(updatedLedger));
       console.log(`[LEDGER] Stored verdict V${verdictNumber} for debate #${conversationId}: "${entry.conclusion.slice(0, 80)}..."`);
     } catch (ledgerErr: any) {
