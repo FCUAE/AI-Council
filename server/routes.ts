@@ -1027,6 +1027,18 @@ function compressOldLedgerEntries(entries: VerdictLedgerEntry[]): VerdictLedgerE
   return [...compressed, ...recent];
 }
 
+function formatNumberedHistory(messages: { role: string; content: string }[]): string {
+  let questionNum = 0;
+  return messages.map(m => {
+    if (m.role === 'user') {
+      questionNum++;
+      return `User Question ${questionNum}: ${m.content}`;
+    } else {
+      return `Verdict ${questionNum}: ${m.content}`;
+    }
+  }).join("\n\n");
+}
+
 function escapeXmlContent(str: string): string {
   return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
@@ -2436,9 +2448,7 @@ export async function registerRoutes(
             const ledgerXml = formatVerdictLedgerXml(ledgerEntries);
             priorContextTokens = Math.ceil(ledgerXml.length / 4);
           } else if (conversation.messages.length > 0) {
-            const context = conversation.messages
-              .map(m => `${m.role === 'user' ? 'User' : 'Chairman'}: ${m.content}`)
-              .join("\n\n");
+            const context = formatNumberedHistory(conversation.messages);
             priorContextTokens = Math.ceil(context.length / 4);
           }
         } else {
@@ -2692,9 +2702,7 @@ export async function registerRoutes(
         context = formatVerdictLedgerXml(ledgerEntries);
         priorContextTokens = Math.ceil(context.length / 4);
       } else if (messageCount > 0) {
-        context = conversation.messages
-          .map(m => `${m.role === 'user' ? 'User' : 'Chairman'}: ${m.content}`)
-          .join("\n\n");
+        context = formatNumberedHistory(conversation.messages);
         priorContextTokens = Math.ceil(context.length / 4);
       } else {
         context = "";
