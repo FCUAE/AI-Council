@@ -120,10 +120,10 @@ export default function Credits() {
         </div>
 
         <div className="mb-12 text-center" data-testid="value-anchor">
-          <h1 className="text-2xl md:text-[28px] font-semibold text-[#1a1a1a] tracking-[-0.5px] mb-3 leading-snug" data-testid="text-headline">
+          <h1 className="text-2xl md:text-[28px] font-semibold text-[#1a1a1a] tracking-[-0.5px] mb-3 leading-snug md:whitespace-nowrap" data-testid="text-headline">
             One question. Four AI models. One pressure-tested answer.
           </h1>
-          <p className="text-[15px] text-[#737373] leading-relaxed max-w-[560px] mx-auto" data-testid="text-subtitle">
+          <p className="text-[15px] text-[#737373] leading-relaxed mx-auto md:whitespace-nowrap" data-testid="text-subtitle">
             Every response is debated and challenged across multiple rounds before it reaches you.
           </p>
         </div>
