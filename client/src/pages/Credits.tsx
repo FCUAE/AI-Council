@@ -15,6 +15,7 @@ const PACKS = [
     debateEstimate: 35,
     perCredit: "$0.15",
     badge: null as string | null,
+    discount: null as string | null,
   },
   {
     size: 325,
@@ -23,6 +24,7 @@ const PACKS = [
     debateEstimate: 100,
     perCredit: "$0.12",
     badge: "Most Popular",
+    discount: "Save 20%",
   },
   {
     size: 900,
@@ -31,6 +33,7 @@ const PACKS = [
     debateEstimate: 300,
     perCredit: "~$0.10",
     badge: "Best Value",
+    discount: "Save 33%",
   },
 ];
 
@@ -103,7 +106,7 @@ export default function Credits() {
 
   return (
     <div className="flex flex-col h-full min-h-[calc(100vh-24px)] overflow-y-auto">
-      <div className="p-6 md:p-8 lg:p-12 max-w-[780px] mx-auto w-full">
+      <div className="p-6 md:p-8 lg:p-12 max-w-[880px] mx-auto w-full">
 
         <div className="mb-8">
           <button
@@ -181,9 +184,14 @@ export default function Credits() {
                   Based on chosen models
                 </p>
 
-                <div className="mt-4 pt-3 border-t border-[#f0f0f0]">
+                <div className="mt-4 pt-3 border-t border-[#f0f0f0] flex items-center flex-wrap gap-y-1">
                   <span className="text-[14px] text-[#999]" data-testid={`text-price-${p.size}`}>${p.priceRaw}</span>
                   <span className="text-[12px] text-[#999] ml-2" data-testid={`text-per-credit-${p.size}`}>{p.perCredit}/credit</span>
+                  {p.discount && (
+                    <span className="ml-2 inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700" data-testid={`badge-discount-${p.size}`}>
+                      {p.discount}
+                    </span>
+                  )}
                 </div>
               </button>
             );
