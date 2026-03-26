@@ -964,7 +964,8 @@ interface VerdictLedgerEntry {
 }
 
 function extractKeyConclusion(verdictContent: string, verdictNumber: number, userQuestion: string): VerdictLedgerEntry {
-  const lastKcIdx = verdictContent.lastIndexOf('## Key Conclusion');
+  const kcMatches = [...verdictContent.matchAll(/## Key Conclusion/gi)];
+  const lastKcIdx = kcMatches.length > 0 ? kcMatches[kcMatches.length - 1].index! : -1;
   const kcBlock = lastKcIdx !== -1 ? verdictContent.slice(lastKcIdx) : null;
   const kcMatch = kcBlock?.match(/## Key Conclusion\s*\n([\s\S]*?)(?=\n## |\n---|\n<|$)/i) ?? null;
   
@@ -1570,7 +1571,7 @@ IMPORTANT: If the user's query asks you to PRODUCE or CREATE something (a prompt
 
 Your verdict MUST follow this structure:${previousContext && existingLedger.length > 0 ? '\n- A <reconciliation> block (hidden from user) explaining how this verdict relates to prior verdicts. Reference by ID (V1, V2, etc.).' : ''}
 - **The Call** (NO header — just start writing): Open with 2-5 decisive sentences that deliver the answer immediately. Lead with your ruling, not context. Embed your conviction naturally in the prose (e.g., "I'd stake a lot on this" or "This is close, but..." or "This one's clear-cut") — never use a standalone Confidence section.
-- **## Why This, Not That**: Your reasoning AND the strongest dissent, woven together. Explain why your position wins and why the best alternative fell short. Reference council members by their display name when their contribution matters (e.g., "${modelDisplayName(initialResponses[0]?.model || '')}" identified the key tradeoff", "${initialResponses.length > 1 ? modelDisplayName(initialResponses[1]?.model || '') : 'Claude'}'s argument didn't survive scrutiny").
+- **## Why This, Not That**: Your reasoning AND the strongest dissent, woven together. Explain why your position wins and why the best alternative fell short. Reference council members by their display name when their contribution matters (e.g., "${modelDisplayName(initialResponses[0]?.model || '')} identified the key tradeoff" or "${initialResponses.length > 1 ? modelDisplayName(initialResponses[1]?.model || '') : 'Claude'}'s argument didn't survive scrutiny").
 - **## What Would Change This**: Under what specific conditions would the opposing view become correct? What evidence would flip this?
 - **## Your Move**: What should the user concretely do next? Specific action, not a restatement.
 - **## Key Conclusion**: Your mandatory structured conclusion (hidden from user, used internally). Use the exact format specified in your system instructions.
@@ -1719,9 +1720,10 @@ Rules:
     }
 
     let userVisibleContent = finalContent;
-    const keyConclusionIdx = userVisibleContent.lastIndexOf('## Key Conclusion');
-    if (keyConclusionIdx !== -1) {
-      userVisibleContent = userVisibleContent.slice(0, keyConclusionIdx);
+    const kcStripMatches = [...userVisibleContent.matchAll(/## Key Conclusion/gi)];
+    if (kcStripMatches.length > 0) {
+      const lastIdx = kcStripMatches[kcStripMatches.length - 1].index!;
+      userVisibleContent = userVisibleContent.slice(0, lastIdx);
     }
     userVisibleContent = userVisibleContent
       .replace(/<reconciliation>[\s\S]*?<\/reconciliation>/gi, '')
