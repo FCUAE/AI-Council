@@ -8,6 +8,7 @@ const externalOnly = [
   "@google-cloud/storage",
   "google-auth-library",
   "bufferutil",
+  "stripe-replit-sync",
 ];
 
 async function buildAll() {
@@ -35,8 +36,14 @@ async function buildAll() {
     bundle: true,
     format: "cjs",
     outfile: "dist/index.cjs",
+    banner: {
+      js: [
+        `var __import_meta_url = require("url").pathToFileURL(__filename).href;`,
+      ].join(""),
+    },
     define: {
       "process.env.NODE_ENV": '"production"',
+      "import.meta.url": "__import_meta_url",
     },
     minify: true,
     external: externals,
