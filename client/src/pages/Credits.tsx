@@ -10,24 +10,27 @@ import { getRefgrowReferral } from "@/hooks/use-refgrow";
 const PACKS = [
   {
     size: 100,
-    price: "$15.00",
     priceRaw: 15,
     label: "Explorer",
-    debates: "Up to 35 debates based on chosen models",
+    debateEstimate: 35,
+    perCredit: "$0.15",
+    badge: null as string | null,
   },
   {
     size: 325,
-    price: "$39.00",
     priceRaw: 39,
     label: "Strategist",
-    debates: "Up to 100 debates based on chosen models",
+    debateEstimate: 100,
+    perCredit: "$0.12",
+    badge: "Most Popular",
   },
   {
     size: 900,
-    price: "$89.00",
     priceRaw: 89,
     label: "Visionary",
-    debates: "Up to 300 debates based on chosen models",
+    debateEstimate: 300,
+    perCredit: "~$0.10",
+    badge: "Best Value",
   },
 ];
 
@@ -38,7 +41,7 @@ const FAQ_ITEMS = [
   },
   {
     question: "What happens to unused credits?",
-    answer: "Your credits remain in your account for 60 days after purchase. Use them at your own pace.",
+    answer: "Your credits stay active for a full 60 days — more than enough time for most users. Buy any additional pack before they expire and your entire balance, including leftover credits, gets a fresh 60-day window.",
   },
   {
     question: "Can I choose which AI models participate?",
@@ -130,54 +133,58 @@ export default function Credits() {
                 key={p.size}
                 type="button"
                 onClick={() => setSelectedPack(index)}
-                className={`relative text-left p-6 rounded-2xl transition-all cursor-pointer border-0 bg-white ${
+                className={`relative text-left p-6 pt-8 rounded-2xl transition-all cursor-pointer border-0 bg-white flex flex-col ${
                   isSelected
                     ? "ring-2 ring-[#1a1a1a] shadow-[0_4px_16px_-4px_rgba(0,0,0,0.12)]"
                     : "ring-1 ring-[#eaeaea] hover:ring-[#d4d4d4] shadow-[0_2px_8px_-2px_rgba(0,0,0,0.05)]"
                 }`}
                 data-testid={`pricing-card-${p.size}`}
               >
-                {p.label === "Strategist" && (
-                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 flex gap-1.5">
-                    <span className="text-[11px] bg-[#1a1a1a] text-white px-2.5 py-0.5 rounded-full font-semibold whitespace-nowrap">
-                      Most Popular
-                    </span>
-                    <span className="text-[11px] bg-[#eef2ff] text-[#4f46e5] px-2.5 py-0.5 rounded-full font-semibold whitespace-nowrap">
-                      Best Value
+                {p.badge && (
+                  <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                    <span className={`text-[11px] px-2.5 py-0.5 rounded-full font-semibold whitespace-nowrap ${
+                      p.badge === "Most Popular"
+                        ? "bg-[#1a1a1a] text-white"
+                        : "bg-[#eef2ff] text-[#4f46e5]"
+                    }`} data-testid={`badge-${p.size}`}>
+                      {p.badge}
                     </span>
                   </div>
                 )}
 
-                <h3 className="text-[15px] font-semibold text-[#1a1a1a] mb-4">
-                  {p.label}
-                </h3>
-
-                <div className="mb-4">
-                  <span className="text-3xl font-bold text-[#1a1a1a] tracking-[-0.5px]" data-testid={`text-price-${p.size}`}>{p.price}</span>
-                </div>
-
-                <p className="text-[14px] font-semibold text-[#1a1a1a] mb-1" data-testid={`text-credits-${p.size}`}>
-                  {p.size} credits
-                </p>
-                <p className="text-[13px] text-[#737373] leading-snug" data-testid={`text-debates-${p.size}`}>
-                  {p.debates}
-                </p>
-
-                {isSelected && (
-                  <div className="absolute top-4 right-4">
+                <div className="absolute top-4 right-4">
+                  {isSelected ? (
                     <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
                       <circle cx="10" cy="10" r="9" stroke="#1a1a1a" strokeWidth="2" />
                       <circle cx="10" cy="10" r="5" fill="#1a1a1a" />
                     </svg>
-                  </div>
-                )}
-                {!isSelected && (
-                  <div className="absolute top-4 right-4">
+                  ) : (
                     <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
                       <circle cx="10" cy="10" r="9" stroke="#d1d5db" strokeWidth="2" />
                     </svg>
-                  </div>
-                )}
+                  )}
+                </div>
+
+                <h3 className="text-[15px] font-semibold text-[#1a1a1a] mb-3">
+                  {p.label}
+                </h3>
+
+                <p className="text-[28px] font-bold text-[#1a1a1a] tracking-[-0.5px] leading-none mb-2" data-testid={`text-debates-${p.size}`}>
+                  ~{p.debateEstimate} debates
+                </p>
+
+                <p className="text-[14px] font-medium text-[#4a4a4a] mb-1" data-testid={`text-credits-${p.size}`}>
+                  {p.size} credits
+                </p>
+
+                <p className="text-[13px] text-[#737373] mb-auto">
+                  Based on chosen models
+                </p>
+
+                <div className="mt-4 pt-3 border-t border-[#f0f0f0]">
+                  <span className="text-[14px] text-[#999]" data-testid={`text-price-${p.size}`}>${p.priceRaw}</span>
+                  <span className="text-[12px] text-[#999] ml-2" data-testid={`text-per-credit-${p.size}`}>{p.perCredit}/credit</span>
+                </div>
               </button>
             );
           })}
@@ -189,8 +196,9 @@ export default function Credits() {
               <span className="font-semibold text-[#1a1a1a]" data-testid="text-selected-plan">{pack.label}</span>
               {" — "}
               <span data-testid="text-selected-credits">{pack.size} credits</span>
+              <span className="text-[#999]" data-testid="text-selected-debates">{" "}(~{pack.debateEstimate} debates)</span>
             </div>
-            <span className="text-xl font-bold text-[#1a1a1a]" data-testid="text-selected-price">{pack.price}</span>
+            <span className="text-xl font-bold text-[#1a1a1a]" data-testid="text-selected-price">${pack.priceRaw}.00</span>
           </div>
 
           {error && (
@@ -206,7 +214,7 @@ export default function Credits() {
             className="w-full bg-[#1a1a1a] hover:bg-[#2b2b2b] text-white py-3 px-4 rounded-lg font-semibold transition-colors flex items-center justify-center gap-2 shadow-sm text-[15px] cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed border-0"
             data-testid="button-pay"
           >
-            {loading ? "Processing..." : isAuthenticated ? `Pay ${pack.price}` : "Sign in to Purchase"}
+            {loading ? "Processing..." : isAuthenticated ? `Pay $${pack.priceRaw}.00` : "Sign in to Purchase"}
           </button>
 
           <p className="text-[12px] text-center text-[#737373] mt-4" data-testid="text-trust-signals">
