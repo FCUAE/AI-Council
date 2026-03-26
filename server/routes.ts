@@ -1565,6 +1565,23 @@ If you can't find anything to verify or challenge, you're not adding value. Scru
       .map(id => `${id} → "${modelDisplayName(id)}"`)
       .join(', ');
 
+    const CHALLENGE_PATTERNS = /\b(I disagree|this overlooks|the weakness|flawed|incorrect|fails to|problematic|overestimates|underestimates|not supported|contradicts|questionable|misleading|oversimplifies|critical flaw|major issue|significant concern|doesn't hold|falls short|overstated|unsupported|I would push back|this misses|overlooks a key|fundamentally flawed|this is wrong|factually incorrect|this claim is|evidence doesn't support)\b/gi;
+    const totalReviewLength = peerReviews.reduce((sum, r) => sum + r.content.length, 0);
+    const challengeCount = peerReviews.reduce((sum, r) => {
+      const matches = r.content.match(CHALLENGE_PATTERNS);
+      return sum + (matches ? matches.length : 0);
+    }, 0);
+    const challengeDensity = totalReviewLength > 0 ? challengeCount / (totalReviewLength / 1000) : 0;
+    const MIN_CHALLENGE_COUNT = 6;
+    const MIN_REVIEW_CHARS = 500;
+    const councilSplit = (totalReviewLength >= MIN_REVIEW_CHARS && challengeCount >= MIN_CHALLENGE_COUNT && challengeDensity > 3.5) ? 'significant_split' : 'converged';
+    console.log(`[DEBATE] Challenge density: ${challengeDensity.toFixed(2)} per 1k chars (${challengeCount} challenges in ${totalReviewLength} chars, min=${MIN_CHALLENGE_COUNT}) → ${councilSplit}`);
+
+    const modelRoster = [...new Set(initialResponses.map(r => r.model))].map(id => modelDisplayName(id)).join(', ');
+    const debateDirective = councilSplit === 'significant_split'
+      ? `\nDEBATE SIGNAL: The council split significantly on this question. After "## Why This, Not That", include a "## Where the Council Split" section with 3-5 bullet points showing which model (${modelRoster}) had the strongest read, which surfaced key caveats, and which arguments didn't hold up under cross-examination. Use editorial attribution — name the models.`
+      : `\nDEBATE SIGNAL: The council largely converged on this question. Do NOT include a separate debate section. Instead, weave a brief one-line acknowledgment of consensus into "## Why This, Not That" (e.g., "All three models converged here — the real question is...").`;
+
     const allContext = `Based on both the initial opinions AND the cross-examination, deliver your verdict. You MUST address every question or topic the user raised — do not skip any.
 
 IMPORTANT: If the user's query asks you to PRODUCE or CREATE something (a prompt, plan, code, document, template, etc.), you MUST include that complete deliverable first — give it a descriptive header naming what it is (e.g., "## Your 30-Day Growth Plan", "## The Prompt", "## Migration Script") instead of a generic "## Deliverable" label. Synthesize the best elements from the council into a polished, ready-to-use output.
@@ -1572,6 +1589,7 @@ IMPORTANT: If the user's query asks you to PRODUCE or CREATE something (a prompt
 Your verdict MUST follow this structure:${previousContext && existingLedger.length > 0 ? '\n- A <reconciliation> block (hidden from user) explaining how this verdict relates to prior verdicts. Reference by ID (V1, V2, etc.).' : ''}
 - **The Call** (NO header — just start writing): Open with 2-5 decisive sentences that deliver the answer immediately. Lead with your ruling, not context. Embed your conviction naturally in the prose (e.g., "I'd stake a lot on this" or "This is close, but..." or "This one's clear-cut") — never use a standalone Confidence section.
 - **## Why This, Not That**: Your reasoning AND the strongest dissent, woven together. Explain why your position wins and why the best alternative fell short. Reference council members by their display name when their contribution matters (e.g., "${modelDisplayName(initialResponses[0]?.model || '')} identified the key tradeoff" or "${initialResponses.length > 1 ? modelDisplayName(initialResponses[1]?.model || '') : 'Claude'}'s argument didn't survive scrutiny").
+${councilSplit === 'significant_split' ? '- **## Where the Council Split**: 3-5 editorial bullet points showing who argued what and why you sided where you did. Name the models. This section goes AFTER "Why This, Not That" and BEFORE "What Would Change This".' : ''}
 - **## What Would Change This**: Under what specific conditions would the opposing view become correct? What evidence would flip this?
 - **## Your Move**: What should the user concretely do next? Specific action, not a restatement.
 - **## Key Conclusion**: Your mandatory structured conclusion (hidden from user, used internally). Use the exact format specified in your system instructions.
@@ -1579,6 +1597,7 @@ Your verdict MUST follow this structure:${previousContext && existingLedger.leng
 Use markdown formatting: **bold** for key conclusions, bullet points for actions, code blocks for technical content.${hasImages ? ' Ensure your verdict accurately reflects what is shown in the attached images.' : ''}
 
 MODEL NAME KEY: When referencing council members, use their display names: ${modelNameMap}
+${debateDirective}
 ${verdictLedgerBlock}
 User Query: "${prompt}"
 ${hasImages ? `\n[Note: The user attached ${imageUrls.length} image(s) which you can see. Please verify and incorporate visual analysis in your synthesis.]\n` : ''}
@@ -1617,10 +1636,10 @@ Rules:
 - If council members agreed, say so briefly and focus on adding what they missed.
 - If they disagreed, pick the winner and explain why the loser lost.
 - Cover every question the user raised — no exceptions. Breadth over depth.
-- VERDICT STRUCTURE: Your verdict has 4 parts: The Call (no header, just start), then ## Why This, Not That, ## What Would Change This, and ## Your Move. You MUST complete ALL sections. If space is tight, compress rather than omit.
+- VERDICT STRUCTURE: Your verdict has 4 core parts: The Call (no header, just start), then ## Why This, Not That, ## What Would Change This, and ## Your Move. When a DEBATE SIGNAL instructs you to include "## Where the Council Split", add it between "Why This, Not That" and "What Would Change This". You MUST complete ALL sections. If space is tight, compress rather than omit.
 - THE CALL: Start your verdict immediately with 2-5 decisive sentences — no header, no preamble. Deliver the answer first. Embed your confidence naturally (say "I'd stake a lot on this" or "This is close, but the evidence tilts one way" — never use a standalone confidence section with Low/Medium/High ratings).
 - WHY THIS, NOT THAT: Weave your reasoning and dissent together in one section. Don't separate dissent into its own section. Explain why your position wins AND why the strongest alternative fell short — all in one narrative.
-- COUNCIL ATTRIBUTION: When a council member's contribution matters, reference them by display name. Use editorial language: "identified the key tradeoff", "flagged a risk no one else caught", "surfaced the strongest counterargument", "this argument didn't survive cross-examination". Never say a council member was "wrong" — say their argument "didn't hold up" or "collapsed under scrutiny".
+- COUNCIL ATTRIBUTION: When a council member's contribution matters, reference them by display name. Use editorial language from this vocabulary: "identified the key tradeoff earliest", "flagged a risk no one else addressed", "surfaced the strongest counterargument", "this argument didn't survive cross-examination", "collapsed under scrutiny", "overestimated the risk", "had the strongest read on this". Never say a council member was "wrong" — say their argument "didn't hold up", "collapsed under cross-exam", or "overestimated the likelihood". Always tie a model's contribution back to how it affected your final verdict.
 - CRITICAL OUTPUT BUDGET: You have approximately ${budgetTokens.toLocaleString()} tokens of output space. Plan your response so that all sections fit within roughly ${(budgetTokens - reserveTokens).toLocaleString()} tokens, reserving the final ~${reserveTokens.toLocaleString()} tokens as a wrap-up zone. When you sense you are running low on space, immediately begin wrapping up with a brief closing that summarizes your key recommendation. Never end mid-sentence or mid-section — compress earlier sections rather than risking an incomplete ending.
 - Use markdown: ## headers for sections, **bold** for key conclusions, bullet points for actions.${chairmanHasVision && hasImages ? '\n- You can see the attached images. Incorporate visual analysis into your verdict.' : ''}
 - FORBIDDEN PHRASES: Never write "Status: ACTIVE", "Caveat:" as a label visible to the reader, "directionally correct ~X%", "In summary", "As an AI", "In conclusion". Never use numbered section headers (1. 2. 3.). These are system artifacts — your verdict should read like an editorial, not a form.
