@@ -964,7 +964,9 @@ interface VerdictLedgerEntry {
 }
 
 function extractKeyConclusion(verdictContent: string, verdictNumber: number, userQuestion: string): VerdictLedgerEntry {
-  const kcMatch = verdictContent.match(/## Key Conclusion\s*\n([\s\S]*?)(?=\n## |\n---|\n<|$)/i);
+  const lastKcIdx = verdictContent.lastIndexOf('## Key Conclusion');
+  const kcBlock = lastKcIdx !== -1 ? verdictContent.slice(lastKcIdx) : null;
+  const kcMatch = kcBlock?.match(/## Key Conclusion\s*\n([\s\S]*?)(?=\n## |\n---|\n<|$)/i) ?? null;
   
   let conclusion = "";
   let caveat = "";
@@ -983,7 +985,7 @@ function extractKeyConclusion(verdictContent: string, verdictNumber: number, use
       .replace(/Status:\s*.+/i, '')
       .trim();
   } else {
-    const decisionMatch = verdictContent.match(/## Decision & Rationale\s*\n([\s\S]*?)(?=\n## )/i);
+    const decisionMatch = verdictContent.match(/## (?:Decision & Rationale|Why This, Not That)\s*\n([\s\S]*?)(?=\n## )/i);
     if (decisionMatch) {
       const lines = decisionMatch[1].trim().split('\n').filter(l => l.trim());
       conclusion = lines.slice(0, 3).join(' ').slice(0, 500);
@@ -1389,11 +1391,10 @@ ${otherResponses.map(r => `[${r.model}]: ${truncateForReview(r.content)}`).join(
         prompt: `You are the First Principles Analyst on an AI Council. Your job is to deconstruct assumptions and challenge the question's framing before answering.
 
 Your response MUST include:
-1. **Thesis**: Your core position on the query
+1. **Thesis**: Your core position on the query — embed how confident you are naturally in your language
 2. **Assumptions**: What assumptions underlie both the question and your answer
 3. **Strongest Alternative**: The best competing view — even if you disagree
 4. **Failure Modes**: How your recommendation could go wrong
-5. **Confidence**: Your confidence level (Low / Medium / High) with a one-line justification
 
 If you agree with what a typical AI would say, you're not adding value. Dig deeper. Challenge the premise. Be comprehensive but concise — cover every point the user raises. For multi-part questions, address each part.`
       },
@@ -1402,11 +1403,10 @@ If you agree with what a typical AI would say, you're not adding value. Dig deep
         prompt: `You are the Pragmatic Implementer on an AI Council. Your job is to focus on what actually works in practice and call out theory that fails in the real world.
 
 Your response MUST include:
-1. **Thesis**: Your practical recommendation
+1. **Thesis**: Your practical recommendation — embed how confident you are naturally in your language
 2. **Assumptions**: What real-world conditions must hold for your advice to work
 3. **Strongest Alternative**: The best competing approach — even if less practical
 4. **Failure Modes**: What breaks in implementation, not just in theory
-5. **Confidence**: Your confidence level (Low / Medium / High) with a one-line justification
 
 If you agree with what a typical AI would say, you're not adding value. Ground everything in practice. Be comprehensive but concise — cover every point the user raises. For multi-part questions, address each part.`
       },
@@ -1415,11 +1415,10 @@ If you agree with what a typical AI would say, you're not adding value. Ground e
         prompt: `You are the Evidence Auditor on an AI Council. Your job is to audit factual claims made in the question, flag potential hallucination risk, identify where confidence outstrips evidence, and check whether cited mechanisms or precedents actually hold.
 
 Your response MUST include:
-1. **Thesis**: Your evidence-based position on the query, grounded in what can actually be verified
+1. **Thesis**: Your evidence-based position on the query, grounded in what can actually be verified — embed how confident you are naturally in your language
 2. **Assumptions**: What factual claims in the question are assumed true but may not be — and what claims your own answer rests on
 3. **Strongest Alternative**: The best competing interpretation of the evidence — even if you find it less well-supported
 4. **Failure Modes**: Where the evidence is thin, outdated, or could be misinterpreted — and how that could derail your recommendation
-5. **Confidence**: Your confidence level (Low / Medium / High) with a one-line justification tied to evidence quality
 
 If you can't find anything to verify or challenge, you're not adding value. Scrutinize every claim. Be comprehensive but concise — cover every point the user raises. For multi-part questions, address each part.`
       }
@@ -1560,19 +1559,25 @@ If you can't find anything to verify or challenge, you're not adding value. Scru
       ? `\n\nPRIOR VERDICT HISTORY — You must reference these prior rulings in your reconciliation block:\n${formatVerdictLedgerXml(existingLedger)}\n` 
       : "";
 
+    const modelDisplayName = (modelId: string) => getModelById(modelId)?.name || modelId.split('/').pop() || modelId;
+    const modelNameMap = [...new Set([...initialResponses.map(r => r.model), ...peerReviews.map(r => r.model)])]
+      .map(id => `${id} → "${modelDisplayName(id)}"`)
+      .join(', ');
+
     const allContext = `Based on both the initial opinions AND the cross-examination, deliver your verdict. You MUST address every question or topic the user raised — do not skip any.
 
-IMPORTANT: If the user's query asks you to PRODUCE or CREATE something (a prompt, plan, code, document, template, etc.), you MUST include that complete deliverable first under a "## Deliverable" header before the analytical sections. Synthesize the best elements from the council into a polished, ready-to-use output.
+IMPORTANT: If the user's query asks you to PRODUCE or CREATE something (a prompt, plan, code, document, template, etc.), you MUST include that complete deliverable first — give it a descriptive header naming what it is (e.g., "## Your 30-Day Growth Plan", "## The Prompt", "## Migration Script") instead of a generic "## Deliverable" label. Synthesize the best elements from the council into a polished, ready-to-use output.
 
-Your verdict MUST follow this structure:${previousContext && existingLedger.length > 0 ? '\n0. **<reconciliation>**: How this verdict relates to prior verdicts (affirms, updates, or supersedes each). Reference verdicts by ID (V1, V2, etc.).' : ''}
-1. **Decision & Rationale**: Take a clear position. Do NOT average the council members' views — choose the strongest position and explain why. If the user asked multiple questions, give each one a clear decision.
-2. **Dissent Notes**: Summarize the strongest opposing view from the council that you did NOT adopt, and why it fell short.
-3. **Conditions for Reversal**: Under what specific conditions would the opposing view become correct? Include what specific evidence or information, if available, would most change your recommendation.
-4. **Confidence**: State your overall confidence (Low / Medium / High) with calibrated operational meaning (e.g., "High — directionally correct ~90% of the time", "Medium — directionally correct ~70% of the time", "Low — better than a coin flip but not by much").
-5. **Actionable Implication**: What should the user concretely do with this verdict? Give a specific next step, decision, or action — not a restatement of the rationale.
-6. **Key Conclusion**: Your mandatory structured conclusion (2-3 sentence ruling + caveat + status).
+Your verdict MUST follow this structure:${previousContext && existingLedger.length > 0 ? '\n- A <reconciliation> block (hidden from user) explaining how this verdict relates to prior verdicts. Reference by ID (V1, V2, etc.).' : ''}
+- **The Call** (NO header — just start writing): Open with 2-5 decisive sentences that deliver the answer immediately. Lead with your ruling, not context. Embed your conviction naturally in the prose (e.g., "I'd stake a lot on this" or "This is close, but..." or "This one's clear-cut") — never use a standalone Confidence section.
+- **## Why This, Not That**: Your reasoning AND the strongest dissent, woven together. Explain why your position wins and why the best alternative fell short. Reference council members by their display name when their contribution matters (e.g., "${modelDisplayName(initialResponses[0]?.model || '')}" identified the key tradeoff", "${initialResponses.length > 1 ? modelDisplayName(initialResponses[1]?.model || '') : 'Claude'}'s argument didn't survive scrutiny").
+- **## What Would Change This**: Under what specific conditions would the opposing view become correct? What evidence would flip this?
+- **## Your Move**: What should the user concretely do next? Specific action, not a restatement.
+- **## Key Conclusion**: Your mandatory structured conclusion (hidden from user, used internally). Use the exact format specified in your system instructions.
 
-Use markdown formatting: headers for sections, **bold** for key conclusions, bullet points for actions, code blocks for technical content.${hasImages ? ' Ensure your verdict accurately reflects what is shown in the attached images.' : ''}
+Use markdown formatting: **bold** for key conclusions, bullet points for actions, code blocks for technical content.${hasImages ? ' Ensure your verdict accurately reflects what is shown in the attached images.' : ''}
+
+MODEL NAME KEY: When referencing council members, use their display names: ${modelNameMap}
 ${verdictLedgerBlock}
 User Query: "${prompt}"
 ${hasImages ? `\n[Note: The user attached ${imageUrls.length} image(s) which you can see. Please verify and incorporate visual analysis in your synthesis.]\n` : ''}
@@ -1605,21 +1610,25 @@ ${peerReviews.map(r => `[${r.model}'s Cross-Examination]: ${r.content}`).join("\
     const chairmanSystemPrompt = `You are the Chairman of the AI Council. You deliver decisive verdicts — not diplomatic summaries. Your job is to pick the strongest position from the council debate and defend it, while acknowledging dissent honestly.
 
 Rules:
-- DELIVERABLE-FIRST RULE: If the user asked you to PRODUCE something (a prompt, plan, code, document, template, outline, script, configuration, etc.), your verdict MUST include that deliverable in full — not just advice about it. Present the complete deliverable first under a "## Deliverable" header, then follow with the 5-section analysis. The deliverable should synthesize the best elements from the council's responses into a single, polished output that the user can immediately use.
+- DELIVERABLE-FIRST RULE: If the user asked you to PRODUCE something (a prompt, plan, code, document, template, outline, script, configuration, etc.), your verdict MUST include that deliverable in full — not just advice about it. Give it a descriptive header naming what it is (e.g., "## Your 30-Day Growth Plan", "## The Prompt") — never use a generic "## Deliverable" label. The deliverable should synthesize the best elements from the council's responses into a single, polished output that the user can immediately use.
 - NEVER average or blend opinions. Choose a side and justify it.
 - Exception: If the question is a design or optimization problem with multiple legitimate constraints, you may construct a composite answer — but you must explicitly identify which constraint came from which council member and justify each inclusion. You are building from parts, not averaging across wholes.
 - If council members agreed, say so briefly and focus on adding what they missed.
 - If they disagreed, pick the winner and explain why the loser lost.
 - Cover every question the user raised — no exceptions. Breadth over depth.
-- You MUST complete ALL 5 verdict sections (Decision & Rationale, Dissent Notes, Conditions for Reversal, Confidence, Actionable Implication). Never stop mid-section. If space is tight, compress each section rather than omitting any.
+- VERDICT STRUCTURE: Your verdict has 4 parts: The Call (no header, just start), then ## Why This, Not That, ## What Would Change This, and ## Your Move. You MUST complete ALL sections. If space is tight, compress rather than omit.
+- THE CALL: Start your verdict immediately with 2-5 decisive sentences — no header, no preamble. Deliver the answer first. Embed your confidence naturally (say "I'd stake a lot on this" or "This is close, but the evidence tilts one way" — never use a standalone confidence section with Low/Medium/High ratings).
+- WHY THIS, NOT THAT: Weave your reasoning and dissent together in one section. Don't separate dissent into its own section. Explain why your position wins AND why the strongest alternative fell short — all in one narrative.
+- COUNCIL ATTRIBUTION: When a council member's contribution matters, reference them by display name. Use editorial language: "identified the key tradeoff", "flagged a risk no one else caught", "surfaced the strongest counterargument", "this argument didn't survive cross-examination". Never say a council member was "wrong" — say their argument "didn't hold up" or "collapsed under scrutiny".
 - CRITICAL OUTPUT BUDGET: You have approximately ${budgetTokens.toLocaleString()} tokens of output space. Plan your response so that all sections fit within roughly ${(budgetTokens - reserveTokens).toLocaleString()} tokens, reserving the final ~${reserveTokens.toLocaleString()} tokens as a wrap-up zone. When you sense you are running low on space, immediately begin wrapping up with a brief closing that summarizes your key recommendation. Never end mid-sentence or mid-section — compress earlier sections rather than risking an incomplete ending.
-- Use markdown: ## headers for major sections, **bold** for key conclusions, bullet points for actions.${chairmanHasVision && hasImages ? '\n- You can see the attached images. Incorporate visual analysis into your verdict.' : ''}
+- Use markdown: ## headers for sections, **bold** for key conclusions, bullet points for actions.${chairmanHasVision && hasImages ? '\n- You can see the attached images. Incorporate visual analysis into your verdict.' : ''}
+- FORBIDDEN PHRASES: Never write "Status: ACTIVE", "Caveat:" as a label visible to the reader, "directionally correct ~X%", "In summary", "As an AI", "In conclusion". Never use numbered section headers (1. 2. 3.). These are system artifacts — your verdict should read like an editorial, not a form.
 - VERDICT LEDGER: You MUST end every verdict with a "## Key Conclusion" section using this exact format:
   ## Key Conclusion
   [2-3 sentence ruling summarizing your core decision]. Caveat: [1 sentence conditional or qualification]. Status: ACTIVE
   If this verdict supersedes a prior verdict, use: Status: SUPERSEDES V{n} on {scope}
-  This section is mandatory — never omit it.${previousContext && existingLedger.length > 0 ? `
-- RECONCILIATION: Before your verdict sections, write a <reconciliation> block that briefly explains how this verdict relates to each relevant prior verdict (affirms, updates, or supersedes). Reference prior verdicts by their ID (V1, V2, etc.). Keep it concise — 1-2 sentences per prior verdict.` : ''}`;
+  This section is mandatory — never omit it. It will be hidden from the user and used for internal tracking only.${previousContext && existingLedger.length > 0 ? `
+- RECONCILIATION: Before your verdict, write a <reconciliation> block that briefly explains how this verdict relates to each relevant prior verdict (affirms, updates, or supersedes). Reference prior verdicts by their ID (V1, V2, etc.). Keep it concise — 1-2 sentences per prior verdict. This block will be hidden from the user.` : ''}`;
 
     let finalContent: string = "";
     let chairmanFinishReason: string | undefined;
@@ -1634,7 +1643,7 @@ Rules:
       if (chairmanFinishReason === 'length' && finalContent.length > 0) {
         console.log(`[CHAIRMAN CONTINUATION] Response was truncated, attempting continuation...`);
         try {
-          const continuationPrompt = `You were generating a chairman verdict but your response was cut off. Here is what you wrote so far:\n\n${finalContent.slice(-6000)}\n\n--- CONTINUE FROM EXACTLY WHERE YOU LEFT OFF ---\nComplete the remaining content. Do NOT repeat any content already written above. Pick up mid-sentence if needed. Ensure all 5 verdict sections are completed.`;
+          const continuationPrompt = `You were generating a chairman verdict but your response was cut off. Here is what you wrote so far:\n\n${finalContent.slice(-6000)}\n\n--- CONTINUE FROM EXACTLY WHERE YOU LEFT OFF ---\nComplete the remaining content. Do NOT repeat any content already written above. Pick up mid-sentence if needed. Ensure all verdict sections are completed (Why This, Not That / What Would Change This / Your Move / Key Conclusion).`;
           const continuationMaxTokens = Math.min(4000, CHAIRMAN_MAX_TOKENS);
           const contResult = (chairmanHasVision && hasImages)
             ? await callLLMWithVision(selectedChairman, continuationPrompt, imageUrls, chairmanSystemPrompt, signal, continuationMaxTokens, userId, isAdminUser)
@@ -1675,7 +1684,7 @@ Rules:
           if (fbChairResult.finishReason === 'length' && finalContent.length > 0) {
             console.log(`[CHAIRMAN FALLBACK CONTINUATION] Fallback response was truncated, attempting continuation...`);
             try {
-              const contPrompt = `You were generating a chairman verdict but your response was cut off. Here is what you wrote so far:\n\n${finalContent.slice(-6000)}\n\n--- CONTINUE FROM EXACTLY WHERE YOU LEFT OFF ---\nComplete the remaining content. Do NOT repeat any content already written above. Pick up mid-sentence if needed. Ensure all 5 verdict sections are completed.`;
+              const contPrompt = `You were generating a chairman verdict but your response was cut off. Here is what you wrote so far:\n\n${finalContent.slice(-6000)}\n\n--- CONTINUE FROM EXACTLY WHERE YOU LEFT OFF ---\nComplete the remaining content. Do NOT repeat any content already written above. Pick up mid-sentence if needed. Ensure all verdict sections are completed (Why This, Not That / What Would Change This / Your Move / Key Conclusion).`;
               const contMaxTokens = Math.min(4000, CHAIRMAN_MAX_TOKENS);
               const contResult = (fbHasVision && hasImages)
                 ? await callLLMWithVision(fbModel, contPrompt, imageUrls, fbSystemPrompt, signal, contMaxTokens, userId, isAdminUser)
@@ -1701,11 +1710,28 @@ Rules:
       if (!recovered) throw chairmanError;
     }
     
-    // Create chairman message
+    const verdictNumber = existingLedger.length + 1;
+    let ledgerEntry: VerdictLedgerEntry | null = null;
+    try {
+      ledgerEntry = extractKeyConclusion(finalContent, verdictNumber, prompt);
+    } catch (e: any) {
+      console.error(`[LEDGER] extractKeyConclusion failed:`, e.message);
+    }
+
+    let userVisibleContent = finalContent;
+    const keyConclusionIdx = userVisibleContent.lastIndexOf('## Key Conclusion');
+    if (keyConclusionIdx !== -1) {
+      userVisibleContent = userVisibleContent.slice(0, keyConclusionIdx);
+    }
+    userVisibleContent = userVisibleContent
+      .replace(/<reconciliation>[\s\S]*?<\/reconciliation>/gi, '')
+      .replace(/<reconciliation>[\s\S]*$/gi, '')
+      .trim();
+
     await storage.createMessage({
       conversationId,
       role: "chairman",
-      content: finalContent,
+      content: userVisibleContent,
       status: "complete"
     });
 
@@ -1756,14 +1782,14 @@ Rules:
       }
     }
 
-    try {
-      const verdictNumber = existingLedger.length + 1;
-      const entry = extractKeyConclusion(finalContent, verdictNumber, prompt);
-      const updatedLedger = [...existingLedger, entry];
-      await storage.updateConversationVerdictLedger(conversationId, JSON.stringify(updatedLedger));
-      console.log(`[LEDGER] Stored verdict V${verdictNumber} for debate #${conversationId}: "${entry.conclusion.slice(0, 80)}..."`);
-    } catch (ledgerErr: any) {
-      console.error(`[LEDGER] Error updating verdict ledger for debate #${conversationId}:`, ledgerErr.message);
+    if (ledgerEntry) {
+      try {
+        const updatedLedger = [...existingLedger, ledgerEntry];
+        await storage.updateConversationVerdictLedger(conversationId, JSON.stringify(updatedLedger));
+        console.log(`[LEDGER] Stored verdict V${verdictNumber} for debate #${conversationId}: "${ledgerEntry.conclusion.slice(0, 80)}..."`);
+      } catch (ledgerErr: any) {
+        console.error(`[LEDGER] Error updating verdict ledger for debate #${conversationId}:`, ledgerErr.message);
+      }
     }
     
     clearTimeout(processTimer);
