@@ -2,32 +2,12 @@ import { build as esbuild } from "esbuild";
 import { build as viteBuild } from "vite";
 import { rm, readFile } from "fs/promises";
 
-// server deps to bundle to reduce openat(2) syscalls
-// which helps cold start times
-const allowlist = [
-  "@clerk/express",
-  "@google/generative-ai",
-  "axios",
-  "connect-pg-simple",
-  "cors",
-  "date-fns",
-  "drizzle-orm",
-  "drizzle-zod",
-  "express",
-  "express-rate-limit",
-  "jsonwebtoken",
-  "memorystore",
-  "multer",
-  "nanoid",
-  "nodemailer",
-  "openai",
+const externalOnly = [
+  "sharp",
   "pg",
-  "stripe",
-  "uuid",
-  "ws",
-  "xlsx",
-  "zod",
-  "zod-validation-error",
+  "@google-cloud/storage",
+  "google-auth-library",
+  "bufferutil",
 ];
 
 async function buildAll() {
@@ -44,7 +24,10 @@ async function buildAll() {
     ...Object.keys(pkg.dependencies || {}),
     ...Object.keys(pkg.devDependencies || {}),
   ];
-  const externals = allDeps.filter((dep) => !allowlist.includes(dep));
+  const externals = allDeps.filter((dep) =>
+    externalOnly.some((ext) => dep === ext || dep.startsWith(ext + "/"))
+  );
+  console.log(`Bundling ${allDeps.length - externals.length} deps, ${externals.length} external: ${externals.join(", ")}`);
 
   await esbuild({
     entryPoints: ["server/index.ts"],
