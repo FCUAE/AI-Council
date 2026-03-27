@@ -115,8 +115,8 @@ export default function ChairmanChip({
 
   const lockedCount = useMemo(() => {
     if (!isFreeUser) return 0;
-    return filteredBySearch.length - visibleModels.length;
-  }, [filteredBySearch, visibleModels, isFreeUser]);
+    return AVAILABLE_MODELS.filter(m => !FREE_MODELS.has(m.id)).length;
+  }, [isFreeUser]);
 
   const sortedModels = useMemo(() => {
     if (!activeRole) return visibleModels;
