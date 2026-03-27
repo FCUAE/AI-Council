@@ -1224,7 +1224,7 @@ export default function Chat() {
                                       </button>
                                     </TooltipTrigger>
                                     <TooltipContent className="max-w-[320px] bg-[#1a1a1a] text-white border-[#333] p-3 text-[12px] leading-relaxed" side="top" align="end">
-                                      <p className="m-0"><strong>This launches a council debate.</strong> 4 AI models will independently analyze your prompt, debate and challenge each other across 3 rounds, and synthesize a single, unified, highly intelligent answer.</p>
+                                      <p className="m-0">Calculating approximate credit cost for this reply based on your selected models.</p>
                                     </TooltipContent>
                                   </Tooltip>
                                 </TooltipProvider>
