@@ -333,13 +333,13 @@ export class DatabaseStorage implements IStorage {
     for (const conv of stuckConversations) {
       if (conv.userId && conv.reservedCredits > 0 && conv.settled === 0) {
         try {
-          await this.refundDebateCredits(
+          const refunded = await this.refundDebateCredits(
             conv.userId,
             conv.reservedCredits,
             `Recovered after deployment interruption (debate #${conv.id})`,
             conv.id
           );
-          await this.refundCreditsFIFO(conv.userId, conv.reservedCredits);
+          if (refunded) await this.refundCreditsFIFO(conv.userId, conv.reservedCredits);
         } catch (err: any) {
           console.error(`[RECOVERY] Failed to refund debate #${conv.id}:`, err.message);
         }
@@ -377,13 +377,13 @@ export class DatabaseStorage implements IStorage {
 
       if (conv.userId && conv.reservedCredits > 0 && conv.settled === 0) {
         try {
-          await this.refundDebateCredits(
+          const refunded = await this.refundDebateCredits(
             conv.userId,
             conv.reservedCredits,
             `Recovered stale conversation (stuck >${staleMinutes}min) (debate #${conv.id})`,
             conv.id
           );
-          await this.refundCreditsFIFO(conv.userId, conv.reservedCredits);
+          if (refunded) await this.refundCreditsFIFO(conv.userId, conv.reservedCredits);
         } catch (err: any) {
           console.error(`[STALE RECOVERY] Failed to refund debate #${conv.id}:`, err.message);
         }

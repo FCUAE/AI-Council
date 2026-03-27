@@ -11,6 +11,8 @@ export interface UsageData {
   hasPurchased: boolean;
   paymentFailed: boolean;
   creditsPurchasedAt: string | null;
+  expiringCredits: number | null;
+  expiringInDays: number | null;
 }
 
 export function useUsage(enabled: boolean = true) {

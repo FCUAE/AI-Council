@@ -1857,9 +1857,9 @@ Rules:
         try {
           const conv = await storage.getConversation(conversationId);
           const refundAmount = conv?.reservedCredits || creditCost;
-          await storage.refundDebateCredits(userId, refundAmount, `Deliberation timed out (debate #${conversationId})`, conversationId);
-          await storage.refundCreditsFIFO(userId, refundAmount);
-          console.log(`[REFUND] Timed-out debate #${conversationId}: refunded ${refundAmount} credits`);
+          const refunded = await storage.refundDebateCredits(userId, refundAmount, `Deliberation timed out (debate #${conversationId})`, conversationId);
+          if (refunded) await storage.refundCreditsFIFO(userId, refundAmount);
+          console.log(`[REFUND] Timed-out debate #${conversationId}: refunded ${refundAmount} credits (fifo=${refunded})`);
         } catch (refundErr: any) {
           console.error(`[REFUND] Error refunding timed-out debate #${conversationId}:`, refundErr.message);
         }
@@ -1872,9 +1872,9 @@ Rules:
         try {
           const conv = await storage.getConversation(conversationId);
           const refundAmount = conv?.reservedCredits || creditCost;
-          await storage.refundDebateCredits(userId, refundAmount, `Debate cancelled by user (debate #${conversationId})`, conversationId);
-          await storage.refundCreditsFIFO(userId, refundAmount);
-          console.log(`[REFUND] Cancelled debate #${conversationId}: refunded ${refundAmount} credits`);
+          const refunded = await storage.refundDebateCredits(userId, refundAmount, `Debate cancelled by user (debate #${conversationId})`, conversationId);
+          if (refunded) await storage.refundCreditsFIFO(userId, refundAmount);
+          console.log(`[REFUND] Cancelled debate #${conversationId}: refunded ${refundAmount} credits (fifo=${refunded})`);
         } catch (refundErr: any) {
           console.error(`[REFUND] Error refunding cancelled debate #${conversationId}:`, refundErr.message);
         }
@@ -1892,8 +1892,8 @@ Rules:
         try {
           const conv = await storage.getConversation(conversationId);
           const refundAmount = conv?.reservedCredits || creditCost;
-          await storage.refundDebateCredits(userId, refundAmount, `Deliberation failed: ${error.message || "unknown error"} (debate #${conversationId})`, conversationId);
-          await storage.refundCreditsFIFO(userId, refundAmount);
+          const refunded = await storage.refundDebateCredits(userId, refundAmount, `Deliberation failed: ${error.message || "unknown error"} (debate #${conversationId})`, conversationId);
+          if (refunded) await storage.refundCreditsFIFO(userId, refundAmount);
         } catch (refundErr: any) {
           console.error(`[REFUND] Error refunding failed debate #${conversationId}:`, refundErr.message);
         }
@@ -2680,8 +2680,6 @@ export async function registerRoutes(
           conversationId: conversation.id,
         });
 
-        await storage.consumeCreditsFIFO(userId, creditCost);
-
         const [userMessage] = await tx.insert(messages).values({
           conversationId: conversation.id,
           role: "user",
@@ -2704,6 +2702,7 @@ export async function registerRoutes(
       }
 
       const { conversation, userMessage } = txResult;
+      await storage.consumeCreditsFIFO(userId, creditCost);
       
       processCouncilMessage(conversation.id, userMessage.id, prompt, undefined, attachments, effectiveModels, effectiveChairman, creditCost, userId, isAdmin(req));
       
@@ -2863,6 +2862,7 @@ export async function registerRoutes(
       }
 
       const { userMessage } = txResult;
+      await storage.consumeCreditsFIFO(userId, creditCost);
       processCouncilMessage(conversationId, userMessage.id, prompt, context, attachments, effectiveModels, effectiveChairman, creditCost, userId, isAdmin(req));
 
       res.status(201).json(userMessage);
