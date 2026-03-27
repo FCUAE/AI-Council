@@ -4,7 +4,7 @@ import { useConversationStatus } from "@/hooks/use-conversation-status";
 import { useAuth } from "@/hooks/use-auth";
 import { useUsage } from "@/hooks/use-usage";
 import { EvidenceVault } from "@/components/council";
-import { Loader, Paperclip, X, Image, FileText, StopCircle, Copy, Check, Clock, Star, User, RefreshCw, AlertTriangle, MessageCircle, Plus, Info, ArrowUp } from "lucide-react";
+import { Loader, Paperclip, X, Image, FileText, StopCircle, Copy, Check, Clock, Star, User, RefreshCw, AlertTriangle, MessageCircle, Plus, Info, ArrowUp, Zap } from "lucide-react";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
 import { authFetch } from "@/lib/clerk-token";
 import { queryClient } from "@/lib/queryClient";
@@ -1027,6 +1027,20 @@ export default function Chat() {
                               })}
                             </div>
                           </div>
+
+                          {isFreeUser && (
+                            <Link href="/credits" data-testid="link-upsell-credits">
+                              <div className="bg-gradient-to-r from-[#eef2ff] to-[#f0e7ff] rounded-xl p-4 border border-[#c7d2fe] flex items-center justify-between gap-4 hover:shadow-md transition-shadow cursor-pointer">
+                                <div className="flex items-center gap-3">
+                                  <div className="w-8 h-8 rounded-full bg-[#4f46e5] flex items-center justify-center flex-shrink-0">
+                                    <Zap className="w-4 h-4 text-white" />
+                                  </div>
+                                  <p className="text-[13px] text-[#3730a3] font-medium">Want deeper analysis? Get more credits to keep your council running.</p>
+                                </div>
+                                <span className="text-[12px] font-semibold text-white bg-[#4f46e5] px-4 py-2 rounded-lg whitespace-nowrap hover:bg-[#4338ca] transition-colors flex-shrink-0">Get Credits</span>
+                              </div>
+                            </Link>
+                          )}
 
                         </div>
                       </div>
