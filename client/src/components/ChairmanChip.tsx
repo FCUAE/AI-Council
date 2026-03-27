@@ -200,7 +200,10 @@ export default function ChairmanChip({
                                     <span className="model-option-name">
                                       {m.name}
                                       {PREMIUM_MODEL_IDS.has(m.id) && (
-                                        <Zap className="w-3 h-3 inline-block ml-1 text-amber-500" />
+                                        <span className="inline-flex items-center gap-0.5 ml-1.5 text-[10px] font-medium text-amber-600">
+                                          <Zap className="w-3 h-3 text-amber-500" />
+                                          High credit usage
+                                        </span>
                                       )}
                                     </span>
                                     {isLocked && <Lock className="w-3 h-3 model-lock-icon" />}

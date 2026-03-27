@@ -191,10 +191,6 @@ function AppSidebar() {
     high: Math.floor(usage.debateCredits / 3),
   } : { low: 0, high: 0 };
 
-  const _creditsExpiryDate = usage?.creditsPurchasedAt
-    ? new Date(new Date(usage.creditsPurchasedAt).getTime() + 60 * 24 * 60 * 60 * 1000)
-    : null;
-  void _creditsExpiryDate;
 
   return (
     <>
