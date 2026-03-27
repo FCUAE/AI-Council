@@ -939,7 +939,7 @@ export function getUserTier(totalCreditsPurchased: number, currentBalance: numbe
   const effective = Math.max(totalCreditsPurchased, currentBalance);
   if (effective >= 1000) return 'mastermind';
   if (effective >= 400) return 'strategist';
-  if (effective > FREE_TIER_CREDITS) return 'explorer';
+  if (effective >= 100) return 'explorer';
   if (totalCreditsPurchased > 0) return 'explorer';
   return 'free';
 }
@@ -972,6 +972,8 @@ function niceRound(n: number): number {
 
 const STANDARD_BUFFER = 0.05;
 const REASONING_BUFFER = 0.20;
+const TARGET_MARGIN = 0.65;
+const WORST_CASE_NET_PER_CREDIT = 0.174;
 const COST_PER_CREDIT_BUDGET = 0.058;
 export const OVERRUN_CAP_MULTIPLIER = 1.3;
 

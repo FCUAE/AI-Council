@@ -1790,19 +1790,21 @@ Rules:
       try {
         const conv = await storage.getConversation(conversationId);
         const reservedAmount = conv?.reservedCredits || creditCost;
-        let actualCreditsFromApi = computeCreditCharge(totalApiCostDollars);
+        const actualCreditsFromApi = computeCreditCharge(totalApiCostDollars);
         const overrunCap = Math.ceil(creditCost * OVERRUN_CAP_MULTIPLIER);
-        if (actualCreditsFromApi > overrunCap) {
-          console.log(`[OVERRUN] Debate #${conversationId}: actualCredits=${actualCreditsFromApi} (from $${totalApiCostDollars.toFixed(4)} API cost) exceeds cap=${overrunCap} (1.3× original ${creditCost}). Capping charge.`);
-          actualCreditsFromApi = overrunCap;
+        let finalCharge = actualCreditsFromApi;
+        if (finalCharge > overrunCap) {
+          console.log(`[OVERRUN] Debate #${conversationId}: actualCredits=${actualCreditsFromApi} (from $${totalApiCostDollars.toFixed(4)} API cost) exceeds cap=${overrunCap} (1.3× estimate ${creditCost}). Capping and absorbing overrun.`);
+          finalCharge = overrunCap;
         }
-        const finalCharge = Math.max(actualCreditsFromApi, creditCost);
         const refundAmount = reservedAmount - finalCharge;
         if (refundAmount > 0) {
           await storage.refundDebateCredits(userId, refundAmount, `Settlement for debate #${conversationId}: reserved ${reservedAmount}, charged ${finalCharge}, refunded ${refundAmount}`, conversationId);
           console.log(`[SETTLE] Debate #${conversationId}: reserved=${reservedAmount}, actualFromApi=${actualCreditsFromApi}, finalCharge=${finalCharge}, refund=${refundAmount}`);
+        } else if (refundAmount < 0) {
+          console.log(`[SETTLE] Debate #${conversationId}: reserved=${reservedAmount}, actualFromApi=${actualCreditsFromApi}, finalCharge=${finalCharge}, undercharge=${-refundAmount} absorbed (no additional deduction)`);
         } else {
-          console.log(`[SETTLE] Debate #${conversationId}: reserved=${reservedAmount}, actualFromApi=${actualCreditsFromApi}, finalCharge=${finalCharge}, no refund needed`);
+          console.log(`[SETTLE] Debate #${conversationId}: reserved=${reservedAmount}, actualFromApi=${actualCreditsFromApi}, finalCharge=${finalCharge}, exact match`);
         }
         await storage.settleConversation(conversationId, finalCharge);
         refreshDebateCostSummary().catch(err => console.error(`[COST_SUMMARY] Error refreshing:`, err.message));
