@@ -928,6 +928,13 @@ export function getCostDisplay(cost: number): string {
   return "$".repeat(cost);
 }
 
+export function getCreditTierLabel(cost: number): string {
+  if (cost <= 1) return "Low";
+  if (cost <= 2) return "Medium";
+  if (cost <= 3) return "High";
+  return "Very High";
+}
+
 export function isVisionCapable(modelId: string): boolean {
   const model = getModelById(modelId);
   return model?.vision ?? false;

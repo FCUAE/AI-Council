@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from "react";
-import { AVAILABLE_MODELS, DEFAULT_COUNCIL_MODELS, DEFAULT_CHAIRMAN_MODEL, ROLE_LABELS, getCostDisplay, getRoleBadge, PREMIUM_MODEL_IDS, type ModelConfig, type Role } from "@shared/models";
+import { AVAILABLE_MODELS, DEFAULT_COUNCIL_MODELS, DEFAULT_CHAIRMAN_MODEL, ROLE_LABELS, getCreditTierLabel, getRoleBadge, PREMIUM_MODEL_IDS, type ModelConfig, type Role } from "@shared/models";
 import { ChevronDown, ChevronRight, Eye, EyeOff, Star, Trophy, Lock, Clock, Zap } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -232,7 +232,7 @@ export default function ChairmanChip({
                                         {m.badge}
                                       </span>
                                     )}
-                                    <span className="model-option-cost" title="Relative API cost: $ = budget, $$$$ = premium">{getCostDisplay(m.cost)}</span>
+                                    <span className="model-option-cost" title="Credit usage tier">{getCreditTierLabel(m.cost)}</span>
                                   </div>
                                 </button>
                               );
