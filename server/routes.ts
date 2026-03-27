@@ -1813,9 +1813,14 @@ Rules:
           await storage.refundDebateCredits(userId, refundAmount, `Settlement for debate #${conversationId}: reserved ${reservedAmount}, charged ${finalCharge}, refunded ${refundAmount}`, conversationId);
           console.log(`[SETTLE] Debate #${conversationId}: reserved=${reservedAmount}, actualFromApi=${actualCreditsFromApi}, finalCharge=${finalCharge}, refund=${refundAmount}`);
         } else if (refundAmount < 0) {
-          const additionalCharge = -refundAmount;
-          await storage.deductDebateCredits(userId, additionalCharge, `Settlement overrun for debate #${conversationId}: additional ${additionalCharge} credits (reserved ${reservedAmount}, actual ${finalCharge})`, conversationId);
-          console.log(`[SETTLE] Debate #${conversationId}: reserved=${reservedAmount}, actualFromApi=${actualCreditsFromApi}, finalCharge=${finalCharge}, additional deduction=${additionalCharge}`);
+          const isSettled = conv?.settled === 1;
+          if (!isSettled) {
+            const additionalCharge = -refundAmount;
+            await storage.deductDebateCredits(userId, additionalCharge, `Settlement overrun for debate #${conversationId}: additional ${additionalCharge} credits (reserved ${reservedAmount}, actual ${finalCharge})`, conversationId);
+            console.log(`[SETTLE] Debate #${conversationId}: reserved=${reservedAmount}, actualFromApi=${actualCreditsFromApi}, finalCharge=${finalCharge}, additional deduction=${additionalCharge}`);
+          } else {
+            console.log(`[SETTLE] Debate #${conversationId}: skipped duplicate overrun deduction (already settled)`);
+          }
         } else {
           console.log(`[SETTLE] Debate #${conversationId}: reserved=${reservedAmount}, actualFromApi=${actualCreditsFromApi}, finalCharge=${finalCharge}, exact match`);
         }
