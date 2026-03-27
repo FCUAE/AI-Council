@@ -344,30 +344,6 @@ function AppSidebar() {
                   <span className="font-semibold text-base text-[#1a1a1a]">{usage?.debateCredits || 0}</span>
                   <span className="font-normal text-[10px] text-[#737373]">credits remaining</span>
                 </div>
-                <div className="flex items-center gap-1 mb-1">
-                  <span className="text-[12px] text-[#737373]/70" data-testid="text-debate-estimate">
-                    {isFreeUser
-                      ? <>≈ up to <strong>{freeDebateEstimate}</strong> debates</>
-                      : <>≈ <strong>{debateEstimate.low}–{debateEstimate.high}</strong> debates</>
-                    }
-                  </span>
-                  <TooltipProvider delayDuration={200}>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <button
-                          type="button"
-                          className="w-4 h-4 flex items-center justify-center rounded-full text-[#737373]/70 hover:text-[#1a1a1a] transition-colors bg-transparent border-0 cursor-pointer flex-shrink-0"
-                          data-testid="button-debate-estimate-info"
-                        >
-                          <Info className="w-3 h-3" />
-                        </button>
-                      </TooltipTrigger>
-                      <TooltipContent className="max-w-[320px] bg-[#1a1a1a] text-white border-[#333] p-3 text-[12px] leading-relaxed" side="right" align="start">
-                        <p className="m-0">Varies by model selection. Blend lightweight models for more debates, or deploy premium reasoning models for maximum intelligence.</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                </div>
                 {usage?.expiringCredits && usage?.expiringInDays != null && usage.expiringInDays <= 14 && (usage?.debateCredits || 0) > 0 && (
                   <div className="flex items-center gap-1 mb-1" data-testid="text-expiring-credits">
                     <span className={`text-[11px] font-medium ${usage.expiringInDays <= 3 ? 'text-red-500' : 'text-amber-600'}`}>
