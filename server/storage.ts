@@ -159,7 +159,9 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deductDebateCredits(userId: string, amount: number, reason: string, conversationId?: number): Promise<void> {
-    await db.execute(sql`UPDATE users SET debate_credits = debate_credits - ${amount} WHERE clerk_id = ${userId}`);
+    await db.update(users).set({
+      debateCredits: sql`debate_credits - ${amount}`,
+    }).where(eq(users.id, userId));
     await db.insert(creditTransactions).values({
       userId,
       type: "deduction",
