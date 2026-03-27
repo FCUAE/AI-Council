@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { AVAILABLE_MODELS, DEFAULT_COUNCIL_MODELS, DEFAULT_CHAIRMAN_MODEL, ROLE_LABELS, getRoleBadge, type ModelConfig, type Role } from "@shared/models";
 import { ChevronDown, ChevronRight, Eye, Star, Trophy, Search, Sparkles } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+
 import { Link } from "wouter";
 
 const FREE_MODELS = new Set([...DEFAULT_COUNCIL_MODELS, DEFAULT_CHAIRMAN_MODEL]);
@@ -12,7 +12,6 @@ interface ChairmanChipProps {
   onSelectModel: (modelId: string) => void;
   disabled?: boolean;
   isFreeUser?: boolean;
-  hasAttachments?: boolean;
 }
 
 const ALL_ROLES: Role[] = ["coding", "marketing", "logic", "data", "quick"];
@@ -31,13 +30,11 @@ function ModelRow({
   m,
   isCurrentSelection,
   activeRole,
-  hasAttachments,
   onSelect,
 }: {
   m: ModelConfig;
   isCurrentSelection: boolean;
   activeRole: Role | null;
-  hasAttachments: boolean;
   onSelect: (id: string) => void;
 }) {
   const roleBadge = getRoleBadge(m.id, activeRole);
@@ -53,15 +50,8 @@ function ModelRow({
         <span className="model-option-name">
           {m.name}
         </span>
-        {hasAttachments && m.vision && (
-          <TooltipProvider delayDuration={0}>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Eye className="w-3 h-3 model-vision-icon" />
-              </TooltipTrigger>
-              <TooltipContent>Can read uploaded files</TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
+        {m.vision && (
+          <Eye className="w-3 h-3 model-vision-icon" />
         )}
       </div>
       <div className="model-option-meta">
@@ -75,6 +65,7 @@ function ModelRow({
             {m.badge}
           </span>
         )}
+        {m.cost >= 4 && <span className="model-high-credits">High credits</span>}
         <CostIndicator cost={m.cost} />
       </div>
     </button>
@@ -86,7 +77,6 @@ export default function ChairmanChip({
   onSelectModel,
   disabled = false,
   isFreeUser = false,
-  hasAttachments = false,
 }: ChairmanChipProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [activeRole, setActiveRole] = useState<Role | null>(null);
@@ -276,7 +266,7 @@ export default function ChairmanChip({
                       m={m}
                       isCurrentSelection={isCurrentSelection}
                       activeRole={activeRole}
-                      hasAttachments={hasAttachments}
+
                       onSelect={handleSelect}
                     />
                   );
@@ -291,7 +281,7 @@ export default function ChairmanChip({
                         m={m}
                         isCurrentSelection={isCurrentSelection}
                         activeRole={activeRole}
-                        hasAttachments={hasAttachments}
+  
                         onSelect={handleSelect}
                       />
                     );
@@ -338,7 +328,7 @@ export default function ChairmanChip({
                                   m={m}
                                   isCurrentSelection={isCurrentSelection}
                                   activeRole={activeRole}
-                                  hasAttachments={hasAttachments}
+            
                                   onSelect={handleSelect}
                                 />
                               );

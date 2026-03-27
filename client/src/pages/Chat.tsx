@@ -1185,7 +1185,6 @@ export default function Chat() {
                                 onSelectModel={handleSelectCouncilModel}
                                 isFreeUser={isFreeUser}
                                 dotColor={MODEL_COLORS[index]}
-                                hasAttachments={uploadedFiles.length > 0}
                               />
                             ))}
                             <div className="w-px h-4 bg-[#d1d5db] mx-0.5 shrink-0" />
@@ -1193,7 +1192,6 @@ export default function Chat() {
                               modelId={chairmanModel}
                               onSelectModel={handleSelectChairmanModel}
                               isFreeUser={isFreeUser}
-                              hasAttachments={uploadedFiles.length > 0}
                             />
                           {(messageValue?.trim().length ?? 0) >= 1 && (
                             !costEstimateConfirmed ? (
