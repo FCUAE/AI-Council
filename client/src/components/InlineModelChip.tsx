@@ -66,6 +66,7 @@ function ModelRow({
         )}
       </div>
       <div className="model-option-meta">
+        {m.cost >= 4 && <span className="model-premium-tag">Premium</span>}
         {activeRole && roleBadge ? (
           <span className={`model-badge ${roleBadge.isChampion ? 'champion' : ''} ${roleBadge.isNotRecommended ? 'not-recommended' : ''}`}>
             {roleBadge.isChampion && <Trophy className="w-3 h-3 inline-block mr-1" />}
@@ -76,7 +77,6 @@ function ModelRow({
             {m.badge}
           </span>
         )}
-        {m.cost >= 4 && <span className="model-high-credits">High credits</span>}
         <CostIndicator cost={m.cost} />
       </div>
     </button>
