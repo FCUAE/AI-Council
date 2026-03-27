@@ -1549,22 +1549,23 @@ code, pre, .cds--snippet {
   flex-shrink: 0;
 }
 
-.model-cost-dots {
+.model-cost-dollars {
   display: inline-flex;
   align-items: center;
-  gap: 2px;
+  gap: 0;
   flex-shrink: 0;
+  letter-spacing: 0.5px;
 }
 
-.model-cost-dot {
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background-color: var(--cgpt-border-subtle);
-  transition: background-color 0.12s ease;
+.model-cost-sign {
+  font-size: 0.6rem;
+  font-weight: 600;
+  color: var(--cgpt-border-subtle);
+  transition: color 0.12s ease;
+  line-height: 1;
 
   &.filled {
-    background-color: #f59e0b;
+    color: #f59e0b;
   }
 }
 

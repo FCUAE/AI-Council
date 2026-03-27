@@ -17,11 +17,11 @@ interface ChairmanChipProps {
 
 const ALL_ROLES: Role[] = ["coding", "marketing", "logic", "data", "quick"];
 
-function CostDots({ cost }: { cost: number }) {
+function CostIndicator({ cost }: { cost: number }) {
   return (
-    <span className="model-cost-dots" title={`Cost: ${cost}/4`}>
+    <span className="model-cost-dollars" title={`Cost: ${cost}/4`}>
       {Array.from({ length: 4 }, (_, i) => (
-        <span key={i} className={`model-cost-dot ${i < cost ? 'filled' : ''}`} />
+        <span key={i} className={`model-cost-sign ${i < cost ? 'filled' : ''}`}>$</span>
       ))}
     </span>
   );
@@ -75,7 +75,7 @@ function ModelRow({
             {m.badge}
           </span>
         )}
-        <CostDots cost={m.cost} />
+        <CostIndicator cost={m.cost} />
       </div>
     </button>
   );
