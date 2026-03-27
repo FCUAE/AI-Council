@@ -18,6 +18,7 @@ interface CostEstimate {
 import { compressImageIfNeeded, isImageFile } from "@/lib/imageCompression";
 import { authFetch } from "@/lib/clerk-token";
 import { Brain, MessageSquareMore, Star, Paperclip, X, Info, ArrowUp, Zap } from "lucide-react";
+import { trackEvent } from "@/lib/analytics";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
 import { 
   Document,
@@ -109,7 +110,7 @@ export default function Home() {
   }, [tokenEstimates]);
 
   const isFreeUser = !usage?.isSubscribed && (usage?.deliberationCount || 0) <= FREE_TIER_CREDITS && (usage?.debateCredits || 0) <= FREE_TIER_CREDITS;
-  
+
   const localCreditCost = getDebateCreditCost(selectedModels, chairmanModel, totalAttachmentTokens);
   const [serverEstimate, setServerEstimate] = useState<CostEstimate | null>(null);
   const [isEstimating, setIsEstimating] = useState(false);
@@ -180,6 +181,14 @@ export default function Home() {
   const hasEnoughCredits = userCredits >= creditCost;
   const costPending = isEstimating || pendingExtractions > 0;
   const canSubmit = isAuthenticated ? (costEstimateConfirmed && hasEnoughCredits) : true;
+
+  const upsellTrackedRef = useRef(false);
+  useEffect(() => {
+    if (isAuthenticated && usage && usage.debateCredits === 0 && !upsellTrackedRef.current) {
+      upsellTrackedRef.current = true;
+      trackEvent("upsell_shown", { location: "home" });
+    }
+  }, [isAuthenticated, usage]);
 
   const handleSelectModel = (slotIndex: number, modelId: string) => {
     const newModels = [...selectedModels];
@@ -563,7 +572,7 @@ export default function Home() {
                   You're out of credits.{" "}
                   <button
                     type="button"
-                    onClick={() => setLocation("/credits")}
+                    onClick={() => { trackEvent("upsell_clicked", { location: "home" }); setLocation("/credits"); }}
                     className="font-semibold underline text-amber-900 bg-transparent border-0 cursor-pointer p-0 text-[13px]"
                     data-testid="link-upsell-credits"
                   >

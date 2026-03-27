@@ -1759,6 +1759,8 @@ Rules:
     await storage.updateMessageStatus(userMessageId, "complete");
     await storage.updateConversationStatus(conversationId, "complete");
 
+    storage.trackEvent("debate_completed", userId, { conversationId, creditCost, models: customModels, chairmanModel });
+
     const totalApiCostDollars = totalUsage.reduce((sum, u) => sum + u.apiCostDollars, 0);
     const totalPromptTokens = totalUsage.reduce((sum, u) => sum + u.promptTokens, 0);
     const totalCompletionTokens = totalUsage.reduce((sum, u) => sum + u.completionTokens, 0);
@@ -2706,6 +2708,8 @@ export async function registerRoutes(
       
       processCouncilMessage(conversation.id, userMessage.id, prompt, undefined, attachments, effectiveModels, effectiveChairman, creditCost, userId, isAdmin(req));
       
+      storage.trackEvent("debate_started", userId, { conversationId: conversation.id, creditCost, models: effectiveModels, chairmanModel: effectiveChairman });
+      
       res.status(201).json(conversation);
     } catch (err) {
       if (err instanceof z.ZodError) {
@@ -3254,6 +3258,7 @@ export async function registerRoutes(
         });
 
         console.log(`[CREDITS] Added ${credits} credits to user ${userId} via session ${sessionId} (batch expires ${expiresAt.toISOString()})`);
+        storage.trackEvent("purchase_completed", userId, { credits, packTier, sessionId, amountPaid: (session.amount_total || 0) / 100 });
 
         try {
           const amountPaid = (session.amount_total || 0) / 100;
@@ -3432,6 +3437,147 @@ export async function registerRoutes(
       }
       res.status(500).json({ message: "Failed to refresh analytics" });
     }
+  });
+
+  app.get("/api/admin/dashboard", isAuthenticated, async (req, res) => {
+    if (!isAdmin(req)) {
+      return res.status(403).json({ message: "Forbidden" });
+    }
+    try {
+      const modelCosts7d = await db.execute(sql`
+        SELECT
+          unnest(models) as model,
+          COUNT(*) as debate_count,
+          ROUND(AVG(COALESCE(actual_api_cost::numeric, 0)), 4) as avg_cost,
+          ROUND(SUM(COALESCE(actual_api_cost::numeric, 0)), 4) as total_cost
+        FROM conversations
+        WHERE created_at >= NOW() - INTERVAL '7 days' AND status = 'complete' AND models IS NOT NULL
+        GROUP BY unnest(models) ORDER BY avg_cost DESC
+      `);
+      const modelCosts30d = await db.execute(sql`
+        SELECT
+          unnest(models) as model,
+          COUNT(*) as debate_count,
+          ROUND(AVG(COALESCE(actual_api_cost::numeric, 0)), 4) as avg_cost,
+          ROUND(SUM(COALESCE(actual_api_cost::numeric, 0)), 4) as total_cost
+        FROM conversations
+        WHERE created_at >= NOW() - INTERVAL '30 days' AND status = 'complete' AND models IS NOT NULL
+        GROUP BY unnest(models) ORDER BY avg_cost DESC
+      `);
+
+      const marginData = await db.execute(sql`
+        SELECT
+          array_to_string(c.models, ', ') as model_config,
+          c.chairman_model,
+          COUNT(*) as debate_count,
+          ROUND(AVG(COALESCE(c.actual_api_cost::numeric, 0)), 4) as avg_api_cost,
+          ROUND(AVG(c.reserved_credits), 2) as avg_credits_charged,
+          ROUND(AVG(c.reserved_credits * 0.058), 4) as avg_credit_value,
+          ROUND(
+            CASE WHEN AVG(c.reserved_credits * 0.058) > 0
+            THEN (1 - AVG(COALESCE(c.actual_api_cost::numeric, 0)) / NULLIF(AVG(c.reserved_credits * 0.058), 0)) * 100
+            ELSE 0 END
+          , 1) as margin_pct
+        FROM conversations c
+        WHERE c.status = 'complete' AND c.models IS NOT NULL AND c.settled = 1
+        GROUP BY c.models, c.chairman_model
+        HAVING COUNT(*) >= 2
+        ORDER BY margin_pct ASC
+      `);
+
+      const overruns = await db.execute(sql`
+        SELECT
+          c.id, LEFT(c.title, 60) as title,
+          array_to_string(c.models, ', ') as models,
+          c.estimated_credits, c.reserved_credits,
+          ROUND(COALESCE(c.actual_api_cost::numeric, 0), 4) as actual_api_cost,
+          ROUND(c.estimated_credits * 0.058, 4) as estimated_cost,
+          ROUND(
+            CASE WHEN c.estimated_credits * 0.058 > 0
+            THEN ((COALESCE(c.actual_api_cost::numeric, 0) - c.estimated_credits * 0.058) / (c.estimated_credits * 0.058)) * 100
+            ELSE 0 END
+          , 1) as overrun_pct,
+          c.created_at
+        FROM conversations c
+        WHERE c.status = 'complete' AND c.settled = 1
+          AND c.estimated_credits > 0
+          AND COALESCE(c.actual_api_cost::numeric, 0) > c.estimated_credits * 0.058 * 1.2
+        ORDER BY c.created_at DESC LIMIT 50
+      `);
+
+      const funnelData = await db.execute(sql`
+        SELECT
+          (SELECT COUNT(*) FROM users) as total_signups,
+          (SELECT COUNT(DISTINCT user_id) FROM conversations WHERE user_id IS NOT NULL) as had_first_debate,
+          (SELECT COUNT(DISTINCT u.id) FROM users u WHERE u.debate_credits = 0 AND u.deliberation_count > 0) as credits_exhausted,
+          (SELECT COUNT(DISTINCT ct.user_id) FROM credit_transactions ct WHERE ct.type = 'purchase') as made_purchase
+      `);
+
+      const packDistribution = await db.execute(sql`
+        SELECT
+          cb.pack_tier,
+          COUNT(*) as purchase_count,
+          SUM(cb.credits_original) as total_credits,
+          CASE
+            WHEN cb.pack_tier = 'explorer' THEN COUNT(*) * 29
+            WHEN cb.pack_tier = 'strategist' THEN COUNT(*) * 89
+            WHEN cb.pack_tier = 'mastermind' THEN COUNT(*) * 179
+            ELSE 0
+          END as revenue
+        FROM credit_batches cb
+        WHERE cb.pack_tier IN ('explorer', 'strategist', 'mastermind')
+        GROUP BY cb.pack_tier ORDER BY revenue DESC
+      `);
+
+      const expirationReport = await db.execute(sql`
+        SELECT
+          COALESCE(SUM(CASE WHEN expires_at <= NOW() + INTERVAL '7 days' AND expires_at > NOW() THEN credits_remaining ELSE 0 END), 0) as expiring_7d,
+          COALESCE(SUM(CASE WHEN expires_at <= NOW() + INTERVAL '30 days' AND expires_at > NOW() THEN credits_remaining ELSE 0 END), 0) as expiring_30d,
+          COALESCE(SUM(CASE WHEN expires_at <= NOW() + INTERVAL '90 days' AND expires_at > NOW() THEN credits_remaining ELSE 0 END), 0) as expiring_90d,
+          COALESCE(SUM(CASE WHEN status = 'dormant' THEN credits_remaining ELSE 0 END), 0) as dormant_credits,
+          COUNT(CASE WHEN status = 'dormant' THEN 1 END) as dormant_batches
+        FROM credit_batches
+        WHERE status IN ('active', 'dormant')
+      `);
+
+      const recentEvents = await db.execute(sql`
+        SELECT event, COUNT(*) as count, MAX(created_at) as last_seen
+        FROM analytics_events
+        WHERE created_at >= NOW() - INTERVAL '7 days'
+        GROUP BY event ORDER BY count DESC
+      `);
+
+      res.json({
+        modelCosts: { trailing7d: modelCosts7d.rows, trailing30d: modelCosts30d.rows },
+        margins: marginData.rows,
+        overruns: overruns.rows,
+        funnel: funnelData.rows[0] || {},
+        packDistribution: packDistribution.rows,
+        expirationReport: expirationReport.rows[0] || {},
+        recentEvents: recentEvents.rows,
+      });
+    } catch (error: any) {
+      console.error("Admin dashboard error:", error.message);
+      res.status(500).json({ message: "Failed to load dashboard" });
+    }
+  });
+
+  app.post("/api/track-event", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      const { event, metadata } = req.body || {};
+      if (!event || typeof event !== "string" || event.length > 60) {
+        return res.status(400).json({ message: "Invalid event" });
+      }
+      await storage.trackEvent(event, userId || undefined, metadata || undefined);
+      res.json({ ok: true });
+    } catch {
+      res.status(500).json({ message: "Failed" });
+    }
+  });
+
+  app.get("/api/admin/check", isAuthenticated, async (req, res) => {
+    res.json({ isAdmin: isAdmin(req) });
   });
 
   return httpServer;

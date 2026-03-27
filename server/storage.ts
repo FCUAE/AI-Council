@@ -1,11 +1,12 @@
 import { db } from "./db";
 import { 
-  queries, responses, conversations, messages, councilResponses, users, creditTransactions, supportMessages, platformAnalytics, creditBatches,
+  queries, responses, conversations, messages, councilResponses, users, creditTransactions, supportMessages, platformAnalytics, creditBatches, analyticsEvents,
   type InsertQuery, type InsertResponse, type QueryWithResponses,
   type InsertConversation, type InsertMessage, type InsertCouncilResponse,
   type ConversationWithMessages, type MessageWithResponses, type User,
   type InsertCreditTransaction, type InsertSupportMessage,
-  type CreditBatch, type InsertCreditBatch
+  type CreditBatch, type InsertCreditBatch,
+  type InsertAnalyticsEvent
 } from "@shared/schema";
 import { eq, desc, sql, inArray, asc, and } from "drizzle-orm";
 
@@ -70,6 +71,8 @@ export interface IStorage {
   updateBatchStatus(batchId: number, status: string): Promise<void>;
   markBatchWarningSent(batchId: number, field: 'warning_sent' | 'final_warning_sent'): Promise<void>;
   getSoonestExpiringBatch(userId: string): Promise<CreditBatch | undefined>;
+
+  trackEvent(event: string, userId?: string, metadata?: Record<string, unknown>): Promise<void>;
 
   // Legacy methods
   createQuery(query: InsertQuery): Promise<typeof queries.$inferSelect>;
@@ -580,6 +583,18 @@ export class DatabaseStorage implements IStorage {
       .orderBy(asc(creditBatches.expiresAt))
       .limit(1);
     return batch;
+  }
+
+  async trackEvent(event: string, userId?: string, metadata?: Record<string, unknown>): Promise<void> {
+    try {
+      await db.insert(analyticsEvents).values({
+        event,
+        userId: userId ?? null,
+        metadata: metadata ?? null,
+      });
+    } catch (err: any) {
+      console.error(`[ANALYTICS] Failed to track event ${event}:`, err.message);
+    }
   }
 
   // Legacy methods

@@ -19,6 +19,17 @@ export const platformAnalytics = pgTable("platform_analytics", {
 
 export type PlatformAnalytics = typeof platformAnalytics.$inferSelect;
 
+export const analyticsEvents = pgTable("analytics_events", {
+  id: serial("id").primaryKey(),
+  event: varchar("event", { length: 60 }).notNull(),
+  userId: varchar("user_id"),
+  metadata: jsonb("metadata").$type<Record<string, unknown>>(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type AnalyticsEvent = typeof analyticsEvents.$inferSelect;
+export type InsertAnalyticsEvent = typeof analyticsEvents.$inferInsert;
+
 // === TABLE DEFINITIONS ===
 
 // A conversation thread (replaces queries)

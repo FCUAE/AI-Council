@@ -35,6 +35,7 @@ The frontend follows a pages-based structure with reusable components. The main 
 3. Credits page for purchasing credit packs
 4. Profile page for account settings and billing
 5. Affiliate page for the Refgrow affiliate program dashboard
+6. Admin dashboard at `/admin` (restricted to ADMIN_USER_IDS env var)
 
 ### Backend Architecture
 - **Framework**: Express.js with TypeScript
@@ -120,6 +121,7 @@ The backend implements a council deliberation pattern:
 - **messages**: Individual messages within conversations (user or chairman role), can include file attachments
 - **councilResponses**: AI model responses linked to messages, with stage tracking (initial, review, final)
 - **credit_transactions**: Audit log for all credit changes — columns: `id`, `userId`, `type` (purchase/deduction/recovery/manual/refund), `amount` (+/-), `balanceAfter`, `description`, `stripeSessionId`, `conversationId`, `createdAt`. Has a BEFORE INSERT trigger (`trg_sync_credits`) that auto-updates `users.debate_credits` for non-deduction types. Deductions skip the trigger (handled atomically in routes). Manual credit adjustments: just INSERT a row with type='manual' and the user's balance updates automatically. Unique index on `stripe_session_id` prevents double-crediting. Table + trigger created on startup via `runAppMigrations()` in `server/index.ts`.
+- **analytics_events**: Lightweight event tracking table — columns: `id`, `event` (varchar 60), `user_id`, `metadata` (jsonb), `created_at`. Tracked events: pricing_page_view, tier_selected, purchase_completed, debate_started, debate_completed, model_selected, upsell_shown, upsell_clicked, credits_expiring_notification_sent, credits_expired. Use `storage.trackEvent()` server-side or `trackEvent()` from `client/src/lib/analytics.ts` client-side.
 - **stripe.*** tables: Managed by `stripe-replit-sync` for products, prices, customers, subscriptions
 - Legacy tables (queries, responses) exist for backward compatibility
 

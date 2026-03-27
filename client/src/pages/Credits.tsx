@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
 import { useClerk } from "@clerk/react";
@@ -6,6 +6,7 @@ import { ArrowLeft, Lock, AlertCircle, Zap, Shield, CreditCard, Clock } from "lu
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
 import { authFetch } from "@/lib/clerk-token";
 import { getRefgrowReferral } from "@/hooks/use-refgrow";
+import { trackEvent } from "@/lib/analytics";
 
 const PACKS = [
   {
@@ -64,6 +65,15 @@ export default function Credits() {
   const [error, setError] = useState<string | null>(null);
 
   const pack = PACKS[selectedPack];
+
+  useEffect(() => {
+    trackEvent("pricing_page_view");
+  }, []);
+
+  const handleTierSelect = (index: number) => {
+    setSelectedPack(index);
+    trackEvent("tier_selected", { tier: PACKS[index].label, size: PACKS[index].size });
+  };
 
   const handlePurchase = async () => {
     if (!isAuthenticated) {
@@ -138,7 +148,7 @@ export default function Credits() {
               <button
                 key={p.size}
                 type="button"
-                onClick={() => setSelectedPack(index)}
+                onClick={() => handleTierSelect(index)}
                 className={`relative text-left p-6 pt-8 rounded-2xl transition-all cursor-pointer border-0 bg-white flex flex-col ${
                   isSelected
                     ? "ring-2 ring-[#1a1a1a] shadow-[0_4px_16px_-4px_rgba(0,0,0,0.12)]"

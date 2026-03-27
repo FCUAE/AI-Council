@@ -8,6 +8,7 @@ import Chat from "@/pages/Chat";
 import Credits from "@/pages/Credits";
 import Profile from "@/pages/Profile";
 import Affiliate from "@/pages/Affiliate";
+import Admin from "@/pages/Admin";
 
 import { useAuth } from "@/hooks/use-auth";
 import { useUsage } from "@/hooks/use-usage";
@@ -632,6 +633,7 @@ function Router() {
       <Route path="/credits" component={Credits} />
       <Route path="/profile" component={Profile} />
       <Route path="/affiliate" component={Affiliate} />
+      <Route path="/admin" component={Admin} />
       <Route component={NotFound} />
     </Switch>
   );

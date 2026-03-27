@@ -24,6 +24,7 @@ import { renderMarkdown, lightTheme } from "@/lib/markdown-renderer";
 import { compressImageIfNeeded, isImageFile } from "@/lib/imageCompression";
 import InlineModelChip from "@/components/InlineModelChip";
 import ChairmanChip from "@/components/ChairmanChip";
+import { trackEvent } from "@/lib/analytics";
 
 interface UploadedFile {
   name: string;
@@ -269,12 +270,14 @@ export default function Chat() {
     });
     setServerEstimate(null);
     setEstimateRetryCount(c => c + 1);
+    trackEvent("model_selected", { modelId, slot: slotIndex, role: "council" });
   }, [conversation?.models]);
 
   const handleSelectChairmanModel = useCallback((modelId: string) => {
     setChairmanModelOverride(modelId);
     setServerEstimate(null);
     setEstimateRetryCount(c => c + 1);
+    trackEvent("model_selected", { modelId, role: "chairman" });
   }, []);
 
   useEffect(() => {

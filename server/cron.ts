@@ -1,5 +1,5 @@
 import { storage } from "./storage";
-import { users, creditTransactions, creditBatches } from "@shared/schema";
+import { users, creditTransactions, creditBatches, analyticsEvents } from "@shared/schema";
 import { db } from "./db";
 import { sql, eq } from "drizzle-orm";
 import { sendCreditExpiryWarning, sendCreditExpiryFinalWarning, sendCreditExpiredNotice } from "./email";
@@ -36,6 +36,7 @@ async function checkCreditExpiration() {
 
         if (sent) {
           await storage.markBatchWarningSent(batch.id, 'warning_sent');
+          storage.trackEvent("credits_expiring_notification_sent", batch.userId, { batchId: batch.id, creditsRemaining: batch.creditsRemaining, daysLeft, type: "warning" });
           warnedCount++;
         }
       }
@@ -55,6 +56,7 @@ async function checkCreditExpiration() {
 
         if (sent) {
           await storage.markBatchWarningSent(batch.id, 'final_warning_sent');
+          storage.trackEvent("credits_expiring_notification_sent", batch.userId, { batchId: batch.id, creditsRemaining: batch.creditsRemaining, type: "final_warning" });
           finalWarnedCount++;
         }
       }
@@ -83,6 +85,7 @@ async function checkCreditExpiration() {
           }
         }
 
+        storage.trackEvent("credits_expired", batch.userId, { batchId: batch.id, creditsExpired: expiredCredits, packTier: batch.packTier });
         dormantCount++;
         console.log(`[cron] Batch #${batch.id} → dormant (${expiredCredits} credits, user ${batch.userId})`);
       }

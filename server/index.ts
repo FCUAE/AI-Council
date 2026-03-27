@@ -404,6 +404,16 @@ async function runAppMigrations(client: import('pg').PoolClient) {
       CREATE INDEX IF NOT EXISTS idx_credit_batches_user_status_expires
         ON credit_batches(user_id, status, expires_at);
 
+      CREATE TABLE IF NOT EXISTS analytics_events (
+        id SERIAL PRIMARY KEY,
+        event VARCHAR(60) NOT NULL,
+        user_id VARCHAR,
+        metadata JSONB DEFAULT '{}',
+        created_at TIMESTAMP DEFAULT NOW()
+      );
+      CREATE INDEX IF NOT EXISTS idx_analytics_events_event ON analytics_events(event);
+      CREATE INDEX IF NOT EXISTS idx_analytics_events_created_at ON analytics_events(created_at);
+
       INSERT INTO credit_batches (user_id, credits_remaining, credits_original, purchased_at, expires_at, pack_tier, status)
       SELECT
         id,
