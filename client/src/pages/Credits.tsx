@@ -252,7 +252,7 @@ export default function Credits() {
             className="w-full bg-[#1a1a1a] hover:bg-[#2b2b2b] text-white py-3 px-4 rounded-lg font-semibold transition-colors flex items-center justify-center gap-2 shadow-sm text-[15px] cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed border-0"
             data-testid="button-pay"
           >
-            {loading ? "Processing..." : isAuthenticated ? `Pay $${pack.priceRaw}.00` : "Sign in to Purchase"}
+            {loading ? "Processing..." : isAuthenticated ? `Buy ${pack.size.toLocaleString()} Credits` : "Sign in to Purchase"}
           </button>
 
           <div className="flex items-center justify-center gap-4 mt-4 flex-wrap">
