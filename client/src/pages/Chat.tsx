@@ -1026,33 +1026,6 @@ export default function Chat() {
                                 );
                               })}
                             </div>
-                            {!isProcessing && message.id === latestVerdictId && (
-                              <div className="mt-4 pt-3 border-t border-[#e5e5e5]">
-                                <div className="flex items-center justify-between">
-                                  <p className="text-[12px] text-[#737373]">Want to hear more from the council?</p>
-                                  <button
-                                    onClick={handleExpandCouncil}
-                                    disabled={isExpandingCouncil || addMessage.isPending || !hasEnoughCreditsForExpand}
-                                    className="flex items-center gap-2 px-4 py-2 text-[12px] font-semibold text-white bg-[#4f46e5] hover:bg-[#4338ca] rounded-lg cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed transition-colors border-0 shadow-sm"
-                                    data-testid="button-expand-council"
-                                  >
-                                    {isExpandingCouncil ? (
-                                      <><Loader className="w-3.5 h-3.5 animate-spin" /> Expanding...</>
-                                    ) : (
-                                      <><MessageCircle className="w-3.5 h-3.5" /> Let them share ({expandCreditCost} Credit{expandCreditCost !== 1 ? 's' : ''})</>
-                                    )}
-                                  </button>
-                                </div>
-                                {!hasEnoughCreditsForExpand && (
-                                  <p className="text-[11px] text-amber-600 mt-2">
-                                    Not enough credits.{' '}
-                                    <Link href="/credits" className="underline hover:text-amber-700" data-testid="link-expand-credits">
-                                      Purchase more on the Credits page
-                                    </Link>
-                                  </p>
-                                )}
-                              </div>
-                            )}
                           </div>
 
                         </div>
