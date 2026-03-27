@@ -64,13 +64,13 @@ function ModelRow({
           {m.name}
           {isSelected && !isCurrentSlot && <span className="text-[10px] text-[#b0b0b0] ml-1 font-normal">(selected)</span>}
         </span>
-        {hasAttachments && (
+        {hasAttachments && m.vision && (
           <TooltipProvider delayDuration={0}>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Eye className={`w-3 h-3 ${m.vision ? 'model-vision-icon' : 'model-no-vision-icon'}`} />
+                <Eye className="w-3 h-3 model-vision-icon" />
               </TooltipTrigger>
-              <TooltipContent>{m.vision ? 'Can read uploaded files' : 'Cannot read files'}</TooltipContent>
+              <TooltipContent>Can read uploaded files</TooltipContent>
             </Tooltip>
           </TooltipProvider>
         )}

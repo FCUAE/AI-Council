@@ -673,7 +673,6 @@ export default function Home() {
                         selectedModels={selectedModels}
                         onSelectModel={handleSelectModel}
                         isFreeUser={isFreeUser}
-                        onLockedModelClick={() => setLocation("/credits")}
                         dotColor={MODEL_COLORS[index]}
                       />
                     ))}
@@ -682,7 +681,6 @@ export default function Home() {
                       modelId={chairmanModel}
                       onSelectModel={setChairmanModel}
                       isFreeUser={isFreeUser}
-                      onLockedModelClick={() => setLocation("/credits")}
                     />
                     {!isDefaultConfig && !isFreeUser && (
                       <button

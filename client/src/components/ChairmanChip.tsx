@@ -53,13 +53,13 @@ function ModelRow({
         <span className="model-option-name">
           {m.name}
         </span>
-        {hasAttachments && (
+        {hasAttachments && m.vision && (
           <TooltipProvider delayDuration={0}>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Eye className={`w-3 h-3 ${m.vision ? 'model-vision-icon' : 'model-no-vision-icon'}`} />
+                <Eye className="w-3 h-3 model-vision-icon" />
               </TooltipTrigger>
-              <TooltipContent>{m.vision ? 'Can read uploaded files' : 'Cannot read files'}</TooltipContent>
+              <TooltipContent>Can read uploaded files</TooltipContent>
             </Tooltip>
           </TooltipProvider>
         )}
