@@ -50,31 +50,46 @@ interface AnalyticsUser {
   totalRevenue: string | number;
 }
 
+interface ExpirationReport {
+  expiring_7d: number;
+  expiring_30d: number;
+  expiring_90d: number;
+  dormant_credits: number;
+  dormant_batches: number;
+}
+
+interface FunnelData {
+  total_signups: number;
+  had_first_debate: number;
+  credits_exhausted: number;
+  made_purchase: number;
+}
+
 interface AdminDashboard {
-  totalUsers: number;
-  totalRevenue: string | number;
-  totalDebates: number;
-  avgApiCost: string | number;
-  totalApiCost: string | number;
-  avgMargin: string | number;
-  modelCosts7d: ModelCostRow[];
-  modelCosts30d: ModelCostRow[];
+  modelCosts: {
+    trailing7d: ModelCostRow[];
+    trailing30d: ModelCostRow[];
+  };
   margins: MarginRow[];
   overruns: OverrunRow[];
-  funnel: Record<string, number>;
+  funnel: FunnelData;
   packDistribution: PackDistRow[];
-  expirationReport: Array<{ userId: string; creditsRemaining: number; expiresAt: string; packTier: string }>;
+  expirationReport: ExpirationReport;
   recentEvents: EventRow[];
 }
 
-interface AnalyticsData {
-  totalApiCostDollars: string | number;
-  totalRevenueDollars: string | number;
+interface AnalyticsTotals {
+  totalApiCost: number;
+  totalRevenue: number;
   totalDebates: number;
   activeUsers: number;
   totalPromptTokens: number;
   totalCompletionTokens: number;
   totalCreditsCharged: number;
+}
+
+interface AnalyticsData {
+  totals: AnalyticsTotals;
   users: AnalyticsUser[];
 }
 
@@ -208,8 +223,8 @@ export default function Admin() {
     );
   }
 
-  const funnel = dashboard?.funnel || {};
-  const expReport = dashboard?.expirationReport || {};
+  const funnel = dashboard?.funnel || {} as FunnelData;
+  const expReport = dashboard?.expirationReport || {} as ExpirationReport;
 
   return (
     <div className="flex flex-col h-full min-h-[calc(100vh-24px)] overflow-y-auto">
