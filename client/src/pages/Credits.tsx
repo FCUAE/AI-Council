@@ -13,7 +13,7 @@ const PACKS = [
     size: 100,
     priceRaw: 29,
     label: "Explorer",
-    debateRange: "~15–50",
+    debateRange: "Up to 50",
     perCredit: "$0.29",
     expirationDays: 90,
     badge: null as string | null,
@@ -23,7 +23,7 @@ const PACKS = [
     size: 400,
     priceRaw: 89,
     label: "Strategist",
-    debateRange: "~55–200",
+    debateRange: "Up to 200",
     perCredit: "$0.22",
     expirationDays: 120,
     badge: "Most Popular",
@@ -33,7 +33,7 @@ const PACKS = [
     size: 1000,
     priceRaw: 179,
     label: "Mastermind",
-    debateRange: "~130–500",
+    debateRange: "Up to 500",
     perCredit: "$0.18",
     expirationDays: 180,
     badge: "Best Value",
@@ -53,6 +53,18 @@ const FAQ_ITEMS = [
   {
     question: "Can I choose which AI models participate?",
     answer: "Yes — you have full control over which models join each debate. Blend lightweight models for more debates per credit, or deploy premium reasoning models for maximum intelligence. The credit cost updates in real time as you change your council.",
+  },
+  {
+    question: "How is AI Council different from just using ChatGPT or Claude directly?",
+    answer: "A single AI model gives you one perspective with no pushback — and no way to know what it missed. AI Council forces multiple frontier models to independently analyze your question, then rigorously cross-examine each other's reasoning before a lead model synthesizes the strongest answer. It's the difference between asking one advisor and convening an expert panel that challenges every assumption.",
+  },
+  {
+    question: "Can I buy more credits later?",
+    answer: "Yes — you can purchase additional credit packs at any time. New credits are added to your existing balance, and each pack's expiration is tracked independently. There's no subscription or recurring charge; every purchase is one-time.",
+  },
+  {
+    question: "How do I know what a debate will cost before I run it?",
+    answer: "Before you start any debate, you'll see the estimated credit cost based on the models you've selected for your council. You always have full control — choose lightweight models for more debates per credit, or deploy premium reasoning models for deeper analysis. The cost updates in real time as you adjust your council lineup.",
   },
 ];
 
@@ -222,7 +234,7 @@ export default function Credits() {
               <span className="font-semibold text-[#1a1a1a]" data-testid="text-selected-plan">{pack.label}</span>
               {" — "}
               <span data-testid="text-selected-credits">{pack.size.toLocaleString()} credits</span>
-              <span className="text-[#999]" data-testid="text-selected-debates">{" "}({pack.debateRange} debates)</span>
+              <span className="text-[#999]" data-testid="text-selected-debates"> · {pack.debateRange} debates</span>
             </div>
             <span className="text-xl font-bold text-[#1a1a1a]" data-testid="text-selected-price">${pack.priceRaw}.00</span>
           </div>
