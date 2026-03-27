@@ -385,6 +385,8 @@ async function runAppMigrations(client: import('pg').PoolClient) {
         reset_at TIMESTAMPTZ NOT NULL,
         UNIQUE (route_key, user_id)
       );
+
+      ALTER TABLE users ALTER COLUMN debate_credits SET DEFAULT 10;
     `);
     console.log('App migrations complete');
   } catch (error: unknown) {
