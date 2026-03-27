@@ -1790,19 +1790,32 @@ Rules:
       try {
         const conv = await storage.getConversation(conversationId);
         const reservedAmount = conv?.reservedCredits || creditCost;
-        const actualCreditsFromApi = computeCreditCharge(totalApiCostDollars);
-        const overrunCap = Math.ceil(creditCost * OVERRUN_CAP_MULTIPLIER);
-        let finalCharge = actualCreditsFromApi;
-        if (finalCharge > overrunCap) {
-          console.log(`[OVERRUN] Debate #${conversationId}: actualCredits=${actualCreditsFromApi} (from $${totalApiCostDollars.toFixed(4)} API cost) exceeds cap=${overrunCap} (1.3× estimate ${creditCost}). Capping and absorbing overrun.`);
-          finalCharge = overrunCap;
+
+        let actualStandardCost = 0;
+        let actualReasoningCost = 0;
+        for (const entry of totalUsage) {
+          const modelInfo = getModelById(entry.model);
+          if (modelInfo?.isReasoningModel) {
+            actualReasoningCost += entry.apiCostDollars;
+          } else {
+            actualStandardCost += entry.apiCostDollars;
+          }
         }
+        const actualCreditsFromApi = computeCreditCharge(actualStandardCost, actualReasoningCost);
+        const overrunCap = Math.ceil(creditCost * OVERRUN_CAP_MULTIPLIER);
+        let finalCharge = Math.min(actualCreditsFromApi, overrunCap);
+        if (actualCreditsFromApi > overrunCap) {
+          console.log(`[OVERRUN] Debate #${conversationId}: actualCredits=${actualCreditsFromApi} (std=$${actualStandardCost.toFixed(4)}, reasoning=$${actualReasoningCost.toFixed(4)}) exceeds cap=${overrunCap} (1.3× estimate ${creditCost}). Capping and absorbing overrun.`);
+        }
+
         const refundAmount = reservedAmount - finalCharge;
         if (refundAmount > 0) {
           await storage.refundDebateCredits(userId, refundAmount, `Settlement for debate #${conversationId}: reserved ${reservedAmount}, charged ${finalCharge}, refunded ${refundAmount}`, conversationId);
           console.log(`[SETTLE] Debate #${conversationId}: reserved=${reservedAmount}, actualFromApi=${actualCreditsFromApi}, finalCharge=${finalCharge}, refund=${refundAmount}`);
         } else if (refundAmount < 0) {
-          console.log(`[SETTLE] Debate #${conversationId}: reserved=${reservedAmount}, actualFromApi=${actualCreditsFromApi}, finalCharge=${finalCharge}, undercharge=${-refundAmount} absorbed (no additional deduction)`);
+          const additionalCharge = -refundAmount;
+          await storage.deductDebateCredits(userId, additionalCharge, `Settlement overrun for debate #${conversationId}: additional ${additionalCharge} credits (reserved ${reservedAmount}, actual ${finalCharge})`, conversationId);
+          console.log(`[SETTLE] Debate #${conversationId}: reserved=${reservedAmount}, actualFromApi=${actualCreditsFromApi}, finalCharge=${finalCharge}, additional deduction=${additionalCharge}`);
         } else {
           console.log(`[SETTLE] Debate #${conversationId}: reserved=${reservedAmount}, actualFromApi=${actualCreditsFromApi}, finalCharge=${finalCharge}, exact match`);
         }

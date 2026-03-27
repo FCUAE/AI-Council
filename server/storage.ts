@@ -32,6 +32,7 @@ export interface IStorage {
   resetMonthlyDebates(userId: string): Promise<void>;
   incrementMonthlyDebates(userId: string): Promise<void>;
   refundDebateCredits(userId: string, amount: number, reason: string, conversationId?: number): Promise<boolean>;
+  deductDebateCredits(userId: string, amount: number, reason: string, conversationId?: number): Promise<void>;
   getTotalCreditsPurchased(userId: string): Promise<number>;
   updateConversationReservedCredits(id: number, credits: number): Promise<void>;
   updateConversationEstimatedCredits(id: number, credits: number): Promise<void>;
@@ -155,6 +156,20 @@ export class DatabaseStorage implements IStorage {
     });
     console.log(`[REFUND] Refunded ${amount} credit(s) to user ${userId}: ${reason}`);
     return true;
+  }
+
+  async deductDebateCredits(userId: string, amount: number, reason: string, conversationId?: number): Promise<void> {
+    await db.execute(sql`UPDATE users SET debate_credits = debate_credits - ${amount} WHERE clerk_id = ${userId}`);
+    await db.insert(creditTransactions).values({
+      userId,
+      type: "deduction",
+      amount: -amount,
+      balanceAfter: 0,
+      description: reason,
+      conversationId: conversationId ?? null,
+      stripeSessionId: null,
+    });
+    console.log(`[DEDUCT] Deducted ${amount} credit(s) from user ${userId}: ${reason}`);
   }
 
   async logCreditTransaction(tx: Omit<InsertCreditTransaction, "id" | "createdAt">): Promise<boolean> {
