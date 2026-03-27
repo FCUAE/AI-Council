@@ -66,19 +66,21 @@ async function checkCreditExpiration() {
         const expiredCredits = batch.creditsRemaining;
         await storage.updateBatchStatus(batch.id, "dormant");
 
-        await db.insert(creditTransactions).values({
-          userId: batch.userId,
-          type: "deduction",
-          amount: -expiredCredits,
-          balanceAfter: 0,
-          description: `${expiredCredits} credits expired (batch #${batch.id}, ${batch.packTier} pack)`,
-        });
+        if (expiredCredits > 0) {
+          await db.insert(creditTransactions).values({
+            userId: batch.userId,
+            type: "deduction",
+            amount: -expiredCredits,
+            balanceAfter: 0,
+            description: `${expiredCredits} credits expired (batch #${batch.id}, ${batch.packTier} pack)`,
+          });
 
-        await storage.syncUserCreditsFromBatches(batch.userId);
+          await storage.syncUserCreditsFromBatches(batch.userId);
 
-        const [user] = await db.select().from(users).where(eq(users.id, batch.userId));
-        if (user?.email) {
-          await sendCreditExpiredNotice(user.email, user.firstName, expiredCredits);
+          const [user] = await db.select().from(users).where(eq(users.id, batch.userId));
+          if (user?.email) {
+            await sendCreditExpiredNotice(user.email, user.firstName, expiredCredits);
+          }
         }
 
         dormantCount++;
