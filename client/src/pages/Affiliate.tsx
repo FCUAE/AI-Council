@@ -1,17 +1,57 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { Users, ArrowLeft } from "lucide-react";
 import { useLocation } from "wouter";
+
+function SkeletonLoader() {
+  return (
+    <div className="p-6 space-y-6 animate-pulse" data-testid="affiliate-skeleton">
+      <div className="flex flex-col md:flex-row gap-6">
+        <div className="flex-1 space-y-4">
+          <div className="h-6 bg-[#f0f0f0] rounded-md w-48" />
+          <div className="h-4 bg-[#f0f0f0] rounded-md w-64" />
+          <div className="h-4 bg-[#f0f0f0] rounded-md w-56" />
+          <div className="mt-4 flex items-center gap-3">
+            <div className="h-10 bg-[#f0f0f0] rounded-lg flex-1" />
+            <div className="h-10 bg-[#f0f0f0] rounded-lg w-28" />
+          </div>
+          <div className="flex gap-3 mt-2">
+            <div className="h-8 w-8 bg-[#f0f0f0] rounded-full" />
+            <div className="h-8 w-8 bg-[#f0f0f0] rounded-full" />
+          </div>
+        </div>
+        <div className="w-full md:w-56 space-y-3 border border-[#f0f0f0] rounded-xl p-4">
+          <div className="h-5 bg-[#f0f0f0] rounded-md w-24" />
+          <div className="h-4 bg-[#f0f0f0] rounded-md w-full" />
+          <div className="h-4 bg-[#f0f0f0] rounded-md w-full" />
+          <div className="h-4 bg-[#f0f0f0] rounded-md w-full" />
+          <div className="h-4 bg-[#f0f0f0] rounded-md w-full" />
+        </div>
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {[1, 2, 3].map((i) => (
+          <div key={i} className="border border-[#f0f0f0] rounded-xl p-5 space-y-2">
+            <div className="h-4 bg-[#f0f0f0] rounded-md w-20" />
+            <div className="h-8 bg-[#f0f0f0] rounded-md w-16" />
+            <div className="h-1.5 bg-[#f0f0f0] rounded-full w-full mt-2" />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 export default function Affiliate() {
   const { user, isAuthenticated } = useAuth();
   const widgetRef = useRef<HTMLDivElement>(null);
   const [, setLocation] = useLocation();
+  const [widgetLoaded, setWidgetLoaded] = useState(false);
 
   useEffect(() => {
     if (!isAuthenticated || !user?.email) return;
     if (!widgetRef.current) return;
 
+    setWidgetLoaded(false);
     widgetRef.current.innerHTML = "";
 
     const container = document.createElement("div");
@@ -20,13 +60,28 @@ export default function Affiliate() {
     container.setAttribute("data-project-email", user.email);
     widgetRef.current.appendChild(container);
 
+    const observer = new MutationObserver(() => {
+      if (container.children.length > 0) {
+        setWidgetLoaded(true);
+        observer.disconnect();
+      }
+    });
+    observer.observe(container, { childList: true, subtree: true });
+
     const script = document.createElement("script");
     script.src = "https://scripts.refgrowcdn.com/page.js";
     script.async = true;
     script.defer = true;
     widgetRef.current.appendChild(script);
 
+    const timeout = setTimeout(() => {
+      setWidgetLoaded(true);
+      observer.disconnect();
+    }, 8000);
+
     return () => {
+      clearTimeout(timeout);
+      observer.disconnect();
       if (widgetRef.current) {
         widgetRef.current.innerHTML = "";
       }
@@ -62,7 +117,12 @@ export default function Affiliate() {
         <div className="border-b border-[#eaeaea] px-5 py-3">
           <h2 className="font-semibold text-[#1a1a1a] text-sm">Your Affiliate Dashboard</h2>
         </div>
-        <div ref={widgetRef} className="min-h-[400px] p-4" data-testid="affiliate-widget" />
+        {!widgetLoaded && <SkeletonLoader />}
+        <div
+          ref={widgetRef}
+          className={`min-h-[400px] p-4 ${!widgetLoaded ? "sr-only" : ""}`}
+          data-testid="affiliate-widget"
+        />
       </div>
     </div>
   );
