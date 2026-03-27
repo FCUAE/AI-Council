@@ -2,7 +2,81 @@ import { useState } from "react";
 import { useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { authFetch } from "@/lib/clerk-token";
-import { ArrowLeft, RefreshCw, AlertTriangle, TrendingUp, Users, Package, Clock, Activity } from "lucide-react";
+import { ArrowLeft, RefreshCw, AlertTriangle, TrendingUp, Users, Package, Clock, Activity, type LucideIcon } from "lucide-react";
+
+interface ModelCostRow {
+  model: string;
+  debate_count: number;
+  avg_cost: string | number;
+  total_cost: string | number;
+}
+
+interface MarginRow {
+  model_config: string;
+  chairman_model: string;
+  debate_count: number;
+  avg_api_cost: string | number;
+  avg_credit_value: string | number;
+  margin_pct: string | number;
+}
+
+interface OverrunRow {
+  id: number;
+  title: string;
+  models: string;
+  estimated_cost: string | number;
+  actual_api_cost: string | number;
+  overrun_pct: string | number;
+}
+
+interface PackDistRow {
+  pack_tier: string;
+  purchase_count: number;
+  revenue: string | number;
+}
+
+interface EventRow {
+  event: string;
+  count: number;
+  last_seen: string;
+}
+
+interface AnalyticsUser {
+  id: string;
+  email: string;
+  debateCredits: number;
+  deliberationCount: number;
+  totalApiCost: string | number;
+  totalRevenue: string | number;
+}
+
+interface AdminDashboard {
+  totalUsers: number;
+  totalRevenue: string | number;
+  totalDebates: number;
+  avgApiCost: string | number;
+  totalApiCost: string | number;
+  avgMargin: string | number;
+  modelCosts7d: ModelCostRow[];
+  modelCosts30d: ModelCostRow[];
+  margins: MarginRow[];
+  overruns: OverrunRow[];
+  funnel: Record<string, number>;
+  packDistribution: PackDistRow[];
+  expirationReport: Array<{ userId: string; creditsRemaining: number; expiresAt: string; packTier: string }>;
+  recentEvents: EventRow[];
+}
+
+interface AnalyticsData {
+  totalApiCostDollars: string | number;
+  totalRevenueDollars: string | number;
+  totalDebates: number;
+  activeUsers: number;
+  totalPromptTokens: number;
+  totalCompletionTokens: number;
+  totalCreditsCharged: number;
+  users: AnalyticsUser[];
+}
 
 function useAdminCheck() {
   return useQuery({
@@ -16,7 +90,7 @@ function useAdminCheck() {
 }
 
 function useAdminDashboard(enabled: boolean) {
-  return useQuery({
+  return useQuery<AdminDashboard>({
     queryKey: ["/api/admin/dashboard"],
     queryFn: async () => {
       const res = await authFetch("/api/admin/dashboard");
@@ -29,7 +103,7 @@ function useAdminDashboard(enabled: boolean) {
 }
 
 function useAdminAnalytics(enabled: boolean) {
-  return useQuery({
+  return useQuery<AnalyticsData>({
     queryKey: ["/api/admin/analytics"],
     queryFn: async () => {
       const res = await authFetch("/api/admin/analytics");
@@ -40,7 +114,7 @@ function useAdminAnalytics(enabled: boolean) {
   });
 }
 
-function Card({ title, icon: Icon, children }: { title: string; icon?: any; children: React.ReactNode }) {
+function Card({ title, icon: Icon, children }: { title: string; icon?: LucideIcon; children: React.ReactNode }) {
   return (
     <div className="bg-white rounded-xl border border-[#eaeaea] shadow-sm p-5 mb-4">
       <div className="flex items-center gap-2 mb-4">
@@ -62,8 +136,8 @@ function StatCard({ label, value, sub }: { label: string; value: string | number
   );
 }
 
-function ModelCostTable({ data, window }: { data: any[]; window: string }) {
-  if (!data?.length) return <div className="text-[12px] text-[#999]">No data for {window}</div>;
+function ModelCostTable({ data, window: timeWindow }: { data: ModelCostRow[]; window: string }) {
+  if (!data?.length) return <div className="text-[12px] text-[#999]">No data for {timeWindow}</div>;
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-[12px]">
@@ -76,7 +150,7 @@ function ModelCostTable({ data, window }: { data: any[]; window: string }) {
           </tr>
         </thead>
         <tbody>
-          {data.map((row: any, i: number) => (
+          {data.map((row, i) => (
             <tr key={i} className="border-b border-[#f8f8f8] hover:bg-[#fafafa]">
               <td className="py-2 px-2 font-mono text-[11px]">{row.model}</td>
               <td className="py-2 px-2 text-right">{row.debate_count}</td>
@@ -236,7 +310,7 @@ export default function Admin() {
                       </tr>
                     </thead>
                     <tbody>
-                      {dashboard.margins.map((row: any, i: number) => {
+                      {dashboard.margins.map((row: MarginRow, i: number) => {
                         const marginPct = Number(row.margin_pct);
                         const isBelowTarget = marginPct < 50;
                         return (
@@ -276,7 +350,7 @@ export default function Admin() {
                       </tr>
                     </thead>
                     <tbody>
-                      {dashboard.overruns.map((row: any) => (
+                      {dashboard.overruns.map((row: OverrunRow) => (
                         <tr key={row.id} className="border-b border-[#f8f8f8] hover:bg-[#fafafa]">
                           <td className="py-2 px-2 font-mono">#{row.id}</td>
                           <td className="py-2 px-2 max-w-[160px] truncate">{row.title}</td>
@@ -297,8 +371,8 @@ export default function Admin() {
             <Card title="Pack Distribution" icon={Package}>
               {dashboard?.packDistribution?.length ? (
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                  {dashboard.packDistribution.map((row: any) => {
-                    const totalRevenue = dashboard.packDistribution.reduce((s: number, r: any) => s + Number(r.revenue), 0);
+                  {dashboard.packDistribution.map((row: PackDistRow) => {
+                    const totalRevenue = dashboard.packDistribution.reduce((s: number, r: PackDistRow) => s + Number(r.revenue), 0);
                     const pct = totalRevenue > 0 ? ((Number(row.revenue) / totalRevenue) * 100).toFixed(1) : "0";
                     return (
                       <div key={row.pack_tier} className="bg-[#fafafa] rounded-lg p-3 border border-[#f0f0f0]">
@@ -336,7 +410,7 @@ export default function Admin() {
                       </tr>
                     </thead>
                     <tbody>
-                      {dashboard.recentEvents.map((row: any, i: number) => (
+                      {dashboard.recentEvents.map((row: EventRow, i: number) => (
                         <tr key={i} className="border-b border-[#f8f8f8] hover:bg-[#fafafa]">
                           <td className="py-2 px-2 font-mono text-[11px]">{row.event}</td>
                           <td className="py-2 px-2 text-right">{row.count}</td>
@@ -367,7 +441,7 @@ export default function Admin() {
                       </tr>
                     </thead>
                     <tbody>
-                      {analytics.users.map((u: any) => (
+                      {analytics.users.map((u: AnalyticsUser) => (
                         <tr key={u.id} className="border-b border-[#f8f8f8] hover:bg-[#fafafa]">
                           <td className="py-2 px-2 max-w-[180px] truncate">{u.email || u.id}</td>
                           <td className="py-2 px-2 text-right">{u.deliberationCount}</td>

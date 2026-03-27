@@ -528,6 +528,9 @@ export class DatabaseStorage implements IStorage {
     ));
     const total = result[0]?.total ?? 0;
     await db.update(users).set({ debateCredits: total, updatedAt: new Date() }).where(eq(users.id, userId));
+    if (total === 0) {
+      this.trackEvent("free_credits_exhausted", userId);
+    }
     return total;
   }
 
