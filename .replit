@@ -49,7 +49,7 @@ integrations = ["javascript_openrouter_ai_integrations:2.0.0", "javascript_objec
 [userenv]
 
 [userenv.shared]
-ADMIN_USER_IDS = "user_3AkfdegrRqB3kXKYG2pPoY3g4OS"
+ADMIN_USER_IDS = "user_3AkfdegrRqB3kXKYG2pPoY3g4OS,user_3AkoUj2QxlSvHvKBQNLCsYg8GcF"
 VITE_REFGROW_PROJECT_ID = "665"
 
 [postMerge]
