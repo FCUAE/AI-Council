@@ -502,10 +502,28 @@ export default function Home() {
             className="flex items-center justify-center gap-3 bg-white border border-[#eaeaea] rounded-2xl shadow-[0px_1px_3px_rgba(0,0,0,0.02)] px-5 py-4 mb-6"
             data-testid="notice-ai-council"
           >
-            <Info className="w-4 h-4 text-[#a3a3a3] flex-shrink-0" />
             <p className="font-normal text-[13px] leading-[20px] text-[#737373] tracking-[-0.3px]">
-              Not just another AI chat. Meet your AI Council: a debate system that delivers expert-level advice at a fraction of the cost.
+              How does AI Council compare with other AI Chats
             </p>
+            <TooltipProvider delayDuration={200}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button type="button" aria-label="How AI Council compares" className="flex-shrink-0" data-testid="button-comparison-info">
+                    <Info className="w-4 h-4 text-[#a3a3a3] cursor-help" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent className="max-w-[400px] bg-[#1a1a1a] text-white border-[#333] p-4 text-[12px] leading-relaxed" side="bottom" align="center">
+                  <p className="mb-2">When you ask ChatGPT or Claude a question, you get one model's single attempt at an answer. Here's what happens when you ask the AI Council:</p>
+                  <ul className="space-y-2 mb-2">
+                    <li>• 3 independent analyses — each model works through your question separately, with no groupthink.</li>
+                    <li>• Structured adversarial debate — models directly challenge each other's reasoning, exposing gaps and weak logic.</li>
+                    <li>• Forced synthesis — a final round integrates the strongest arguments to give you the most intelligent verdict.</li>
+                  </ul>
+                  <p className="mb-2">That's 12+ API calls and 3 distinct processing stages per debate — not one quick request.</p>
+                  <p>You're comparing one opinion to a room full of experts arguing it out.</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           </div>
         </div>
       </div>
