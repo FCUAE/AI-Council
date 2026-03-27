@@ -73,7 +73,7 @@ export async function sendCreditExpiryWarning(email: string, userName: string | 
             Use Your Credits
           </a>
           <p style="font-size: 13px; line-height: 1.5; color: #9ca3af; margin-top: 32px;">
-            Credits are valid for 60 days from purchase. If you need more time, purchasing a new pack will reset your expiration timer.
+            Each credit pack has its own expiration window. Use them or grab a new pack to keep going.
           </p>
           <p style="font-size: 13px; color: #9ca3af; margin-top: 24px;">— The Council Team</p>
         </div>
@@ -102,15 +102,15 @@ export async function sendCreditExpiryFinalWarning(email: string, userName: stri
     await client.emails.send({
       from: fromEmail,
       to: email,
-      subject: `⚠️ Your ${credits} AI Council credits expire in 48 hours`,
+      subject: `⚠️ Your ${credits} AI Council credits expire in 24 hours`,
       html: `
         <div style="font-family: 'Inter', -apple-system, sans-serif; max-width: 560px; margin: 0 auto; padding: 40px 24px; color: #1a1a1a;">
           <h2 style="font-size: 20px; font-weight: 600; margin-bottom: 16px;">Hey ${name},</h2>
           <p style="font-size: 15px; line-height: 1.6; color: #4b5563; margin-bottom: 16px;">
-            ⏳ <strong>Your ${safeCredits} credits expire in less than 48 hours.</strong>
+            ⏳ <strong>Your ${safeCredits} credits expire in less than 24 hours.</strong>
           </p>
           <p style="font-size: 15px; line-height: 1.6; color: #4b5563; margin-bottom: 16px;">
-            Once they're gone, they're gone — but you can save them. <strong>Purchase any credit pack now and your entire balance (including your current ${safeCredits} credits) gets a fresh 60-day window.</strong>
+            Once they expire, they'll enter a 30-day dormant period — contact support within that window to reactivate them.
           </p>
           <p style="font-size: 15px; line-height: 1.6; color: #4b5563; margin-bottom: 24px;">
             Or use them before they expire — start an AI debate on anything you've been thinking about.
@@ -122,7 +122,7 @@ export async function sendCreditExpiryFinalWarning(email: string, userName: stri
             Use Your Credits
           </a>
           <p style="font-size: 13px; line-height: 1.5; color: #9ca3af; margin-top: 32px;">
-            Buying any pack resets the 60-day timer for your entire credit balance — nothing is lost.
+            Each credit pack has its own expiration window. New purchases don't extend existing batches.
           </p>
           <p style="font-size: 13px; color: #9ca3af; margin-top: 24px;">— The Council Team</p>
         </div>
@@ -206,10 +206,10 @@ export async function sendCreditExpiredNotice(email: string, userName: string | 
         <div style="font-family: 'Inter', -apple-system, sans-serif; max-width: 560px; margin: 0 auto; padding: 40px 24px; color: #1a1a1a;">
           <h2 style="font-size: 20px; font-weight: 600; margin-bottom: 16px;">Hey ${name},</h2>
           <p style="font-size: 15px; line-height: 1.6; color: #4b5563; margin-bottom: 16px;">
-            Your <strong>${safeExpiredCredits} AI Council credits</strong> have expired after 60 days of inactivity.
+            Your <strong>${safeExpiredCredits} AI Council credits</strong> have expired and entered a 30-day dormant period.
           </p>
           <p style="font-size: 15px; line-height: 1.6; color: #4b5563; margin-bottom: 24px;">
-            Ready to get back to smarter decisions? Grab a fresh credit pack and put the world's best AI models to work on your toughest problems.
+            Need them back? Contact support within 30 days to reactivate. Or grab a fresh credit pack and keep going.
           </p>
           <a href="https://askaicouncil.com/credits" style="display: inline-block; background: #1a1a1a; color: #ffffff; text-decoration: none; font-size: 14px; font-weight: 500; padding: 12px 24px; border-radius: 8px;">
             Get More Credits

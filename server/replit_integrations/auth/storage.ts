@@ -1,7 +1,7 @@
-import { users, type User, type UpsertUser, creditTransactions } from "@shared/models/auth";
+import { users, type User, type UpsertUser, creditTransactions, creditBatches } from "@shared/models/auth";
 import { conversations, messages, councilResponses } from "@shared/schema";
 import { db } from "../../db";
-import { eq, inArray, and, ne } from "drizzle-orm";
+import { eq, inArray, and, ne, sql } from "drizzle-orm";
 import { securityLog } from "../../securityLogger";
 
 export type UpsertUserResult =
@@ -29,6 +29,9 @@ class AuthStorage implements IAuthStorage {
 
   async upsertUser(userData: UpsertUser): Promise<UpsertUserResult> {
     try {
+      const existingUser = await this.getUser(userData.id!);
+      const isNewUser = !existingUser;
+
       const [user] = await db
         .insert(users)
         .values(userData)
@@ -43,6 +46,23 @@ class AuthStorage implements IAuthStorage {
           },
         })
         .returning();
+
+      if (isNewUser && user.debateCredits > 0) {
+        try {
+          const expiresAt = new Date();
+          expiresAt.setDate(expiresAt.getDate() + 60);
+          await db.execute(sql`
+            INSERT INTO credit_batches (user_id, credits_remaining, credits_original, expires_at, pack_tier, status)
+            SELECT ${user.id}, ${user.debateCredits}, ${user.debateCredits}, ${expiresAt}, 'free', 'active'
+            WHERE NOT EXISTS (
+              SELECT 1 FROM credit_batches WHERE user_id = ${user.id} AND pack_tier = 'free'
+            )
+          `);
+        } catch (batchErr: any) {
+          console.error(`[AUTH] Non-fatal: failed to create free batch for user ${user.id}:`, batchErr.message);
+        }
+      }
+
       return { status: "success", user };
     } catch (error: any) {
       if (error?.code === '23505' && error?.constraint === 'users_email_unique' && userData.email) {

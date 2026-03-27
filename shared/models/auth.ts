@@ -36,7 +36,23 @@ export const creditTransactions = pgTable("credit_transactions", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+export const creditBatches = pgTable("credit_batches", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull(),
+  creditsRemaining: integer("credits_remaining").notNull(),
+  creditsOriginal: integer("credits_original").notNull(),
+  purchasedAt: timestamp("purchased_at").defaultNow().notNull(),
+  expiresAt: timestamp("expires_at").notNull(),
+  packTier: varchar("pack_tier", { length: 20 }).notNull(),
+  status: varchar("status", { length: 20 }).default("active").notNull(),
+  stripeSessionId: varchar("stripe_session_id"),
+  warningSent: boolean("warning_sent").default(false).notNull(),
+  finalWarningSent: boolean("final_warning_sent").default(false).notNull(),
+});
+
 export type UpsertUser = typeof users.$inferInsert;
 export type User = typeof users.$inferSelect;
 export type InsertCreditTransaction = typeof creditTransactions.$inferInsert;
 export type CreditTransaction = typeof creditTransactions.$inferSelect;
+export type CreditBatch = typeof creditBatches.$inferSelect;
+export type InsertCreditBatch = typeof creditBatches.$inferInsert;

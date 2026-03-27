@@ -367,6 +367,13 @@ function AppSidebar() {
                     </Tooltip>
                   </TooltipProvider>
                 </div>
+                {usage?.expiringCredits && usage?.expiringInDays != null && usage.expiringInDays <= 14 && (usage?.debateCredits || 0) > 0 && (
+                  <div className="flex items-center gap-1 mb-1" data-testid="text-expiring-credits">
+                    <span className={`text-[11px] font-medium ${usage.expiringInDays <= 3 ? 'text-red-500' : 'text-amber-600'}`}>
+                      {usage.expiringCredits} credit{usage.expiringCredits !== 1 ? 's' : ''} expiring in {usage.expiringInDays} day{usage.expiringInDays !== 1 ? 's' : ''}
+                    </span>
+                  </div>
+                )}
                 <div className="w-full h-1 bg-[#f3f4f6] rounded-full mb-1.5">
                   <div
                     className="h-1 bg-[#1a1a1a] rounded-full transition-all duration-300"

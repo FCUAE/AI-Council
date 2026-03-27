@@ -1,137 +1,102 @@
+import { storage } from "./storage";
+import { users, creditTransactions, creditBatches } from "@shared/schema";
 import { db } from "./db";
-import { users, creditTransactions } from "@shared/schema";
-import { sql } from "drizzle-orm";
+import { sql, eq } from "drizzle-orm";
 import { sendCreditExpiryWarning, sendCreditExpiryFinalWarning, sendCreditExpiredNotice } from "./email";
 import { withAdvisoryLock, LOCK_IDS } from "./security/advisoryLocks";
 
-const EXPIRY_DAYS = 60;
-const WARNING_DAYS = 30;
-const FINAL_WARNING_HOURS = 48;
+const WARNING_DAYS = 7;
+const FINAL_WARNING_HOURS = 24;
+const DORMANCY_DAYS = 30;
 const CHECK_INTERVAL_MS = 24 * 60 * 60 * 1000;
 
 async function checkCreditExpiration() {
-  console.log("[cron] Running credit expiration check...");
+  console.log("[cron] Running batch credit expiration check...");
 
   const acquired = await withAdvisoryLock(
     LOCK_IDS.CREDIT_EXPIRATION_CRON,
     "credit-expiration-cron",
     async () => {
-      const warningThreshold = new Date();
-      warningThreshold.setDate(warningThreshold.getDate() - WARNING_DAYS);
-
-      const expiryThreshold = new Date();
-      expiryThreshold.setDate(expiryThreshold.getDate() - EXPIRY_DAYS);
-
-      const usersToWarn = await db.select().from(users).where(
-        sql`credits_purchased_at IS NOT NULL 
-            AND debate_credits > 0 
-            AND credits_expiry_warned = false 
-            AND credits_purchased_at <= ${warningThreshold}
-            AND credits_purchased_at > ${expiryThreshold}`
-      );
-
       let warnedCount = 0;
-      for (const user of usersToWarn) {
-        if (!user.email) continue;
+      const batchesToWarn = await storage.getExpiringBatches(WARNING_DAYS);
+      for (const batch of batchesToWarn) {
+        const [user] = await db.select().from(users).where(eq(users.id, batch.userId));
+        if (!user?.email) continue;
 
         const daysLeft = Math.max(1, Math.ceil(
-          (EXPIRY_DAYS - (Date.now() - new Date(user.creditsPurchasedAt!).getTime()) / (1000 * 60 * 60 * 24))
+          (new Date(batch.expiresAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24)
         ));
 
         const sent = await sendCreditExpiryWarning(
           user.email,
           user.firstName,
-          user.debateCredits,
+          batch.creditsRemaining,
           daysLeft
         );
 
         if (sent) {
-          await db.update(users)
-            .set({ creditsExpiryWarned: true })
-            .where(sql`id = ${user.id} AND credits_expiry_warned = false`);
+          await storage.markBatchWarningSent(batch.id, 'warning_sent');
           warnedCount++;
         }
       }
-
-      if (warnedCount > 0) {
-        console.log(`[cron] Sent ${warnedCount} expiry warning(s)`);
-      }
-
-      const finalWarningThreshold = new Date();
-      finalWarningThreshold.setTime(finalWarningThreshold.getTime() - (EXPIRY_DAYS * 24 - FINAL_WARNING_HOURS) * 60 * 60 * 1000);
-
-      const usersToFinalWarn = await db.select().from(users).where(
-        sql`credits_purchased_at IS NOT NULL 
-            AND debate_credits > 0 
-            AND credits_expiry_final_warned = false 
-            AND credits_purchased_at <= ${finalWarningThreshold}
-            AND credits_purchased_at > ${expiryThreshold}`
-      );
+      if (warnedCount > 0) console.log(`[cron] Sent ${warnedCount} batch expiry warning(s)`);
 
       let finalWarnedCount = 0;
-      for (const user of usersToFinalWarn) {
-        if (!user.email) continue;
+      const batchesToFinalWarn = await storage.getFinalWarningBatches(FINAL_WARNING_HOURS);
+      for (const batch of batchesToFinalWarn) {
+        const [user] = await db.select().from(users).where(eq(users.id, batch.userId));
+        if (!user?.email) continue;
 
         const sent = await sendCreditExpiryFinalWarning(
           user.email,
           user.firstName,
-          user.debateCredits
+          batch.creditsRemaining
         );
 
         if (sent) {
-          await db.update(users)
-            .set({ creditsExpiryFinalWarned: true })
-            .where(sql`id = ${user.id} AND credits_expiry_final_warned = false`);
+          await storage.markBatchWarningSent(batch.id, 'final_warning_sent');
           finalWarnedCount++;
         }
       }
+      if (finalWarnedCount > 0) console.log(`[cron] Sent ${finalWarnedCount} batch final expiry warning(s)`);
 
-      if (finalWarnedCount > 0) {
-        console.log(`[cron] Sent ${finalWarnedCount} final expiry warning(s)`);
-      }
-
-      const usersToExpire = await db.select().from(users).where(
-        sql`credits_purchased_at IS NOT NULL 
-            AND debate_credits > 0 
-            AND credits_purchased_at <= ${expiryThreshold}`
-      );
-
-      let expiredCount = 0;
-      for (const user of usersToExpire) {
-        const expireResult = await db.execute(
-          sql`UPDATE users 
-           SET debate_credits = 0, credits_purchased_at = NULL, credits_expiry_warned = false, credits_expiry_final_warned = false, updated_at = NOW()
-           WHERE id = ${user.id} AND debate_credits > 0 AND credits_purchased_at <= ${expiryThreshold}
-           RETURNING debate_credits`
-        );
-
-        if (!expireResult.rows || expireResult.rows.length === 0) continue;
-
-        const expiredCredits = user.debateCredits;
+      let dormantCount = 0;
+      const expiredBatches = await storage.getExpiredBatches();
+      for (const batch of expiredBatches) {
+        const expiredCredits = batch.creditsRemaining;
+        await storage.updateBatchStatus(batch.id, "dormant");
 
         await db.insert(creditTransactions).values({
-          userId: user.id,
-          email: user.email,
+          userId: batch.userId,
           type: "deduction",
           amount: -expiredCredits,
           balanceAfter: 0,
-          description: `${expiredCredits} credits expired after ${EXPIRY_DAYS} days of inactivity`,
+          description: `${expiredCredits} credits expired (batch #${batch.id}, ${batch.packTier} pack)`,
         });
 
-        if (user.email) {
+        await storage.syncUserCreditsFromBatches(batch.userId);
+
+        const [user] = await db.select().from(users).where(eq(users.id, batch.userId));
+        if (user?.email) {
           await sendCreditExpiredNotice(user.email, user.firstName, expiredCredits);
         }
 
-        expiredCount++;
-        console.log(`[cron] Expired ${expiredCredits} credits for user ${user.id}`);
+        dormantCount++;
+        console.log(`[cron] Batch #${batch.id} → dormant (${expiredCredits} credits, user ${batch.userId})`);
       }
+      if (dormantCount > 0) console.log(`[cron] Set ${dormantCount} batch(es) to dormant`);
 
-      if (expiredCount > 0) {
-        console.log(`[cron] Expired credits for ${expiredCount} user(s)`);
+      let removedCount = 0;
+      const dormantBatches = await storage.getDormantBatchesForRemoval(DORMANCY_DAYS);
+      for (const batch of dormantBatches) {
+        await storage.updateBatchStatus(batch.id, "expired");
+        removedCount++;
+        console.log(`[cron] Batch #${batch.id} → expired (permanently removed after ${DORMANCY_DAYS}d dormancy)`);
       }
+      if (removedCount > 0) console.log(`[cron] Permanently expired ${removedCount} dormant batch(es)`);
 
-      if (warnedCount === 0 && finalWarnedCount === 0 && expiredCount === 0) {
-        console.log("[cron] No credits to warn or expire");
+      if (warnedCount === 0 && finalWarnedCount === 0 && dormantCount === 0 && removedCount === 0) {
+        console.log("[cron] No batches to warn or expire");
       }
     }
   );
@@ -142,7 +107,7 @@ async function checkCreditExpiration() {
 }
 
 export function startCreditExpirationCron() {
-  console.log(`[cron] Credit expiration cron started (checks every 24h, warns at ${WARNING_DAYS}d, final warn at ${FINAL_WARNING_HOURS}h, expires at ${EXPIRY_DAYS}d)`);
+  console.log(`[cron] Batch credit expiration cron started (checks every 24h, warns at ${WARNING_DAYS}d, final warn at ${FINAL_WARNING_HOURS}h, dormancy ${DORMANCY_DAYS}d)`);
 
   setTimeout(() => {
     checkCreditExpiration();

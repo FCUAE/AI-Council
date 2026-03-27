@@ -91,10 +91,16 @@ The backend implements a council deliberation pattern:
   - Explorer: 100 credits / $29.00 ($0.29/cr) — "~15-50 debates depending on models chosen." 90-day expiration.
   - Strategist: 400 credits / $89.00 ($0.22/cr, Save 24%) — "~55-200 debates depending on models chosen." 120-day expiration. (Most Popular)
   - Mastermind: 1000 credits / $179.00 ($0.18/cr, Save 38%) — "~130-500 debates depending on models chosen." 180-day expiration. (Best Value)
-- **Credit expiration**: Tiered by pack (90/120/180 days). 30-day warning email sent via Resend. On expiry, credits are zeroed and logged as a deduction. Purchasing new credits resets the timer.
-- **Credit refund on failure/cancel**: When a council deliberation fails due to AI errors or timeouts, the deducted credits are automatically refunded via `storage.refundDebateCredits()`. User-initiated cancellations also trigger a full refund of reserved credits. Refunds are logged as "refund" type credit transactions. Retries don't deduct credits so no refund is needed.
-  - Schema: `credits_purchased_at` (timestamp) and `credits_expiry_warned` (boolean) on users table
-  - Cron: `server/cron.ts` runs daily check via setInterval (24h), started in `server/index.ts` after server listen
+- **FIFO credit batches** (`credit_batches` table): Credits are tracked as individual batches with tiered expiration (free=60d, Explorer=90d, Strategist=120d, Mastermind=180d). Consumption uses FIFO (soonest-to-expire first), refunds go to latest-expiring batch first. Each batch tracks `credits_remaining`, `credits_original`, `expires_at`, `pack_tier`, and `status` (active/expired/dormant/removed).
+  - **Batch lifecycle**: Active → Expired (soft, after expiry date) → Dormant (30d grace for reactivation) → Removed (hard delete of dormant batches)
+  - **Expiry warnings**: 7-day warning email, 24-hour final warning email via Resend
+  - **Free-tier batch**: New users get a free batch (10 credits, 60-day expiry) created atomically at signup via `INSERT ... WHERE NOT EXISTS`
+  - **Cron**: `server/cron.ts` runs batch-aware expiration daily (7d warn, 24h final warn, soft expire, dormant cleanup)
+  - **Sync**: `/api/user/usage` returns `expiringCredits` and `expiringInDays` for the soonest-expiring active batch
+  - **Sidebar**: Shows amber/red warning when a batch is within 14 days of expiry
+- **Credit refund on failure/cancel**: All refund paths (timeout, cancel, error, recovery, settlement) call both `refundDebateCredits()` (legacy ledger) and `refundCreditsFIFO()` (batch system) for consistency. Settlement is idempotency-guarded via `conv.settled`.
+  - Schema: `credit_batches` table, plus legacy `credits_purchased_at`/`credits_expiry_warned` on users table
+  - Cron: `server/cron.ts` runs daily batch check via setInterval (24h), started in `server/index.ts` after server listen
   - Emails: `server/email.ts` uses Resend connector integration for warning and expiry notification emails
 - **Dynamic credit cost**: Credits = max(2, ceil(bufferedApiCost / $0.058)) — Split buffer: 1.05x for standard models, 1.20x for reasoning models (GPT-5.4 Pro, o3, o4-mini). COST_BUDGET_PER_CREDIT = $0.0609 (worst-case net $0.174 × 35% cost share). Overrun protection caps charges at 1.3x the original estimate.
 - **Model pricing**: Each model has `apiCostInput`/`apiCostOutput` ($/M tokens) from OpenRouter; `COST_PER_CREDIT = 0.058` in `shared/models.ts` is the API cost budget per credit

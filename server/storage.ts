@@ -1,12 +1,13 @@
 import { db } from "./db";
 import { 
-  queries, responses, conversations, messages, councilResponses, users, creditTransactions, supportMessages, platformAnalytics,
+  queries, responses, conversations, messages, councilResponses, users, creditTransactions, supportMessages, platformAnalytics, creditBatches,
   type InsertQuery, type InsertResponse, type QueryWithResponses,
   type InsertConversation, type InsertMessage, type InsertCouncilResponse,
   type ConversationWithMessages, type MessageWithResponses, type User,
-  type InsertCreditTransaction, type InsertSupportMessage
+  type InsertCreditTransaction, type InsertSupportMessage,
+  type CreditBatch, type InsertCreditBatch
 } from "@shared/schema";
-import { eq, desc, sql, inArray } from "drizzle-orm";
+import { eq, desc, sql, inArray, asc, and } from "drizzle-orm";
 
 export interface IStorage {
   createConversation(title: string, models?: string[], chairmanModel?: string, userId?: string): Promise<typeof conversations.$inferSelect>;
@@ -56,6 +57,19 @@ export interface IStorage {
     totals: { totalApiCost: number; totalRevenue: number; totalDebates: number; activeUsers: number; totalCreditsCharged: number; totalPromptTokens: number; totalCompletionTokens: number };
     users: { id: string; email: string | null; totalApiCost: string; totalRevenue: string; debateCredits: number; deliberationCount: number }[];
   }>;
+
+  createCreditBatch(batch: InsertCreditBatch): Promise<CreditBatch>;
+  getActiveBatches(userId: string): Promise<CreditBatch[]>;
+  consumeCreditsFIFO(userId: string, amount: number): Promise<void>;
+  refundCreditsFIFO(userId: string, amount: number): Promise<void>;
+  syncUserCreditsFromBatches(userId: string): Promise<number>;
+  getExpiringBatches(warningDays: number): Promise<CreditBatch[]>;
+  getFinalWarningBatches(warningHours: number): Promise<CreditBatch[]>;
+  getExpiredBatches(): Promise<CreditBatch[]>;
+  getDormantBatchesForRemoval(dormancyDays: number): Promise<CreditBatch[]>;
+  updateBatchStatus(batchId: number, status: string): Promise<void>;
+  markBatchWarningSent(batchId: number, field: 'warning_sent' | 'final_warning_sent'): Promise<void>;
+  getSoonestExpiringBatch(userId: string): Promise<CreditBatch | undefined>;
 
   // Legacy methods
   createQuery(query: InsertQuery): Promise<typeof queries.$inferSelect>;
@@ -325,6 +339,7 @@ export class DatabaseStorage implements IStorage {
             `Recovered after deployment interruption (debate #${conv.id})`,
             conv.id
           );
+          await this.refundCreditsFIFO(conv.userId, conv.reservedCredits);
         } catch (err: any) {
           console.error(`[RECOVERY] Failed to refund debate #${conv.id}:`, err.message);
         }
@@ -368,6 +383,7 @@ export class DatabaseStorage implements IStorage {
             `Recovered stale conversation (stuck >${staleMinutes}min) (debate #${conv.id})`,
             conv.id
           );
+          await this.refundCreditsFIFO(conv.userId, conv.reservedCredits);
         } catch (err: any) {
           console.error(`[STALE RECOVERY] Failed to refund debate #${conv.id}:`, err.message);
         }
@@ -409,6 +425,140 @@ export class DatabaseStorage implements IStorage {
         }
       }
     }
+  }
+
+  async createCreditBatch(batch: InsertCreditBatch): Promise<CreditBatch> {
+    const [row] = await db.insert(creditBatches).values(batch).returning();
+    return row;
+  }
+
+  async getActiveBatches(userId: string): Promise<CreditBatch[]> {
+    return db.select().from(creditBatches)
+      .where(and(
+        eq(creditBatches.userId, userId),
+        eq(creditBatches.status, "active"),
+        sql`${creditBatches.creditsRemaining} > 0`
+      ))
+      .orderBy(asc(creditBatches.expiresAt));
+  }
+
+  async consumeCreditsFIFO(userId: string, amount: number): Promise<void> {
+    let remaining = amount;
+    const batches = await this.getActiveBatches(userId);
+
+    for (const batch of batches) {
+      if (remaining <= 0) break;
+      const deduct = Math.min(remaining, batch.creditsRemaining);
+      await db.update(creditBatches)
+        .set({ creditsRemaining: sql`credits_remaining - ${deduct}` })
+        .where(eq(creditBatches.id, batch.id));
+      remaining -= deduct;
+    }
+
+    await this.syncUserCreditsFromBatches(userId);
+  }
+
+  async refundCreditsFIFO(userId: string, amount: number): Promise<void> {
+    let remaining = amount;
+    const batches = await db.select().from(creditBatches)
+      .where(and(
+        eq(creditBatches.userId, userId),
+        eq(creditBatches.status, "active"),
+      ))
+      .orderBy(desc(creditBatches.expiresAt));
+
+    for (const batch of batches) {
+      if (remaining <= 0) break;
+      const space = batch.creditsOriginal - batch.creditsRemaining;
+      const refund = Math.min(remaining, space);
+      if (refund > 0) {
+        await db.update(creditBatches)
+          .set({ creditsRemaining: sql`credits_remaining + ${refund}` })
+          .where(eq(creditBatches.id, batch.id));
+        remaining -= refund;
+      }
+    }
+
+    if (remaining > 0) {
+      const expiresAt = new Date();
+      expiresAt.setDate(expiresAt.getDate() + 60);
+      await db.insert(creditBatches).values({
+        userId,
+        creditsRemaining: remaining,
+        creditsOriginal: remaining,
+        expiresAt,
+        packTier: "refund",
+        status: "active",
+      });
+    }
+
+    await this.syncUserCreditsFromBatches(userId);
+  }
+
+  async syncUserCreditsFromBatches(userId: string): Promise<number> {
+    const result = await db.select({
+      total: sql<number>`COALESCE(SUM(credits_remaining), 0)`
+    }).from(creditBatches).where(and(
+      eq(creditBatches.userId, userId),
+      eq(creditBatches.status, "active")
+    ));
+    const total = result[0]?.total ?? 0;
+    await db.update(users).set({ debateCredits: total, updatedAt: new Date() }).where(eq(users.id, userId));
+    return total;
+  }
+
+  async getExpiringBatches(warningDays: number): Promise<CreditBatch[]> {
+    const threshold = new Date();
+    threshold.setDate(threshold.getDate() + warningDays);
+    return db.select().from(creditBatches).where(
+      sql`status = 'active' AND credits_remaining > 0 AND warning_sent = false AND expires_at <= ${threshold} AND expires_at > NOW()`
+    );
+  }
+
+  async getFinalWarningBatches(warningHours: number): Promise<CreditBatch[]> {
+    const threshold = new Date();
+    threshold.setTime(threshold.getTime() + warningHours * 60 * 60 * 1000);
+    return db.select().from(creditBatches).where(
+      sql`status = 'active' AND credits_remaining > 0 AND final_warning_sent = false AND expires_at <= ${threshold} AND expires_at > NOW()`
+    );
+  }
+
+  async getExpiredBatches(): Promise<CreditBatch[]> {
+    return db.select().from(creditBatches).where(
+      sql`status = 'active' AND expires_at <= NOW()`
+    );
+  }
+
+  async getDormantBatchesForRemoval(dormancyDays: number): Promise<CreditBatch[]> {
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - dormancyDays);
+    return db.select().from(creditBatches).where(
+      sql`status = 'dormant' AND expires_at <= ${cutoff}`
+    );
+  }
+
+  async updateBatchStatus(batchId: number, status: string): Promise<void> {
+    await db.update(creditBatches).set({ status }).where(eq(creditBatches.id, batchId));
+  }
+
+  async markBatchWarningSent(batchId: number, field: 'warning_sent' | 'final_warning_sent'): Promise<void> {
+    if (field === 'warning_sent') {
+      await db.update(creditBatches).set({ warningSent: true }).where(eq(creditBatches.id, batchId));
+    } else {
+      await db.update(creditBatches).set({ finalWarningSent: true }).where(eq(creditBatches.id, batchId));
+    }
+  }
+
+  async getSoonestExpiringBatch(userId: string): Promise<CreditBatch | undefined> {
+    const [batch] = await db.select().from(creditBatches)
+      .where(and(
+        eq(creditBatches.userId, userId),
+        eq(creditBatches.status, "active"),
+        sql`${creditBatches.creditsRemaining} > 0`
+      ))
+      .orderBy(asc(creditBatches.expiresAt))
+      .limit(1);
+    return batch;
   }
 
   // Legacy methods

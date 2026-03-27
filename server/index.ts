@@ -387,6 +387,37 @@ async function runAppMigrations(client: import('pg').PoolClient) {
       );
 
       ALTER TABLE users ALTER COLUMN debate_credits SET DEFAULT 10;
+
+      CREATE TABLE IF NOT EXISTS credit_batches (
+        id SERIAL PRIMARY KEY,
+        user_id VARCHAR NOT NULL,
+        credits_remaining INTEGER NOT NULL,
+        credits_original INTEGER NOT NULL,
+        purchased_at TIMESTAMP NOT NULL DEFAULT NOW(),
+        expires_at TIMESTAMP NOT NULL,
+        pack_tier VARCHAR(20) NOT NULL,
+        status VARCHAR(20) NOT NULL DEFAULT 'active',
+        stripe_session_id VARCHAR,
+        warning_sent BOOLEAN NOT NULL DEFAULT FALSE,
+        final_warning_sent BOOLEAN NOT NULL DEFAULT FALSE
+      );
+      CREATE INDEX IF NOT EXISTS idx_credit_batches_user_status_expires
+        ON credit_batches(user_id, status, expires_at);
+
+      INSERT INTO credit_batches (user_id, credits_remaining, credits_original, purchased_at, expires_at, pack_tier, status)
+      SELECT
+        id,
+        debate_credits,
+        debate_credits,
+        COALESCE(credits_purchased_at, created_at, NOW()),
+        COALESCE(credits_purchased_at, created_at, NOW()) + INTERVAL '60 days',
+        'migrated',
+        'active'
+      FROM users
+      WHERE debate_credits > 0
+        AND NOT EXISTS (
+          SELECT 1 FROM credit_batches cb WHERE cb.user_id = users.id
+        );
     `);
     console.log('App migrations complete');
   } catch (error: unknown) {

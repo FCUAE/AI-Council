@@ -1808,19 +1808,19 @@ Rules:
           console.log(`[OVERRUN] Debate #${conversationId}: actualCredits=${actualCreditsFromApi} (std=$${actualStandardCost.toFixed(4)}, reasoning=$${actualReasoningCost.toFixed(4)}) exceeds cap=${overrunCap} (1.3× estimate ${creditCost}). Capping and absorbing overrun.`);
         }
 
+        const isAlreadySettled = conv?.settled === 1;
         const refundAmount = reservedAmount - finalCharge;
-        if (refundAmount > 0) {
+        if (refundAmount > 0 && !isAlreadySettled) {
           await storage.refundDebateCredits(userId, refundAmount, `Settlement for debate #${conversationId}: reserved ${reservedAmount}, charged ${finalCharge}, refunded ${refundAmount}`, conversationId);
+          await storage.refundCreditsFIFO(userId, refundAmount);
           console.log(`[SETTLE] Debate #${conversationId}: reserved=${reservedAmount}, actualFromApi=${actualCreditsFromApi}, finalCharge=${finalCharge}, refund=${refundAmount}`);
-        } else if (refundAmount < 0) {
-          const isSettled = conv?.settled === 1;
-          if (!isSettled) {
-            const additionalCharge = -refundAmount;
-            await storage.deductDebateCredits(userId, additionalCharge, `Settlement overrun for debate #${conversationId}: additional ${additionalCharge} credits (reserved ${reservedAmount}, actual ${finalCharge})`, conversationId);
-            console.log(`[SETTLE] Debate #${conversationId}: reserved=${reservedAmount}, actualFromApi=${actualCreditsFromApi}, finalCharge=${finalCharge}, additional deduction=${additionalCharge}`);
-          } else {
-            console.log(`[SETTLE] Debate #${conversationId}: skipped duplicate overrun deduction (already settled)`);
-          }
+        } else if (refundAmount < 0 && !isAlreadySettled) {
+          const additionalCharge = -refundAmount;
+          await storage.deductDebateCredits(userId, additionalCharge, `Settlement overrun for debate #${conversationId}: additional ${additionalCharge} credits (reserved ${reservedAmount}, actual ${finalCharge})`, conversationId);
+          await storage.consumeCreditsFIFO(userId, additionalCharge);
+          console.log(`[SETTLE] Debate #${conversationId}: reserved=${reservedAmount}, actualFromApi=${actualCreditsFromApi}, finalCharge=${finalCharge}, additional deduction=${additionalCharge}`);
+        } else if (isAlreadySettled) {
+          console.log(`[SETTLE] Debate #${conversationId}: skipped duplicate settlement (already settled)`);
         } else {
           console.log(`[SETTLE] Debate #${conversationId}: reserved=${reservedAmount}, actualFromApi=${actualCreditsFromApi}, finalCharge=${finalCharge}, exact match`);
         }
@@ -1858,6 +1858,7 @@ Rules:
           const conv = await storage.getConversation(conversationId);
           const refundAmount = conv?.reservedCredits || creditCost;
           await storage.refundDebateCredits(userId, refundAmount, `Deliberation timed out (debate #${conversationId})`, conversationId);
+          await storage.refundCreditsFIFO(userId, refundAmount);
           console.log(`[REFUND] Timed-out debate #${conversationId}: refunded ${refundAmount} credits`);
         } catch (refundErr: any) {
           console.error(`[REFUND] Error refunding timed-out debate #${conversationId}:`, refundErr.message);
@@ -1872,6 +1873,7 @@ Rules:
           const conv = await storage.getConversation(conversationId);
           const refundAmount = conv?.reservedCredits || creditCost;
           await storage.refundDebateCredits(userId, refundAmount, `Debate cancelled by user (debate #${conversationId})`, conversationId);
+          await storage.refundCreditsFIFO(userId, refundAmount);
           console.log(`[REFUND] Cancelled debate #${conversationId}: refunded ${refundAmount} credits`);
         } catch (refundErr: any) {
           console.error(`[REFUND] Error refunding cancelled debate #${conversationId}:`, refundErr.message);
@@ -1891,6 +1893,7 @@ Rules:
           const conv = await storage.getConversation(conversationId);
           const refundAmount = conv?.reservedCredits || creditCost;
           await storage.refundDebateCredits(userId, refundAmount, `Deliberation failed: ${error.message || "unknown error"} (debate #${conversationId})`, conversationId);
+          await storage.refundCreditsFIFO(userId, refundAmount);
         } catch (refundErr: any) {
           console.error(`[REFUND] Error refunding failed debate #${conversationId}:`, refundErr.message);
         }
@@ -1931,6 +1934,16 @@ export async function registerRoutes(
     
     const paymentFailed = user.subscriptionStatus === "past_due" || user.subscriptionStatus === "unpaid";
     
+    const soonestBatch = await storage.getSoonestExpiringBatch(userId);
+    let expiringCredits: number | null = null;
+    let expiringInDays: number | null = null;
+    if (soonestBatch) {
+      expiringCredits = soonestBatch.creditsRemaining;
+      expiringInDays = Math.max(0, Math.ceil(
+        (new Date(soonestBatch.expiresAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24)
+      ));
+    }
+
     res.json({
       deliberationCount: user.deliberationCount,
       debateCredits: user.debateCredits,
@@ -1941,6 +1954,8 @@ export async function registerRoutes(
       hasPurchased,
       paymentFailed,
       creditsPurchasedAt: user.creditsPurchasedAt ? user.creditsPurchasedAt.toISOString() : null,
+      expiringCredits,
+      expiringInDays,
     });
   });
 
@@ -2665,6 +2680,8 @@ export async function registerRoutes(
           conversationId: conversation.id,
         });
 
+        await storage.consumeCreditsFIFO(userId, creditCost);
+
         const [userMessage] = await tx.insert(messages).values({
           conversationId: conversation.id,
           role: "user",
@@ -3119,6 +3136,22 @@ export async function registerRoutes(
               continue;
             }
             totalRecovered += credits;
+
+            const rPack = getCreditPackBySize(credits);
+            const rExpirationDays = rPack?.expirationDays ?? 60;
+            const rPackTier = rPack?.metadata?.tier ?? (session.metadata?.tier || 'recovered');
+            const rExpiresAt = new Date();
+            rExpiresAt.setDate(rExpiresAt.getDate() + rExpirationDays);
+            await storage.createCreditBatch({
+              userId,
+              creditsRemaining: credits,
+              creditsOriginal: credits,
+              expiresAt: rExpiresAt,
+              packTier: rPackTier,
+              stripeSessionId: session.id,
+              status: "active",
+            });
+
             console.log(`[RECOVERY] Added ${credits} credits to user ${userId} via session ${session.id}`);
 
             try {
@@ -3142,8 +3175,8 @@ export async function registerRoutes(
         }).where(sql`id = ${userId}`);
       }
 
-      const updatedUser = await storage.getUserById(userId);
-      res.json({ recovered: totalRecovered, debateCredits: updatedUser?.debateCredits || 0 });
+      const updatedBalance = await storage.syncUserCreditsFromBatches(userId);
+      res.json({ recovered: totalRecovered, debateCredits: updatedBalance });
     } catch (error: any) {
       console.error("Credit recovery error:", error?.message || error);
       res.status(500).json({ message: "Failed to recover credits" });
@@ -3204,7 +3237,23 @@ export async function registerRoutes(
           creditsExpiryWarned: false,
           creditsExpiryFinalWarned: false,
         }).where(sql`id = ${userId}`);
-        console.log(`[CREDITS] Added ${credits} credits to user ${userId} via session ${sessionId}`);
+
+        const pack = getCreditPackBySize(credits);
+        const expirationDays = pack?.expirationDays ?? 60;
+        const packTier = pack?.metadata?.tier ?? (session.metadata?.tier || 'unknown');
+        const expiresAt = new Date();
+        expiresAt.setDate(expiresAt.getDate() + expirationDays);
+        await storage.createCreditBatch({
+          userId,
+          creditsRemaining: credits,
+          creditsOriginal: credits,
+          expiresAt,
+          packTier,
+          stripeSessionId: sessionId,
+          status: "active",
+        });
+
+        console.log(`[CREDITS] Added ${credits} credits to user ${userId} via session ${sessionId} (batch expires ${expiresAt.toISOString()})`);
 
         try {
           const amountPaid = (session.amount_total || 0) / 100;
@@ -3217,8 +3266,8 @@ export async function registerRoutes(
         }
       }
 
-      const user = await storage.getUserById(userId);
-      res.json({ debateCredits: user?.debateCredits || 0, alreadyProcessed: !inserted });
+      const updatedBalance = await storage.syncUserCreditsFromBatches(userId);
+      res.json({ debateCredits: updatedBalance, alreadyProcessed: !inserted });
     } catch (error: any) {
       console.error("Sync credits error:", error?.message || error);
       res.status(500).json({ message: "Failed to sync credits" });
