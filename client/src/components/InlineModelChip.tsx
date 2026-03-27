@@ -1,8 +1,9 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from "react";
-import { AVAILABLE_MODELS, DEFAULT_COUNCIL_MODELS, DEFAULT_CHAIRMAN_MODEL, ROLE_LABELS, getCreditTierLabel, getRoleBadge, PREMIUM_MODEL_IDS, type ModelConfig, type Role } from "@shared/models";
-import { ChevronDown, ChevronRight, Eye, EyeOff, Trophy, Lock, Clock, Zap } from "lucide-react";
+import { AVAILABLE_MODELS, DEFAULT_COUNCIL_MODELS, DEFAULT_CHAIRMAN_MODEL, ROLE_LABELS, getRoleBadge, type ModelConfig, type Role } from "@shared/models";
+import { ChevronDown, ChevronRight, Eye, Trophy, Search, Sparkles } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Link } from "wouter";
 
 const FREE_MODELS = new Set([...DEFAULT_COUNCIL_MODELS, DEFAULT_CHAIRMAN_MODEL]);
 
@@ -13,11 +14,83 @@ interface InlineModelChipProps {
   onSelectModel: (slotIndex: number, modelId: string) => void;
   disabled?: boolean;
   isFreeUser?: boolean;
-  onLockedModelClick?: () => void;
   dotColor?: string;
+  hasAttachments?: boolean;
 }
 
 const ALL_ROLES: Role[] = ["coding", "marketing", "logic", "data", "quick"];
+
+function CostDots({ cost }: { cost: number }) {
+  return (
+    <span className="model-cost-dots" title={`Cost: ${cost}/4`}>
+      {Array.from({ length: 4 }, (_, i) => (
+        <span key={i} className={`model-cost-dot ${i < cost ? 'filled' : ''}`} />
+      ))}
+    </span>
+  );
+}
+
+function ModelRow({
+  m,
+  isCurrentSlot,
+  isDisabled,
+  isSelected,
+  activeRole,
+  hasAttachments,
+  onSelect,
+  testIdPrefix,
+}: {
+  m: ModelConfig;
+  isCurrentSlot: boolean;
+  isDisabled: boolean;
+  isSelected: boolean;
+  activeRole: Role | null;
+  hasAttachments: boolean;
+  onSelect: (id: string) => void;
+  testIdPrefix: string;
+}) {
+  const roleBadge = getRoleBadge(m.id, activeRole);
+
+  return (
+    <button
+      type="button"
+      onClick={() => !isDisabled && onSelect(m.id)}
+      disabled={isDisabled}
+      className={`model-option ${isCurrentSlot ? 'active' : ''} ${isDisabled ? 'disabled' : ''} ${roleBadge?.isNotRecommended ? 'not-recommended' : ''}`}
+      data-testid={`${testIdPrefix}-${m.id.replace(/\//g, '-')}`}
+    >
+      <div className="model-option-info">
+        <span className="model-option-name">
+          {m.name}
+          {isSelected && !isCurrentSlot && <span className="text-[10px] text-[#b0b0b0] ml-1 font-normal">(selected)</span>}
+        </span>
+        {hasAttachments && (
+          <TooltipProvider delayDuration={0}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Eye className={`w-3 h-3 ${m.vision ? 'model-vision-icon' : 'model-no-vision-icon'}`} />
+              </TooltipTrigger>
+              <TooltipContent>{m.vision ? 'Can read uploaded files' : 'Cannot read files'}</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )}
+      </div>
+      <div className="model-option-meta">
+        {activeRole && roleBadge ? (
+          <span className={`model-badge ${roleBadge.isChampion ? 'champion' : ''} ${roleBadge.isNotRecommended ? 'not-recommended' : ''}`}>
+            {roleBadge.isChampion && <Trophy className="w-3 h-3 inline-block mr-1" />}
+            {roleBadge.label}
+          </span>
+        ) : (
+          <span className={`model-badge ${m.badge === 'Deep Thinker' ? 'deep-thinker' : ''}`}>
+            {m.badge}
+          </span>
+        )}
+        <CostDots cost={m.cost} />
+      </div>
+    </button>
+  );
+}
 
 export default function InlineModelChip({ 
   modelId, 
@@ -26,20 +99,43 @@ export default function InlineModelChip({
   onSelectModel,
   disabled = false,
   isFreeUser = false,
-  onLockedModelClick,
-  dotColor = '#22c55e'
+  dotColor = '#22c55e',
+  hasAttachments = false,
 }: InlineModelChipProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [activeRole, setActiveRole] = useState<Role | null>(null);
   const [expandedProviders, setExpandedProviders] = useState<Set<string>>(new Set());
+  const [searchQuery, setSearchQuery] = useState("");
+  const [showAllRanked, setShowAllRanked] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   const model = AVAILABLE_MODELS.find(m => m.id === modelId);
 
+  const filteredBySearch = useMemo(() => {
+    if (!searchQuery.trim()) return AVAILABLE_MODELS;
+    const q = searchQuery.toLowerCase();
+    return AVAILABLE_MODELS.filter(m =>
+      m.name.toLowerCase().includes(q) || m.provider.toLowerCase().includes(q)
+    );
+  }, [searchQuery]);
+
+  const visibleModels = useMemo(() => {
+    if (isFreeUser) {
+      return filteredBySearch.filter(m => FREE_MODELS.has(m.id));
+    }
+    return filteredBySearch;
+  }, [filteredBySearch, isFreeUser]);
+
+  const lockedCount = useMemo(() => {
+    if (!isFreeUser) return 0;
+    return filteredBySearch.length - visibleModels.length;
+  }, [filteredBySearch, visibleModels, isFreeUser]);
+
   const sortedModels = useMemo(() => {
-    if (!activeRole) return AVAILABLE_MODELS;
+    if (!activeRole) return visibleModels;
     
-    return [...AVAILABLE_MODELS].sort((a, b) => {
+    return [...visibleModels].sort((a, b) => {
       const badgeA = getRoleBadge(a.id, activeRole);
       const badgeB = getRoleBadge(b.id, activeRole);
       
@@ -51,7 +147,7 @@ export default function InlineModelChip({
       if (!badgeA && badgeB) return 1;
       return 0;
     });
-  }, [activeRole]);
+  }, [activeRole, visibleModels]);
 
   const groupedModels = useMemo(() => {
     return sortedModels.reduce((acc, m) => {
@@ -63,11 +159,25 @@ export default function InlineModelChip({
     }, {} as Record<string, ModelConfig[]>);
   }, [sortedModels]);
 
+  const rankedTop5 = useMemo(() => sortedModels.slice(0, 5), [sortedModels]);
+  const rankedRest = useMemo(() => sortedModels.slice(5), [sortedModels]);
+
   useEffect(() => {
     if (isOpen) {
       setExpandedProviders(new Set());
+      setShowAllRanked(false);
     }
   }, [activeRole]);
+
+  useEffect(() => {
+    if (isOpen) {
+      setTimeout(() => searchInputRef.current?.focus(), 50);
+    } else {
+      setSearchQuery("");
+      setShowAllRanked(false);
+      setActiveRole(null);
+    }
+  }, [isOpen]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -85,11 +195,6 @@ export default function InlineModelChip({
   }, [isOpen]);
 
   const handleSelect = (newModelId: string) => {
-    if (isFreeUser && !FREE_MODELS.has(newModelId)) {
-      setIsOpen(false);
-      onLockedModelClick?.();
-      return;
-    }
     onSelectModel(slotIndex, newModelId);
     setIsOpen(false);
   };
@@ -109,6 +214,8 @@ export default function InlineModelChip({
       return next;
     });
   }, []);
+
+  const testIdPrefix = `option-model-${slotIndex}`;
 
   return (
     <div ref={containerRef} className="relative">
@@ -140,31 +247,72 @@ export default function InlineModelChip({
             className="model-popover model-popover-wide"
             data-testid={`popover-model-${slotIndex}`}
           >
-            {isFreeUser && (
-              <div className="model-popover-upgrade-hint" data-testid="hint-upgrade-models">
-                <Lock className="w-3 h-3" />
-                <span>Buy credits to unlock all models</span>
-              </div>
+            <div className="model-search-container">
+              <Search className="w-3.5 h-3.5 text-[#999] model-search-icon" />
+              <input
+                ref={searchInputRef}
+                type="text"
+                placeholder="Search models..."
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                className="model-search-input"
+                data-testid={`search-model-${slotIndex}`}
+              />
+            </div>
+            {!searchQuery && (
+              <>
+                <div className="model-popover-header">
+                  What's your task?
+                </div>
+                <div className="capability-filters">
+                  {ALL_ROLES.map((role) => (
+                    <button
+                      key={role}
+                      type="button"
+                      onClick={() => handleRoleClick(role)}
+                      className={`capability-filter-btn ${activeRole === role ? 'active' : ''}`}
+                      data-testid={`filter-${role}`}
+                    >
+                      {ROLE_LABELS[role]}
+                    </button>
+                  ))}
+                </div>
+              </>
             )}
-            <div className="model-popover-header">
-              What's your task?
-            </div>
-            <div className="capability-filters">
-              {ALL_ROLES.map((role) => (
-                <button
-                  key={role}
-                  type="button"
-                  onClick={() => handleRoleClick(role)}
-                  className={`capability-filter-btn ${activeRole === role ? 'active' : ''}`}
-                  data-testid={`filter-${role}`}
-                >
-                  {ROLE_LABELS[role]}
-                </button>
-              ))}
-            </div>
             <div className="model-popover-scroll">
-              {Object.keys(groupedModels).length === 0 ? (
-                <div className="no-models-message">No models available</div>
+              {sortedModels.length === 0 ? (
+                <div className="no-models-message">No models found</div>
+              ) : activeRole || searchQuery ? (
+                <>
+                  {(showAllRanked ? sortedModels : rankedTop5).map((m) => {
+                    const isSelected = selectedModels.includes(m.id);
+                    const isCurrentSlot = m.id === modelId;
+                    const isDisabled = isSelected && !isCurrentSlot;
+                    return (
+                      <ModelRow
+                        key={m.id}
+                        m={m}
+                        isCurrentSlot={isCurrentSlot}
+                        isDisabled={isDisabled}
+                        isSelected={isSelected}
+                        activeRole={activeRole}
+                        hasAttachments={hasAttachments}
+                        onSelect={handleSelect}
+                        testIdPrefix={testIdPrefix}
+                      />
+                    );
+                  })}
+                  {!showAllRanked && rankedRest.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setShowAllRanked(true)}
+                      className="model-show-all-btn"
+                      data-testid={`show-all-models-${slotIndex}`}
+                    >
+                      Show all {sortedModels.length} models
+                    </button>
+                  )}
+                </>
               ) : (
                 Object.entries(groupedModels).map(([provider, models]) => {
                   const isExpanded = expandedProviders.has(provider);
@@ -192,58 +340,18 @@ export default function InlineModelChip({
                               const isSelected = selectedModels.includes(m.id);
                               const isCurrentSlot = m.id === modelId;
                               const isDisabled = isSelected && !isCurrentSlot;
-                              const isLocked = isFreeUser && !FREE_MODELS.has(m.id);
-                              const roleBadge = getRoleBadge(m.id, activeRole);
-                              
                               return (
-                                <button
+                                <ModelRow
                                   key={m.id}
-                                  type="button"
-                                  onClick={() => !isDisabled && handleSelect(m.id)}
-                                  disabled={isDisabled && !isLocked}
-                                  className={`model-option ${isCurrentSlot ? 'active' : ''} ${isDisabled ? 'disabled' : ''} ${isLocked ? 'locked' : ''} ${roleBadge?.isNotRecommended ? 'not-recommended' : ''}`}
-                                  data-testid={`option-model-${slotIndex}-${m.id.replace(/\//g, '-')}`}
-                                >
-                                  <div className="model-option-info">
-                                    <span className="model-option-name">
-                                      {m.name}
-                                      {isSelected && !isCurrentSlot && <span className="text-[10px] text-[#b0b0b0] ml-1 font-normal">(selected)</span>}
-                                      {PREMIUM_MODEL_IDS.has(m.id) && (
-                                        <span className="inline-flex items-center gap-0.5 ml-1.5 text-[10px] font-medium text-amber-600">
-                                          <Zap className="w-3 h-3 text-amber-500" />
-                                          High credit usage
-                                        </span>
-                                      )}
-                                    </span>
-                                    {isLocked && <Lock className="w-3 h-3 model-lock-icon" />}
-                                    {m.vision ? (
-                                      <TooltipProvider delayDuration={0}>
-                                        <Tooltip>
-                                          <TooltipTrigger asChild>
-                                            <Eye className="w-3 h-3 model-vision-icon" />
-                                          </TooltipTrigger>
-                                          <TooltipContent>It can see/read uploaded files</TooltipContent>
-                                        </Tooltip>
-                                      </TooltipProvider>
-                                    ) : (
-                                      <EyeOff className="w-3 h-3 model-no-vision-icon" />
-                                    )}
-                                  </div>
-                                  <div className="model-option-meta">
-                                    {activeRole && roleBadge ? (
-                                      <span className={`model-badge ${roleBadge.isChampion ? 'champion' : ''} ${roleBadge.isNotRecommended ? 'not-recommended' : ''}`}>
-                                        {roleBadge.isChampion && <Trophy className="w-3 h-3 inline-block mr-1" />}
-                                        {roleBadge.label}
-                                      </span>
-                                    ) : (
-                                      <span className={`model-badge ${m.badge === 'Smartest / Slow' ? 'slow' : ''}`}>
-                                        {m.badge === 'Smartest / Slow' && <Clock className="w-3 h-3 inline-block mr-1" />}
-                                        {m.badge}
-                                      </span>
-                                    )}
-                                    <span className="model-option-cost" title="Credit usage tier">{getCreditTierLabel(m.cost)}</span>
-                                  </div>
-                                </button>
+                                  m={m}
+                                  isCurrentSlot={isCurrentSlot}
+                                  isDisabled={isDisabled}
+                                  isSelected={isSelected}
+                                  activeRole={activeRole}
+                                  hasAttachments={hasAttachments}
+                                  onSelect={handleSelect}
+                                  testIdPrefix={testIdPrefix}
+                                />
                               );
                             })}
                           </motion.div>
@@ -252,6 +360,17 @@ export default function InlineModelChip({
                     </div>
                   );
                 })
+              )}
+              {isFreeUser && lockedCount > 0 && (
+                <Link
+                  href="/credits"
+                  className="model-unlock-cta"
+                  data-testid={`unlock-models-cta-${slotIndex}`}
+                  onClick={() => setIsOpen(false)}
+                >
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>Unlock {lockedCount} more premium models</span>
+                </Link>
               )}
             </div>
           </motion.div>

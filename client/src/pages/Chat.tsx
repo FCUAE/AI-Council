@@ -1184,8 +1184,8 @@ export default function Chat() {
                                 selectedModels={councilModels}
                                 onSelectModel={handleSelectCouncilModel}
                                 isFreeUser={isFreeUser}
-                                onLockedModelClick={() => setLocation("/credits")}
                                 dotColor={MODEL_COLORS[index]}
+                                hasAttachments={uploadedFiles.length > 0}
                               />
                             ))}
                             <div className="w-px h-4 bg-[#d1d5db] mx-0.5 shrink-0" />
@@ -1193,7 +1193,7 @@ export default function Chat() {
                               modelId={chairmanModel}
                               onSelectModel={handleSelectChairmanModel}
                               isFreeUser={isFreeUser}
-                              onLockedModelClick={() => setLocation("/credits")}
+                              hasAttachments={uploadedFiles.length > 0}
                             />
                           {(messageValue?.trim().length ?? 0) >= 1 && (
                             !costEstimateConfirmed ? (

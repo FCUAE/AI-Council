@@ -1,8 +1,9 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from "react";
-import { AVAILABLE_MODELS, DEFAULT_COUNCIL_MODELS, DEFAULT_CHAIRMAN_MODEL, ROLE_LABELS, getCreditTierLabel, getRoleBadge, PREMIUM_MODEL_IDS, type ModelConfig, type Role } from "@shared/models";
-import { ChevronDown, ChevronRight, Eye, EyeOff, Star, Trophy, Lock, Clock, Zap } from "lucide-react";
+import { AVAILABLE_MODELS, DEFAULT_COUNCIL_MODELS, DEFAULT_CHAIRMAN_MODEL, ROLE_LABELS, getRoleBadge, type ModelConfig, type Role } from "@shared/models";
+import { ChevronDown, ChevronRight, Eye, Star, Trophy, Search, Sparkles } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Link } from "wouter";
 
 const FREE_MODELS = new Set([...DEFAULT_COUNCIL_MODELS, DEFAULT_CHAIRMAN_MODEL]);
 
@@ -11,29 +12,116 @@ interface ChairmanChipProps {
   onSelectModel: (modelId: string) => void;
   disabled?: boolean;
   isFreeUser?: boolean;
-  onLockedModelClick?: () => void;
+  hasAttachments?: boolean;
 }
 
 const ALL_ROLES: Role[] = ["coding", "marketing", "logic", "data", "quick"];
+
+function CostDots({ cost }: { cost: number }) {
+  return (
+    <span className="model-cost-dots" title={`Cost: ${cost}/4`}>
+      {Array.from({ length: 4 }, (_, i) => (
+        <span key={i} className={`model-cost-dot ${i < cost ? 'filled' : ''}`} />
+      ))}
+    </span>
+  );
+}
+
+function ModelRow({
+  m,
+  isCurrentSelection,
+  activeRole,
+  hasAttachments,
+  onSelect,
+}: {
+  m: ModelConfig;
+  isCurrentSelection: boolean;
+  activeRole: Role | null;
+  hasAttachments: boolean;
+  onSelect: (id: string) => void;
+}) {
+  const roleBadge = getRoleBadge(m.id, activeRole);
+
+  return (
+    <button
+      type="button"
+      onClick={() => onSelect(m.id)}
+      className={`model-option ${isCurrentSelection ? 'active' : ''} ${roleBadge?.isNotRecommended ? 'not-recommended' : ''}`}
+      data-testid={`option-chairman-${m.id.replace(/\//g, '-')}`}
+    >
+      <div className="model-option-info">
+        <span className="model-option-name">
+          {m.name}
+        </span>
+        {hasAttachments && (
+          <TooltipProvider delayDuration={0}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Eye className={`w-3 h-3 ${m.vision ? 'model-vision-icon' : 'model-no-vision-icon'}`} />
+              </TooltipTrigger>
+              <TooltipContent>{m.vision ? 'Can read uploaded files' : 'Cannot read files'}</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )}
+      </div>
+      <div className="model-option-meta">
+        {activeRole && roleBadge ? (
+          <span className={`model-badge ${roleBadge.isChampion ? 'champion' : ''} ${roleBadge.isNotRecommended ? 'not-recommended' : ''}`}>
+            {roleBadge.isChampion && <Trophy className="w-3 h-3 inline-block mr-1" />}
+            {roleBadge.label}
+          </span>
+        ) : (
+          <span className={`model-badge ${m.badge === 'Deep Thinker' ? 'deep-thinker' : ''}`}>
+            {m.badge}
+          </span>
+        )}
+        <CostDots cost={m.cost} />
+      </div>
+    </button>
+  );
+}
 
 export default function ChairmanChip({ 
   modelId, 
   onSelectModel,
   disabled = false,
   isFreeUser = false,
-  onLockedModelClick
+  hasAttachments = false,
 }: ChairmanChipProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [activeRole, setActiveRole] = useState<Role | null>(null);
   const [expandedProviders, setExpandedProviders] = useState<Set<string>>(new Set());
+  const [searchQuery, setSearchQuery] = useState("");
+  const [showAllRanked, setShowAllRanked] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   const model = AVAILABLE_MODELS.find(m => m.id === modelId);
 
+  const filteredBySearch = useMemo(() => {
+    if (!searchQuery.trim()) return AVAILABLE_MODELS;
+    const q = searchQuery.toLowerCase();
+    return AVAILABLE_MODELS.filter(m =>
+      m.name.toLowerCase().includes(q) || m.provider.toLowerCase().includes(q)
+    );
+  }, [searchQuery]);
+
+  const visibleModels = useMemo(() => {
+    if (isFreeUser) {
+      return filteredBySearch.filter(m => FREE_MODELS.has(m.id));
+    }
+    return filteredBySearch;
+  }, [filteredBySearch, isFreeUser]);
+
+  const lockedCount = useMemo(() => {
+    if (!isFreeUser) return 0;
+    return filteredBySearch.length - visibleModels.length;
+  }, [filteredBySearch, visibleModels, isFreeUser]);
+
   const sortedModels = useMemo(() => {
-    if (!activeRole) return AVAILABLE_MODELS;
+    if (!activeRole) return visibleModels;
     
-    return [...AVAILABLE_MODELS].sort((a, b) => {
+    return [...visibleModels].sort((a, b) => {
       const badgeA = getRoleBadge(a.id, activeRole);
       const badgeB = getRoleBadge(b.id, activeRole);
       
@@ -45,7 +133,7 @@ export default function ChairmanChip({
       if (!badgeA && badgeB) return 1;
       return 0;
     });
-  }, [activeRole]);
+  }, [activeRole, visibleModels]);
 
   const groupedModels = useMemo(() => {
     return sortedModels.reduce((acc, m) => {
@@ -57,11 +145,25 @@ export default function ChairmanChip({
     }, {} as Record<string, ModelConfig[]>);
   }, [sortedModels]);
 
+  const rankedTop5 = useMemo(() => sortedModels.slice(0, 5), [sortedModels]);
+  const rankedRest = useMemo(() => sortedModels.slice(5), [sortedModels]);
+
   useEffect(() => {
     if (isOpen) {
       setExpandedProviders(new Set());
+      setShowAllRanked(false);
     }
   }, [activeRole]);
+
+  useEffect(() => {
+    if (isOpen) {
+      setTimeout(() => searchInputRef.current?.focus(), 50);
+    } else {
+      setSearchQuery("");
+      setShowAllRanked(false);
+      setActiveRole(null);
+    }
+  }, [isOpen]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -79,11 +181,6 @@ export default function ChairmanChip({
   }, [isOpen]);
 
   const handleSelect = (newModelId: string) => {
-    if (isFreeUser && !FREE_MODELS.has(newModelId)) {
-      setIsOpen(false);
-      onLockedModelClick?.();
-      return;
-    }
     onSelectModel(newModelId);
     setIsOpen(false);
   };
@@ -135,31 +232,67 @@ export default function ChairmanChip({
             className="model-popover model-popover-wide"
             data-testid="popover-chairman"
           >
-            {isFreeUser && (
-              <div className="model-popover-upgrade-hint" data-testid="hint-upgrade-chairman">
-                <Lock className="w-3 h-3" />
-                <span>Buy credits to unlock all models</span>
-              </div>
+            <div className="model-search-container">
+              <Search className="w-3.5 h-3.5 text-[#999] model-search-icon" />
+              <input
+                ref={searchInputRef}
+                type="text"
+                placeholder="Search models..."
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                className="model-search-input"
+                data-testid="search-chairman"
+              />
+            </div>
+            {!searchQuery && (
+              <>
+                <div className="model-popover-header">
+                  What's your task?
+                </div>
+                <div className="capability-filters">
+                  {ALL_ROLES.map((role) => (
+                    <button
+                      key={role}
+                      type="button"
+                      onClick={() => handleRoleClick(role)}
+                      className={`capability-filter-btn ${activeRole === role ? 'active' : ''}`}
+                      data-testid={`filter-chairman-${role}`}
+                    >
+                      {ROLE_LABELS[role]}
+                    </button>
+                  ))}
+                </div>
+              </>
             )}
-            <div className="model-popover-header">
-              What's your task?
-            </div>
-            <div className="capability-filters">
-              {ALL_ROLES.map((role) => (
-                <button
-                  key={role}
-                  type="button"
-                  onClick={() => handleRoleClick(role)}
-                  className={`capability-filter-btn ${activeRole === role ? 'active' : ''}`}
-                  data-testid={`filter-chairman-${role}`}
-                >
-                  {ROLE_LABELS[role]}
-                </button>
-              ))}
-            </div>
             <div className="model-popover-scroll">
-              {Object.keys(groupedModels).length === 0 ? (
-                <div className="no-models-message">No models available</div>
+              {sortedModels.length === 0 ? (
+                <div className="no-models-message">No models found</div>
+              ) : activeRole || searchQuery ? (
+                <>
+                  {(showAllRanked ? sortedModels : rankedTop5).map((m) => {
+                    const isCurrentSelection = m.id === modelId;
+                    return (
+                      <ModelRow
+                        key={m.id}
+                        m={m}
+                        isCurrentSelection={isCurrentSelection}
+                        activeRole={activeRole}
+                        hasAttachments={hasAttachments}
+                        onSelect={handleSelect}
+                      />
+                    );
+                  })}
+                  {!showAllRanked && rankedRest.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setShowAllRanked(true)}
+                      className="model-show-all-btn"
+                      data-testid="show-all-chairman-models"
+                    >
+                      Show all {sortedModels.length} models
+                    </button>
+                  )}
+                </>
               ) : (
                 Object.entries(groupedModels).map(([provider, models]) => {
                   const isExpanded = expandedProviders.has(provider);
@@ -185,56 +318,15 @@ export default function ChairmanChip({
                           >
                             {models.map((m) => {
                               const isCurrentSelection = m.id === modelId;
-                              const isLocked = isFreeUser && !FREE_MODELS.has(m.id);
-                              const roleBadge = getRoleBadge(m.id, activeRole);
-                              
                               return (
-                                <button
+                                <ModelRow
                                   key={m.id}
-                                  type="button"
-                                  onClick={() => handleSelect(m.id)}
-                                  className={`model-option ${isCurrentSelection ? 'active' : ''} ${isLocked ? 'locked' : ''} ${roleBadge?.isNotRecommended ? 'not-recommended' : ''}`}
-                                  data-testid={`option-chairman-${m.id.replace(/\//g, '-')}`}
-                                >
-                                  <div className="model-option-info">
-                                    <span className="model-option-name">
-                                      {m.name}
-                                      {PREMIUM_MODEL_IDS.has(m.id) && (
-                                        <span className="inline-flex items-center gap-0.5 ml-1.5 text-[10px] font-medium text-amber-600">
-                                          <Zap className="w-3 h-3 text-amber-500" />
-                                          High credit usage
-                                        </span>
-                                      )}
-                                    </span>
-                                    {isLocked && <Lock className="w-3 h-3 model-lock-icon" />}
-                                    {m.vision ? (
-                                      <TooltipProvider delayDuration={0}>
-                                        <Tooltip>
-                                          <TooltipTrigger asChild>
-                                            <Eye className="w-3 h-3 model-vision-icon" />
-                                          </TooltipTrigger>
-                                          <TooltipContent>It can see/read uploaded files</TooltipContent>
-                                        </Tooltip>
-                                      </TooltipProvider>
-                                    ) : (
-                                      <EyeOff className="w-3 h-3 model-no-vision-icon" />
-                                    )}
-                                  </div>
-                                  <div className="model-option-meta">
-                                    {activeRole && roleBadge ? (
-                                      <span className={`model-badge ${roleBadge.isChampion ? 'champion' : ''} ${roleBadge.isNotRecommended ? 'not-recommended' : ''}`}>
-                                        {roleBadge.isChampion && <Trophy className="w-3 h-3 inline-block mr-1" />}
-                                        {roleBadge.label}
-                                      </span>
-                                    ) : (
-                                      <span className={`model-badge ${m.badge === 'Smartest / Slow' ? 'slow' : ''}`}>
-                                        {m.badge === 'Smartest / Slow' && <Clock className="w-3 h-3 inline-block mr-1" />}
-                                        {m.badge}
-                                      </span>
-                                    )}
-                                    <span className="model-option-cost" title="Credit usage tier">{getCreditTierLabel(m.cost)}</span>
-                                  </div>
-                                </button>
+                                  m={m}
+                                  isCurrentSelection={isCurrentSelection}
+                                  activeRole={activeRole}
+                                  hasAttachments={hasAttachments}
+                                  onSelect={handleSelect}
+                                />
                               );
                             })}
                           </motion.div>
@@ -243,6 +335,17 @@ export default function ChairmanChip({
                     </div>
                   );
                 })
+              )}
+              {isFreeUser && lockedCount > 0 && (
+                <Link
+                  href="/credits"
+                  className="model-unlock-cta"
+                  data-testid="unlock-chairman-cta"
+                  onClick={() => setIsOpen(false)}
+                >
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>Unlock {lockedCount} more premium models</span>
+                </Link>
               )}
             </div>
           </motion.div>
