@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from "react";
-import { AVAILABLE_MODELS, DEFAULT_COUNCIL_MODELS, DEFAULT_CHAIRMAN_MODEL, ROLE_LABELS, getCostDisplay, getRoleBadge, type ModelConfig, type Role } from "@shared/models";
-import { ChevronDown, ChevronRight, Eye, EyeOff, Trophy, Lock, Clock } from "lucide-react";
+import { AVAILABLE_MODELS, DEFAULT_COUNCIL_MODELS, DEFAULT_CHAIRMAN_MODEL, ROLE_LABELS, getCostDisplay, getRoleBadge, PREMIUM_MODEL_IDS, type ModelConfig, type Role } from "@shared/models";
+import { ChevronDown, ChevronRight, Eye, EyeOff, Trophy, Lock, Clock, Zap } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
@@ -205,7 +205,13 @@ export default function InlineModelChip({
                                   data-testid={`option-model-${slotIndex}-${m.id.replace(/\//g, '-')}`}
                                 >
                                   <div className="model-option-info">
-                                    <span className="model-option-name">{m.name}{isSelected && !isCurrentSlot && <span className="text-[10px] text-[#b0b0b0] ml-1 font-normal">(selected)</span>}</span>
+                                    <span className="model-option-name">
+                                      {m.name}
+                                      {isSelected && !isCurrentSlot && <span className="text-[10px] text-[#b0b0b0] ml-1 font-normal">(selected)</span>}
+                                      {PREMIUM_MODEL_IDS.has(m.id) && (
+                                        <Zap className="w-3 h-3 inline-block ml-1 text-amber-500" />
+                                      )}
+                                    </span>
                                     {isLocked && <Lock className="w-3 h-3 model-lock-icon" />}
                                     {m.vision ? (
                                       <TooltipProvider delayDuration={0}>

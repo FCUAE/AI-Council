@@ -17,7 +17,7 @@ interface CostEstimate {
 }
 import { compressImageIfNeeded, isImageFile } from "@/lib/imageCompression";
 import { authFetch } from "@/lib/clerk-token";
-import { Brain, MessageSquareMore, Star, Paperclip, X, Info, ArrowUp } from "lucide-react";
+import { Brain, MessageSquareMore, Star, Paperclip, X, Info, ArrowUp, Zap } from "lucide-react";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
 import { 
   Document,
@@ -493,7 +493,7 @@ export default function Home() {
           >
             <Info className="w-4 h-4 text-[#a3a3a3] flex-shrink-0" />
             <p className="font-normal text-[13px] leading-[20px] text-[#737373] tracking-[-0.3px]">
-              Not just another AI chat. Meet your AI Council: a debate system that delivers premium advice without the $1000+ expert fees.
+              Not just another AI chat. Meet your AI Council: a debate system that delivers expert-level advice at a fraction of the cost.
             </p>
           </div>
         </div>
@@ -553,6 +553,24 @@ export default function Home() {
                     </button>
                   </div>
                 ))}
+              </div>
+            )}
+
+            {isAuthenticated && userCredits === 0 && (
+              <div className="flex items-center gap-3 px-4 py-3 bg-amber-50 border border-amber-200 rounded-xl mb-3" data-testid="upsell-banner">
+                <Zap className="w-4 h-4 text-amber-500 flex-shrink-0" />
+                <p className="text-[13px] text-amber-800 leading-snug flex-1 m-0">
+                  You're out of credits.{" "}
+                  <button
+                    type="button"
+                    onClick={() => setLocation("/credits")}
+                    className="font-semibold underline text-amber-900 bg-transparent border-0 cursor-pointer p-0 text-[13px]"
+                    data-testid="link-upsell-credits"
+                  >
+                    Get more credits
+                  </button>
+                  {" "}to keep using the Council.
+                </p>
               </div>
             )}
 
@@ -679,7 +697,7 @@ export default function Home() {
                         }`}
                         data-testid="text-credit-cost"
                       >
-                        {creditCost} {creditCost === 1 ? 'credit' : 'credits'}
+                        ≈ {creditCost} {creditCost === 1 ? 'credit' : 'credits'}
                         <TooltipProvider delayDuration={200}>
                           <Tooltip>
                             <TooltipTrigger asChild>
@@ -688,7 +706,7 @@ export default function Home() {
                               </button>
                             </TooltipTrigger>
                             <TooltipContent className="max-w-[320px] bg-[#1a1a1a] text-white border-[#333] p-3 text-[12px] leading-relaxed" side="top" align="end">
-                              <p className="m-0"><strong>This launches a council debate.</strong> 4 AI models will independently analyze your prompt, debate and challenge each other across 3 rounds, and synthesize a single, unified, highly intelligent answer.</p>
+                              <p className="m-0">This council will use approximately <strong>{creditCost}</strong> {creditCost === 1 ? 'credit' : 'credits'}. Change models above to adjust cost.</p>
                             </TooltipContent>
                           </Tooltip>
                         </TooltipProvider>

@@ -866,6 +866,12 @@ export const DEFAULT_COUNCIL_MODELS = [
   "deepseek/deepseek-v3.2"
 ];
 
+export const PREMIUM_MODEL_IDS = new Set([
+  "openai/gpt-5.4-pro",
+  "openai/o3",
+  "openai/o4-mini",
+]);
+
 export const MODEL_FALLBACKS: Record<string, string[]> = {
   "openai/gpt-5.4": ["openai/gpt-5.2", "anthropic/claude-sonnet-4.5"],
   "openai/gpt-5.4-pro": ["openai/gpt-5.2-pro", "anthropic/claude-opus-4.6"],

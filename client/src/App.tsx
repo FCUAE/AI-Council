@@ -191,13 +191,10 @@ function AppSidebar() {
     high: Math.floor(usage.debateCredits / 3),
   } : { low: 0, high: 0 };
 
-  const creditsExpiryDate = usage?.creditsPurchasedAt
+  const _creditsExpiryDate = usage?.creditsPurchasedAt
     ? new Date(new Date(usage.creditsPurchasedAt).getTime() + 60 * 24 * 60 * 60 * 1000)
     : null;
-
-  const formattedExpiry = creditsExpiryDate
-    ? creditsExpiryDate.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
-    : null;
+  void _creditsExpiryDate;
 
   return (
     <>
@@ -341,7 +338,7 @@ function AppSidebar() {
             <>
               <div className="bg-white border border-[#eaeaea] rounded-lg shadow-[0px_2px_8px_rgba(0,0,0,0.05)] px-2 py-1.5 mb-2">
                 <div className="flex items-center justify-between mb-0.5">
-                  <span className="font-medium text-[11px] text-[#1a1a1a]">Council Debates</span>
+                  <span className="font-medium text-[11px] text-[#1a1a1a]">Council Credits</span>
                   {usage?.isSubscribed && (
                     <span className="bg-[#eef2ff] text-[#4f46e5] font-semibold text-[9px] px-1.5 py-0.5 rounded">PRO</span>
                   )}
@@ -353,8 +350,8 @@ function AppSidebar() {
                 <div className="flex items-center gap-1 mb-1">
                   <span className="text-[12px] text-[#737373]/70" data-testid="text-debate-estimate">
                     {isFreeUser
-                      ? <>≈ up to <strong>{freeDebateEstimate}</strong> Council debates</>
-                      : <>≈ <strong>{debateEstimate.low} to {debateEstimate.high}</strong> Council debates</>
+                      ? <>≈ up to <strong>{freeDebateEstimate}</strong> debates</>
+                      : <>≈ <strong>{debateEstimate.low}–{debateEstimate.high}</strong> debates</>
                     }
                   </span>
                   <TooltipProvider delayDuration={200}>
@@ -369,7 +366,7 @@ function AppSidebar() {
                         </button>
                       </TooltipTrigger>
                       <TooltipContent className="max-w-[320px] bg-[#1a1a1a] text-white border-[#333] p-3 text-[12px] leading-relaxed" side="right" align="start">
-                        <p className="m-0">Varies by model selection. Blend lightweight models for more debates, or deploy premium reasoning models for maximum intelligence.{formattedExpiry ? ` Use them before ${formattedExpiry}.` : ''}</p>
+                        <p className="m-0">Varies by model selection. Blend lightweight models for more debates, or deploy premium reasoning models for maximum intelligence.</p>
                       </TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
@@ -380,13 +377,23 @@ function AppSidebar() {
                     style={{ width: `${progressWidth}%` }}
                   />
                 </div>
-                <button
-                  onClick={() => setLocation("/credits")}
-                  className="w-full text-[10px] font-medium text-[#1a1a1a] bg-white border border-[#eaeaea] py-1 rounded-lg cursor-pointer hover:border-[#d1d5db] transition-colors flex items-center justify-center gap-1"
-                  data-testid="button-buy-credits"
-                >
-                  Get More
-                </button>
+                {(usage?.debateCredits || 0) === 0 ? (
+                  <button
+                    onClick={() => setLocation("/credits")}
+                    className="w-full text-[10px] font-semibold text-white bg-[#1a1a1a] border-0 py-1.5 rounded-lg cursor-pointer hover:bg-[#2b2b2b] transition-colors flex items-center justify-center gap-1"
+                    data-testid="button-buy-credits"
+                  >
+                    Get Credits to Continue
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => setLocation("/credits")}
+                    className="w-full text-[10px] font-medium text-[#1a1a1a] bg-white border border-[#eaeaea] py-1 rounded-lg cursor-pointer hover:border-[#d1d5db] transition-colors flex items-center justify-center gap-1"
+                    data-testid="button-buy-credits"
+                  >
+                    Get More
+                  </button>
+                )}
               </div>
 
 

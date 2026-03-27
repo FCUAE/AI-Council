@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
 import { useClerk } from "@clerk/react";
-import { ArrowLeft, Lock, AlertCircle } from "lucide-react";
+import { ArrowLeft, Lock, AlertCircle, Zap, Shield, CreditCard, Clock } from "lucide-react";
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
 import { authFetch } from "@/lib/clerk-token";
 import { getRefgrowReferral } from "@/hooks/use-refgrow";
@@ -12,8 +12,9 @@ const PACKS = [
     size: 100,
     priceRaw: 29,
     label: "Explorer",
-    debateEstimate: 33,
+    debateRange: "~15–50",
     perCredit: "$0.29",
+    expirationDays: 90,
     badge: null as string | null,
     discount: null as string | null,
   },
@@ -21,8 +22,9 @@ const PACKS = [
     size: 400,
     priceRaw: 89,
     label: "Strategist",
-    debateEstimate: 128,
+    debateRange: "~55–200",
     perCredit: "$0.22",
+    expirationDays: 120,
     badge: "Most Popular",
     discount: "Save 24%",
   },
@@ -30,8 +32,9 @@ const PACKS = [
     size: 1000,
     priceRaw: 179,
     label: "Mastermind",
-    debateEstimate: 315,
+    debateRange: "~130–500",
     perCredit: "$0.18",
+    expirationDays: 180,
     badge: "Best Value",
     discount: "Save 38%",
   },
@@ -40,15 +43,15 @@ const PACKS = [
 const FAQ_ITEMS = [
   {
     question: "Why does one debate use multiple credits?",
-    answer: "Each debate runs across 4 AI models through multiple rounds of analysis and challenge. More powerful model combinations use more credits per debate — giving you deeper, more rigorous answers.",
+    answer: "Each debate runs across 4 AI models through multiple rounds of independent analysis, cross-examination, and synthesis. Premium reasoning models like GPT-5.4 Pro and o3 use more credits per debate because they perform deeper analysis — but you always choose which models participate.",
   },
   {
     question: "What happens to unused credits?",
-    answer: "Explorer credits are valid for 90 days. Strategist credits last 120 days. Mastermind credits last 180 days from purchase.",
+    answer: "Credits are valid based on your pack: Explorer credits last 90 days, Strategist credits last 120 days, and Mastermind credits last 180 days from purchase.",
   },
   {
     question: "Can I choose which AI models participate?",
-    answer: "Yes. You can select which models join each debate. Different combinations offer different strengths — and different credit costs.",
+    answer: "Yes — you have full control over which models join each debate. Blend lightweight models for more debates per credit, or deploy premium reasoning models for maximum intelligence. The credit cost updates in real time as you change your council.",
   },
 ];
 
@@ -172,26 +175,31 @@ export default function Credits() {
                   {p.label}
                 </h3>
 
-                <p className="text-[28px] font-bold text-[#1a1a1a] tracking-[-0.5px] leading-none mb-2" data-testid={`text-debates-${p.size}`}>
-                  ~{p.debateEstimate} debates
+                <p className="text-[32px] font-bold text-[#1a1a1a] tracking-[-1px] leading-none mb-1" data-testid={`text-credits-${p.size}`}>
+                  {p.size.toLocaleString()}
+                </p>
+                <p className="text-[13px] font-medium text-[#737373] mb-3">credits</p>
+
+                <p className="text-[14px] text-[#4a4a4a] mb-1" data-testid={`text-debates-${p.size}`}>
+                  {p.debateRange} debates
                 </p>
 
-                <p className="text-[14px] font-medium text-[#4a4a4a] mb-1" data-testid={`text-credits-${p.size}`}>
-                  {p.size} credits
-                </p>
-
-                <p className="text-[13px] text-[#737373] mb-auto">
-                  Based on chosen models
+                <p className="text-[12px] text-[#999] mb-auto">
+                  depending on models chosen
                 </p>
 
                 <div className="mt-4 pt-3 border-t border-[#f0f0f0] flex items-center flex-wrap gap-y-1">
-                  <span className="text-[14px] text-[#999]" data-testid={`text-price-${p.size}`}>${p.priceRaw}</span>
+                  <span className="text-[14px] font-semibold text-[#1a1a1a]" data-testid={`text-price-${p.size}`}>${p.priceRaw}</span>
                   <span className="text-[12px] text-[#999] ml-2" data-testid={`text-per-credit-${p.size}`}>{p.perCredit}/credit</span>
                   {p.discount && (
                     <span className="ml-2 inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700" data-testid={`badge-discount-${p.size}`}>
                       {p.discount}
                     </span>
                   )}
+                </div>
+                <div className="mt-2 flex items-center gap-1">
+                  <Clock className="w-3 h-3 text-[#b0b0b0]" />
+                  <span className="text-[11px] text-[#b0b0b0]">Valid {p.expirationDays} days</span>
                 </div>
               </button>
             );
@@ -203,8 +211,8 @@ export default function Credits() {
             <div className="text-[14px] text-[#737373]">
               <span className="font-semibold text-[#1a1a1a]" data-testid="text-selected-plan">{pack.label}</span>
               {" — "}
-              <span data-testid="text-selected-credits">{pack.size} credits</span>
-              <span className="text-[#999]" data-testid="text-selected-debates">{" "}(~{pack.debateEstimate} debates)</span>
+              <span data-testid="text-selected-credits">{pack.size.toLocaleString()} credits</span>
+              <span className="text-[#999]" data-testid="text-selected-debates">{" "}({pack.debateRange} debates)</span>
             </div>
             <span className="text-xl font-bold text-[#1a1a1a]" data-testid="text-selected-price">${pack.priceRaw}.00</span>
           </div>
@@ -225,10 +233,24 @@ export default function Credits() {
             {loading ? "Processing..." : isAuthenticated ? `Pay $${pack.priceRaw}.00` : "Sign in to Purchase"}
           </button>
 
-          <p className="text-[12px] text-center text-[#737373] mt-4" data-testid="text-trust-signals">
-            <Lock className="w-3 h-3 inline mr-1 relative -top-[1px]" />
-            One-time payment · Full model access · Credits valid 60 days · Secure payment via Stripe
-          </p>
+          <div className="flex items-center justify-center gap-4 mt-4 flex-wrap">
+            <span className="inline-flex items-center gap-1 text-[11px] text-[#999]" data-testid="trust-onetime">
+              <CreditCard className="w-3 h-3" />
+              One-time payment
+            </span>
+            <span className="inline-flex items-center gap-1 text-[11px] text-[#999]" data-testid="trust-models">
+              <Zap className="w-3 h-3" />
+              Full model access
+            </span>
+            <span className="inline-flex items-center gap-1 text-[11px] text-[#999]" data-testid="trust-expiry">
+              <Clock className="w-3 h-3" />
+              Valid {pack.expirationDays} days
+            </span>
+            <span className="inline-flex items-center gap-1 text-[11px] text-[#999]" data-testid="trust-stripe">
+              <Shield className="w-3 h-3" />
+              Secure via Stripe
+            </span>
+          </div>
         </div>
 
         <div className="mt-12 mb-8" data-testid="faq-section">
