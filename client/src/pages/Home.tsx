@@ -8,7 +8,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import InlineModelChip from "@/components/InlineModelChip";
 import ChairmanChip from "@/components/ChairmanChip";
 
-import { DEFAULT_COUNCIL_MODELS, DEFAULT_CHAIRMAN_MODEL, getDebateCreditCost, FREE_TIER_CREDITS } from "@shared/models";
+import { DEFAULT_COUNCIL_MODELS, DEFAULT_CHAIRMAN_MODEL, getDebateCreditCost, FREE_TIER_CREDITS, DELIVERABLE_KEYWORDS } from "@shared/models";
 
 
 interface CostEstimate {
@@ -111,7 +111,8 @@ export default function Home() {
 
   const isFreeUser = !usage?.isSubscribed && (usage?.deliberationCount || 0) <= FREE_TIER_CREDITS && (usage?.debateCredits || 0) <= FREE_TIER_CREDITS;
 
-  const localCreditCost = getDebateCreditCost(selectedModels, chairmanModel, totalAttachmentTokens);
+  const isDeliverable = DELIVERABLE_KEYWORDS.test(prompt);
+  const localCreditCost = getDebateCreditCost(selectedModels, chairmanModel, totalAttachmentTokens, 0, isDeliverable);
   const [serverEstimate, setServerEstimate] = useState<CostEstimate | null>(null);
   const [isEstimating, setIsEstimating] = useState(false);
   const [estimateRetryCount, setEstimateRetryCount] = useState(0);
@@ -147,6 +148,7 @@ export default function Home() {
             chairmanModel,
             attachments: attachmentMeta.length > 0 ? attachmentMeta : undefined,
             attachmentTokens: totalAttachmentTokens > 0 ? totalAttachmentTokens : undefined,
+            prompt: prompt.trim() || undefined,
           }),
           signal: abortController.signal,
         });
@@ -174,7 +176,7 @@ export default function Home() {
       if (estimateTimerRef.current) clearTimeout(estimateTimerRef.current);
       abortController.abort("cleanup");
     };
-  }, [selectedModels, chairmanModel, totalAttachmentTokens, uploadedFiles, isAuthenticated, estimateRetryCount]);
+  }, [selectedModels, chairmanModel, totalAttachmentTokens, uploadedFiles, isAuthenticated, estimateRetryCount, isDeliverable]);
 
   const creditCost = serverEstimate?.creditCost ?? localCreditCost;
   const userCredits = usage?.debateCredits || 0;

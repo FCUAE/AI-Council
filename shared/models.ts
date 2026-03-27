@@ -957,21 +957,27 @@ export function getUserTier(totalCreditsPurchased: number, currentBalance: numbe
   return 'free';
 }
 
-const BASE_PROMPT_TOKENS = 500;
-const SYSTEM_OVERHEAD_TOKENS = 1000;
-const STAGE1_OUTPUT_CAP = 2000;
-const STAGE2_OUTPUT_CAP = 1500;
-const STAGE3_OUTPUT_CAP = 2500;
-const UTIL = 0.65;
+export const DELIVERABLE_KEYWORDS = /\b(produce|create|write|build|design|draft|generate|develop|compose|craft|prepare|outline|plan|make|construct|formulate|devise|put together|come up with|give me|provide)\b/i;
+
+const BASE_PROMPT_TOKENS = 800;
+const SYSTEM_OVERHEAD_TOKENS = 1500;
+const STAGE1_OUTPUT_CAP = 2500;
+const STAGE2_OUTPUT_CAP = 2048;
+const STAGE3_OUTPUT_CAP = 4000;
+const STAGE3_DELIVERABLE_OUTPUT_CAP = 8000;
+const CHAIRMAN_CONTINUATION_CAP = 4000;
+const CHAIRMAN_CONTINUATION_PROBABILITY = 0.4;
+const UTIL = 0.85;
 
 export function estimateDebateCost(
   councilModels: string[],
   chairmanModel: string,
   attachmentTokens: number = 0,
-  priorContextTokens: number = 0
+  priorContextTokens: number = 0,
+  isDeliverable: boolean = false
 ): number {
   const { standardCost, reasoningCost } = estimateDebateCostWithBufferInfo(
-    councilModels, chairmanModel, attachmentTokens, priorContextTokens
+    councilModels, chairmanModel, attachmentTokens, priorContextTokens, isDeliverable
   );
   return standardCost + reasoningCost;
 }
@@ -983,8 +989,8 @@ function niceRound(n: number): number {
   return Math.round(n / 10) * 10;
 }
 
-const STANDARD_BUFFER = 0.05;
-const REASONING_BUFFER = 0.20;
+const STANDARD_BUFFER = 0.20;
+const REASONING_BUFFER = 0.35;
 const TARGET_MARGIN = 0.65;
 const WORST_CASE_NET_PER_CREDIT = 0.174;
 const COST_PER_CREDIT_BUDGET = 0.058;
@@ -1004,7 +1010,8 @@ export function estimateDebateCostWithBufferInfo(
   councilModels: string[],
   chairmanModel: string,
   attachmentTokens: number = 0,
-  priorContextTokens: number = 0
+  priorContextTokens: number = 0,
+  isDeliverable: boolean = false
 ): { standardCost: number; reasoningCost: number; hasReasoningModels: boolean } {
   const baseInput = BASE_PROMPT_TOKENS + SYSTEM_OVERHEAD_TOKENS + priorContextTokens;
   const councilCount = councilModels.length || 3;
@@ -1035,13 +1042,20 @@ export function estimateDebateCostWithBufferInfo(
     const s1Out = Math.round(STAGE1_OUTPUT_CAP * UTIL);
     const s2Out = Math.round(STAGE2_OUTPUT_CAP * UTIL);
     const s3Input = baseInput + councilCount * s1Out + councilCount * s2Out;
-    const s3Output = Math.round(STAGE3_OUTPUT_CAP * UTIL);
+    const effectiveS3Cap = isDeliverable ? STAGE3_DELIVERABLE_OUTPUT_CAP : STAGE3_OUTPUT_CAP;
+    const s3Output = Math.round(effectiveS3Cap * UTIL);
     const s3Cost = (s3Input * chairman.apiCostInput + s3Output * chairman.apiCostOutput * chairman.reasoningTokenMultiplier) / 1_000_000;
 
+    const contInput = baseInput + Math.round(6000 * 0.75);
+    const contOutput = Math.round(CHAIRMAN_CONTINUATION_CAP * UTIL);
+    const contCost = ((contInput * chairman.apiCostInput + contOutput * chairman.apiCostOutput * chairman.reasoningTokenMultiplier) / 1_000_000) * CHAIRMAN_CONTINUATION_PROBABILITY;
+
+    const totalChairmanCost = s3Cost + contCost;
+
     if (chairman.isReasoningModel) {
-      reasoningCost += s3Cost;
+      reasoningCost += totalChairmanCost;
     } else {
-      standardCost += s3Cost;
+      standardCost += totalChairmanCost;
     }
   }
 
@@ -1052,10 +1066,11 @@ export function getDebateCreditCost(
   councilModels: string[],
   chairmanModel: string,
   attachmentTokens: number = 0,
-  priorContextTokens: number = 0
+  priorContextTokens: number = 0,
+  isDeliverable: boolean = false
 ): number {
   const { standardCost, reasoningCost } = estimateDebateCostWithBufferInfo(
-    councilModels, chairmanModel, attachmentTokens, priorContextTokens
+    councilModels, chairmanModel, attachmentTokens, priorContextTokens, isDeliverable
   );
   return computeCreditCharge(standardCost, reasoningCost);
 }

@@ -7,7 +7,7 @@ import OpenAI from "openai";
 import sharp from "sharp";
 import rateLimit from "express-rate-limit";
 import { registerObjectStorageRoutes, ObjectStorageService, ObjectPermission } from "./replit_integrations/object_storage";
-import { DEFAULT_COUNCIL_MODELS, DEFAULT_CHAIRMAN_MODEL, isVisionCapable, getDebateCreditCost, computeCreditCharge, AVAILABLE_MODELS, FREE_TIER_CREDITS, getUserTier, getModelContextWindow, MODEL_FALLBACKS, getModelById, OVERRUN_CAP_MULTIPLIER } from "@shared/models";
+import { DEFAULT_COUNCIL_MODELS, DEFAULT_CHAIRMAN_MODEL, isVisionCapable, getDebateCreditCost, computeCreditCharge, AVAILABLE_MODELS, FREE_TIER_CREDITS, getUserTier, getModelContextWindow, MODEL_FALLBACKS, getModelById, OVERRUN_CAP_MULTIPLIER, DELIVERABLE_KEYWORDS } from "@shared/models";
 import { users } from "@shared/models/auth";
 import { isAuthenticated } from "./replit_integrations/auth";
 import { authStorage } from "./replit_integrations/auth/storage";
@@ -1620,7 +1620,6 @@ ${peerReviews.map(r => `[${r.model}'s Cross-Examination]: ${r.content}`).join("\
     }
     const chairmanHasVision = isVisionCapable(selectedChairman);
     
-    const DELIVERABLE_KEYWORDS = /\b(produce|create|write|build|design|draft|generate|develop|compose|craft|prepare|outline|plan|make|construct|formulate|devise|put together|come up with|give me|provide)\b/i;
     const isDeliverableRequest = DELIVERABLE_KEYWORDS.test(prompt);
     const CHAIRMAN_MAX_TOKENS = isDeliverableRequest ? 8000 : 4000;
     const budgetTokens = CHAIRMAN_MAX_TOKENS;
@@ -2519,7 +2518,7 @@ export async function registerRoutes(
       const user = await storage.getUserById(userId);
       if (!user) return res.status(404).json({ message: "User not found" });
 
-      const { models, chairmanModel, attachments, conversationId } = req.body;
+      const { models, chairmanModel, attachments, conversationId, prompt: estimatePrompt } = req.body;
       const validModelIds = new Set(AVAILABLE_MODELS.map(m => m.id));
 
       let effectiveModels: string[];
@@ -2559,7 +2558,8 @@ export async function registerRoutes(
       const clientAttachmentTokens = typeof req.body.attachmentTokens === 'number' ? Math.max(0, Math.round(req.body.attachmentTokens)) : 0;
       const attachmentTokens = Math.max(clientAttachmentTokens, serverAttachmentTokens);
 
-      const creditCost = getDebateCreditCost(effectiveModels, effectiveChairman, attachmentTokens, priorContextTokens);
+      const isDeliverable = typeof estimatePrompt === 'string' && DELIVERABLE_KEYWORDS.test(estimatePrompt);
+      const creditCost = getDebateCreditCost(effectiveModels, effectiveChairman, attachmentTokens, priorContextTokens, isDeliverable);
       const reserveAmount = creditCost;
 
       const totalPurchased = await storage.getTotalCreditsPurchased(userId);
@@ -2645,7 +2645,8 @@ export async function registerRoutes(
       const effectiveModels = (!hasPurchased) ? DEFAULT_COUNCIL_MODELS : (models || DEFAULT_COUNCIL_MODELS);
       const effectiveChairman = (!hasPurchased) ? DEFAULT_CHAIRMAN_MODEL : (chairmanModel || DEFAULT_CHAIRMAN_MODEL);
       
-      const creditCost = getDebateCreditCost(effectiveModels, effectiveChairman, attachmentTokens);
+      const isDeliverable = DELIVERABLE_KEYWORDS.test(prompt);
+      const creditCost = getDebateCreditCost(effectiveModels, effectiveChairman, attachmentTokens, 0, isDeliverable);
 
       const reserveAmount = creditCost;
       const title = prompt.length > 100 ? prompt.substring(0, 100) + "..." : prompt;
@@ -2802,7 +2803,8 @@ export async function registerRoutes(
         context = "";
       }
 
-      const creditCost = getDebateCreditCost(effectiveModels, effectiveChairman, attachmentTokens, priorContextTokens);
+      const isDeliverable = DELIVERABLE_KEYWORDS.test(prompt);
+      const creditCost = getDebateCreditCost(effectiveModels, effectiveChairman, attachmentTokens, priorContextTokens, isDeliverable);
 
       if (expectedCost && creditCost > expectedCost * 1.2) {
         console.log(`[COST_MISMATCH] Debate #${conversationId}: client expected ${expectedCost}, server calculated ${creditCost}`);
