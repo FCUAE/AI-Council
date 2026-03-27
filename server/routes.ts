@@ -1811,8 +1811,8 @@ Rules:
         const isAlreadySettled = conv?.settled === 1;
         const refundAmount = reservedAmount - finalCharge;
         if (refundAmount > 0 && !isAlreadySettled) {
-          await storage.refundDebateCredits(userId, refundAmount, `Settlement for debate #${conversationId}: reserved ${reservedAmount}, charged ${finalCharge}, refunded ${refundAmount}`, conversationId);
-          await storage.refundCreditsFIFO(userId, refundAmount);
+          const refunded = await storage.refundDebateCredits(userId, refundAmount, `Settlement for debate #${conversationId}: reserved ${reservedAmount}, charged ${finalCharge}, refunded ${refundAmount}`, conversationId);
+          if (refunded) await storage.refundCreditsFIFO(userId, refundAmount);
           console.log(`[SETTLE] Debate #${conversationId}: reserved=${reservedAmount}, actualFromApi=${actualCreditsFromApi}, finalCharge=${finalCharge}, refund=${refundAmount}`);
         } else if (refundAmount < 0 && !isAlreadySettled) {
           const additionalCharge = -refundAmount;

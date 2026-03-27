@@ -414,12 +414,13 @@ export class DatabaseStorage implements IStorage {
         .where(sql`${messages.conversationId} = ${conv.id} AND ${messages.status} = 'processing'`);
       if (conv.userId && conv.reservedCredits > 0 && conv.settled === 0) {
         try {
-          await this.refundDebateCredits(
+          const refunded = await this.refundDebateCredits(
             conv.userId,
             conv.reservedCredits,
             `Shutdown interrupted debate #${conv.id}`,
             conv.id
           );
+          if (refunded) await this.refundCreditsFIFO(conv.userId, conv.reservedCredits);
         } catch (err: any) {
           console.error(`[SHUTDOWN] Failed to refund debate #${conv.id}:`, err.message);
         }
@@ -442,57 +443,77 @@ export class DatabaseStorage implements IStorage {
       .orderBy(asc(creditBatches.expiresAt));
   }
 
-  async consumeCreditsFIFO(userId: string, amount: number): Promise<void> {
-    let remaining = amount;
-    const batches = await this.getActiveBatches(userId);
-
-    for (const batch of batches) {
-      if (remaining <= 0) break;
-      const deduct = Math.min(remaining, batch.creditsRemaining);
-      await db.update(creditBatches)
-        .set({ creditsRemaining: sql`credits_remaining - ${deduct}` })
-        .where(eq(creditBatches.id, batch.id));
-      remaining -= deduct;
+  private fifoLockKey(userId: string): number {
+    let hash = 0x50000;
+    for (let i = 0; i < userId.length; i++) {
+      hash = ((hash << 5) - hash + userId.charCodeAt(i)) | 0;
     }
+    return Math.abs(hash);
+  }
 
-    await this.syncUserCreditsFromBatches(userId);
+  async consumeCreditsFIFO(userId: string, amount: number): Promise<void> {
+    const lockKey = this.fifoLockKey(userId);
+    await db.execute(sql`SELECT pg_advisory_lock(${lockKey})`);
+    try {
+      let remaining = amount;
+      const batches = await this.getActiveBatches(userId);
+
+      for (const batch of batches) {
+        if (remaining <= 0) break;
+        const deduct = Math.min(remaining, batch.creditsRemaining);
+        await db.update(creditBatches)
+          .set({ creditsRemaining: sql`credits_remaining - ${deduct}` })
+          .where(eq(creditBatches.id, batch.id));
+        remaining -= deduct;
+      }
+
+      await this.syncUserCreditsFromBatches(userId);
+    } finally {
+      await db.execute(sql`SELECT pg_advisory_unlock(${lockKey})`);
+    }
   }
 
   async refundCreditsFIFO(userId: string, amount: number): Promise<void> {
-    let remaining = amount;
-    const batches = await db.select().from(creditBatches)
-      .where(and(
-        eq(creditBatches.userId, userId),
-        eq(creditBatches.status, "active"),
-      ))
-      .orderBy(desc(creditBatches.expiresAt));
+    const lockKey = this.fifoLockKey(userId);
+    await db.execute(sql`SELECT pg_advisory_lock(${lockKey})`);
+    try {
+      let remaining = amount;
+      const batches = await db.select().from(creditBatches)
+        .where(and(
+          eq(creditBatches.userId, userId),
+          eq(creditBatches.status, "active"),
+        ))
+        .orderBy(desc(creditBatches.expiresAt));
 
-    for (const batch of batches) {
-      if (remaining <= 0) break;
-      const space = batch.creditsOriginal - batch.creditsRemaining;
-      const refund = Math.min(remaining, space);
-      if (refund > 0) {
-        await db.update(creditBatches)
-          .set({ creditsRemaining: sql`credits_remaining + ${refund}` })
-          .where(eq(creditBatches.id, batch.id));
-        remaining -= refund;
+      for (const batch of batches) {
+        if (remaining <= 0) break;
+        const space = batch.creditsOriginal - batch.creditsRemaining;
+        const refund = Math.min(remaining, space);
+        if (refund > 0) {
+          await db.update(creditBatches)
+            .set({ creditsRemaining: sql`credits_remaining + ${refund}` })
+            .where(eq(creditBatches.id, batch.id));
+          remaining -= refund;
+        }
       }
-    }
 
-    if (remaining > 0) {
-      const expiresAt = new Date();
-      expiresAt.setDate(expiresAt.getDate() + 60);
-      await db.insert(creditBatches).values({
-        userId,
-        creditsRemaining: remaining,
-        creditsOriginal: remaining,
-        expiresAt,
-        packTier: "refund",
-        status: "active",
-      });
-    }
+      if (remaining > 0) {
+        const expiresAt = new Date();
+        expiresAt.setDate(expiresAt.getDate() + 60);
+        await db.insert(creditBatches).values({
+          userId,
+          creditsRemaining: remaining,
+          creditsOriginal: remaining,
+          expiresAt,
+          packTier: "refund",
+          status: "active",
+        });
+      }
 
-    await this.syncUserCreditsFromBatches(userId);
+      await this.syncUserCreditsFromBatches(userId);
+    } finally {
+      await db.execute(sql`SELECT pg_advisory_unlock(${lockKey})`);
+    }
   }
 
   async syncUserCreditsFromBatches(userId: string): Promise<number> {
