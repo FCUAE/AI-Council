@@ -7,7 +7,7 @@ import OpenAI from "openai";
 import sharp from "sharp";
 import rateLimit from "express-rate-limit";
 import { registerObjectStorageRoutes, ObjectStorageService, ObjectPermission } from "./replit_integrations/object_storage";
-import { DEFAULT_COUNCIL_MODELS, DEFAULT_CHAIRMAN_MODEL, isVisionCapable, getDebateCreditCost, AVAILABLE_MODELS, FREE_TIER_CREDITS, getUserTier, getModelContextWindow, MODEL_FALLBACKS, getModelById, OVERRUN_CAP_MULTIPLIER } from "@shared/models";
+import { DEFAULT_COUNCIL_MODELS, DEFAULT_CHAIRMAN_MODEL, isVisionCapable, getDebateCreditCost, computeCreditCharge, AVAILABLE_MODELS, FREE_TIER_CREDITS, getUserTier, getModelContextWindow, MODEL_FALLBACKS, getModelById, OVERRUN_CAP_MULTIPLIER } from "@shared/models";
 import { users } from "@shared/models/auth";
 import { isAuthenticated } from "./replit_integrations/auth";
 import { authStorage } from "./replit_integrations/auth/storage";
@@ -1790,18 +1790,21 @@ Rules:
       try {
         const conv = await storage.getConversation(conversationId);
         const reservedAmount = conv?.reservedCredits || creditCost;
-        let actualCost = conv?.estimatedCredits || creditCost;
+        let actualCreditsFromApi = computeCreditCharge(totalApiCostDollars);
         const overrunCap = Math.ceil(creditCost * OVERRUN_CAP_MULTIPLIER);
-        if (actualCost > overrunCap) {
-          console.log(`[OVERRUN] Debate #${conversationId}: actual=${actualCost} exceeds cap=${overrunCap} (1.3× original ${creditCost}). Capping charge.`);
-          actualCost = overrunCap;
+        if (actualCreditsFromApi > overrunCap) {
+          console.log(`[OVERRUN] Debate #${conversationId}: actualCredits=${actualCreditsFromApi} (from $${totalApiCostDollars.toFixed(4)} API cost) exceeds cap=${overrunCap} (1.3× original ${creditCost}). Capping charge.`);
+          actualCreditsFromApi = overrunCap;
         }
-        const refundAmount = reservedAmount - actualCost;
+        const finalCharge = Math.max(actualCreditsFromApi, creditCost);
+        const refundAmount = reservedAmount - finalCharge;
         if (refundAmount > 0) {
-          await storage.refundDebateCredits(userId, refundAmount, `Settlement for debate #${conversationId}: reserved ${reservedAmount}, charged ${actualCost}, refunded ${refundAmount}`, conversationId);
-          console.log(`[SETTLE] Debate #${conversationId}: reserved=${reservedAmount}, actual=${actualCost}, refund=${refundAmount}`);
+          await storage.refundDebateCredits(userId, refundAmount, `Settlement for debate #${conversationId}: reserved ${reservedAmount}, charged ${finalCharge}, refunded ${refundAmount}`, conversationId);
+          console.log(`[SETTLE] Debate #${conversationId}: reserved=${reservedAmount}, actualFromApi=${actualCreditsFromApi}, finalCharge=${finalCharge}, refund=${refundAmount}`);
+        } else {
+          console.log(`[SETTLE] Debate #${conversationId}: reserved=${reservedAmount}, actualFromApi=${actualCreditsFromApi}, finalCharge=${finalCharge}, no refund needed`);
         }
-        await storage.settleConversation(conversationId, actualCost);
+        await storage.settleConversation(conversationId, finalCharge);
         refreshDebateCostSummary().catch(err => console.error(`[COST_SUMMARY] Error refreshing:`, err.message));
       } catch (settleErr: any) {
         console.error(`[SETTLE] Error settling debate #${conversationId}:`, settleErr.message);

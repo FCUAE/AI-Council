@@ -972,16 +972,17 @@ function niceRound(n: number): number {
 
 const STANDARD_BUFFER = 0.05;
 const REASONING_BUFFER = 0.20;
-const MARGIN_FLOOR = 0.65;
-const WORST_CASE_NET_PER_CREDIT = 0.174;
-const COST_BUDGET_PER_CREDIT = WORST_CASE_NET_PER_CREDIT * (1 - MARGIN_FLOOR);
+const COST_PER_CREDIT_BUDGET = 0.058;
 export const OVERRUN_CAP_MULTIPLIER = 1.3;
 
-export function computeCreditCharge(estimatedApiCost: number, hasReasoningModels: boolean = false): number {
-  const buffer = hasReasoningModels ? REASONING_BUFFER : STANDARD_BUFFER;
-  const bufferedCost = estimatedApiCost * (1 + buffer);
-  const raw = bufferedCost / COST_BUDGET_PER_CREDIT;
-  return Math.max(2, niceRound(raw));
+export function computeCreditCharge(
+  standardApiCost: number,
+  reasoningApiCost: number = 0
+): number {
+  const bufferedStandard = standardApiCost * (1 + STANDARD_BUFFER);
+  const bufferedReasoning = reasoningApiCost * (1 + REASONING_BUFFER);
+  const totalBuffered = bufferedStandard + bufferedReasoning;
+  return Math.max(2, Math.ceil(totalBuffered / COST_PER_CREDIT_BUDGET));
 }
 
 export function estimateDebateCostWithBufferInfo(
@@ -1038,12 +1039,8 @@ export function getDebateCreditCost(
   attachmentTokens: number = 0,
   priorContextTokens: number = 0
 ): number {
-  const { standardCost, reasoningCost, hasReasoningModels } = estimateDebateCostWithBufferInfo(
+  const { standardCost, reasoningCost } = estimateDebateCostWithBufferInfo(
     councilModels, chairmanModel, attachmentTokens, priorContextTokens
   );
-  const bufferedStandard = standardCost * (1 + STANDARD_BUFFER);
-  const bufferedReasoning = reasoningCost * (1 + REASONING_BUFFER);
-  const totalBuffered = bufferedStandard + bufferedReasoning;
-  const raw = totalBuffered / COST_BUDGET_PER_CREDIT;
-  return Math.max(2, niceRound(raw));
+  return computeCreditCharge(standardCost, reasoningCost);
 }
