@@ -86,18 +86,19 @@ The backend implements a council deliberation pattern:
 - **No per-debate tier caps**: Users can spend credits freely as long as they have sufficient balance. `TIER_CAPS` constant and `TIER_CAP_EXCEEDED` enforcement removed.
 - **Conversation summarization**: After turn 3 (4+ messages), a GPT-4o-mini summary is generated and stored in `conversations.contextSummary`. Subsequent follow-ups use the summary instead of raw history, keeping costs manageable.
 - **Document context caps**: `MAX_TOTAL_CONTEXT = 200000` chars across all uploaded documents (distributed evenly per file). `MAX_TOTAL_RENDERED_IMAGES = 15` for scanned PDFs. Both in `processCouncilMessage()` in `server/routes.ts`.
-- **Free tier**: 24 free credits on signup (3 debates at default council cost), locked to default "Starter Council" models
+- **Free tier**: 10 free credits on signup (2-5 debates at default council cost), locked to default "Starter Council" models
 - **Credit packs** (one-time purchases, tiered per-credit pricing):
-  - Explorer: 100 credits / $15.00 ($0.15/cr) — "Around 12-25 debates depending on models chosen. Great for trying AI Council."
-  - Strategist: 325 credits / $39.00 ($0.12/cr, 20% savings) — "Around 40-80 debates depending on models chosen. For regular use." (Most Popular)
-  - Visionary: 900 credits / $89.00 (~$0.099/cr, 34% savings) — "Around 110-225 debates depending on models chosen. For power users and teams." (Best Value)
-- **Credit expiration**: Soft 60-day expiry from purchase date. 30-day warning email sent via Resend. On expiry, credits are zeroed and logged as a deduction. Purchasing new credits resets the timer.
+  - Explorer: 100 credits / $29.00 ($0.29/cr) — "~15-50 debates depending on models chosen." 90-day expiration.
+  - Strategist: 400 credits / $89.00 ($0.22/cr, Save 24%) — "~55-200 debates depending on models chosen." 120-day expiration. (Most Popular)
+  - Mastermind: 1000 credits / $179.00 ($0.18/cr, Save 38%) — "~130-500 debates depending on models chosen." 180-day expiration. (Best Value)
+- **Credit expiration**: Tiered by pack (90/120/180 days). 30-day warning email sent via Resend. On expiry, credits are zeroed and logged as a deduction. Purchasing new credits resets the timer.
 - **Credit refund on failure/cancel**: When a council deliberation fails due to AI errors or timeouts, the deducted credits are automatically refunded via `storage.refundDebateCredits()`. User-initiated cancellations also trigger a full refund of reserved credits. Refunds are logged as "refund" type credit transactions. Retries don't deduct credits so no refund is needed.
   - Schema: `credits_purchased_at` (timestamp) and `credits_expiry_warned` (boolean) on users table
   - Cron: `server/cron.ts` runs daily check via setInterval (24h), started in `server/index.ts` after server listen
   - Emails: `server/email.ts` uses Resend connector integration for warning and expiry notification emails
-- **Dynamic credit cost**: Credits = max(1, ceil(totalApiCost / $0.05)) — COST_PER_CREDIT=$0.05 is the API cost per credit. Budget debates = 1 credit, default council = ~7 credits, premium mixes scale proportionally
-- **Model pricing**: Each model has `apiCostInput`/`apiCostOutput` ($/M tokens) from OpenRouter; `COST_PER_CREDIT = 0.05` in `shared/models.ts` is the API cost threshold per credit
+- **Dynamic credit cost**: Credits = max(2, ceil(bufferedApiCost / $0.058)) — Split buffer: 1.05x for standard models, 1.20x for reasoning models (GPT-5.4 Pro, o3, o4-mini). COST_BUDGET_PER_CREDIT = $0.0609 (worst-case net $0.174 × 35% cost share). Overrun protection caps charges at 1.3x the original estimate.
+- **Model pricing**: Each model has `apiCostInput`/`apiCostOutput` ($/M tokens) from OpenRouter; `COST_PER_CREDIT = 0.058` in `shared/models.ts` is the API cost budget per credit
+- **Margin model**: 65% margin floor (Mastermind pack). Explorer yields ~72%, Strategist ~69%. WORST_CASE_NET_PER_CREDIT = $0.174 (Mastermind after Stripe fees).
 - **Model access**: Users who have purchased credits get full model customization
 - **Credits page**: Dedicated `/credits` route (full page) replaces the old PricingModal popup; shows package selection (radio cards), order summary, promo code input, and Stripe pay button
 - **Paywall**: When credits are insufficient or models are locked, user is navigated to `/credits` page
@@ -106,7 +107,7 @@ The backend implements a council deliberation pattern:
 - **Refgrow affiliate program**: Tracking script loads on every page via `client/index.html`. Referral ID (`window.tolt_referral`) is passed as `client_reference_id` in Stripe checkout sessions. Authenticated users access the affiliate dashboard at `/affiliate` (embeds Refgrow widget with user's email). Sidebar has "Affiliate Program" link.
 
 ### Database Schema
-- **users**: Auth users with `deliberationCount`, `debateCredits` (default 18), `subscriptionStatus`, `stripeCustomerId`, `stripeSubscriptionId`, `monthlyDebatesUsed`, `monthlyResetAt`, `creditsPurchasedAt`, `creditsExpiryWarned`, `totalApiCost` (numeric, cumulative API cost in dollars), `totalRevenue` (numeric, cumulative Stripe payments in dollars)
+- **users**: Auth users with `deliberationCount`, `debateCredits` (default 10), `subscriptionStatus`, `stripeCustomerId`, `stripeSubscriptionId`, `monthlyDebatesUsed`, `monthlyResetAt`, `creditsPurchasedAt`, `creditsExpiryWarned`, `totalApiCost` (numeric, cumulative API cost in dollars), `totalRevenue` (numeric, cumulative Stripe payments in dollars)
 - **platform_analytics**: Daily snapshot table for platform-wide metrics (total API cost, tokens, credits charged, revenue, debate count, active users). Created via migration but populated on-demand via admin endpoint.
 - **sessions**: Legacy table (no longer used — Clerk handles sessions)
 - **conversations**: Stores chat sessions with title, status, optional custom model selection (models array), chairmanModel, and userId (scoped to user)

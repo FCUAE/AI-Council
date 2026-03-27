@@ -487,15 +487,9 @@ export class DatabaseStorage implements IStorage {
           FROM (
             SELECT user_id, COALESCE(SUM(
               CASE
-                WHEN amount = 100 THEN 15.00
-                WHEN amount = 325 THEN 39.00
-                WHEN amount = 900 THEN 89.00
-                WHEN amount = 150 THEN 15.00
-                WHEN amount = 370 THEN 39.00
-                WHEN amount = 870 THEN 89.00
-                WHEN amount = 10 THEN 15.00
-                WHEN amount = 30 THEN 39.00
-                WHEN amount = 50 THEN 89.00
+                WHEN amount = 100 THEN 29.00
+                WHEN amount = 400 THEN 89.00
+                WHEN amount = 1000 THEN 179.00
                 ELSE 0
               END
             ), 0) as rev

@@ -230,7 +230,7 @@ export const AVAILABLE_MODELS: ModelConfig[] = [
     apiCostInput: 30,
     apiCostOutput: 180,
     contextWindow: 1000000,
-    isReasoningModel: false,
+    isReasoningModel: true,
     reasoningTokenMultiplier: 1
   },
   // OpenAI - GPT-5.2 Series
@@ -261,7 +261,7 @@ export const AVAILABLE_MODELS: ModelConfig[] = [
     apiCostInput: 21,
     apiCostOutput: 168,
     contextWindow: 500000,
-    isReasoningModel: false,
+    isReasoningModel: true,
     reasoningTokenMultiplier: 1
   },
   {
@@ -932,13 +932,13 @@ export function getModelContextWindow(modelId: string): number {
   return model?.contextWindow ?? 128000;
 }
 
-export const COST_PER_CREDIT = 0.05;
-export const FREE_TIER_CREDITS = 24;
+export const COST_PER_CREDIT = 0.058;
+export const FREE_TIER_CREDITS = 10;
 
 export function getUserTier(totalCreditsPurchased: number, currentBalance: number = 0): string {
   const effective = Math.max(totalCreditsPurchased, currentBalance);
-  if (effective >= 900) return 'visionary';
-  if (effective >= 325) return 'strategist';
+  if (effective >= 1000) return 'mastermind';
+  if (effective >= 400) return 'strategist';
   if (effective > FREE_TIER_CREDITS) return 'explorer';
   if (totalCreditsPurchased > 0) return 'explorer';
   return 'free';
@@ -957,9 +957,43 @@ export function estimateDebateCost(
   attachmentTokens: number = 0,
   priorContextTokens: number = 0
 ): number {
+  const { standardCost, reasoningCost } = estimateDebateCostWithBufferInfo(
+    councilModels, chairmanModel, attachmentTokens, priorContextTokens
+  );
+  return standardCost + reasoningCost;
+}
+
+function niceRound(n: number): number {
+  if (n <= 10) return Math.round(n);
+  if (n <= 20) return Math.round(n / 2) * 2;
+  if (n <= 50) return Math.round(n / 5) * 5;
+  return Math.round(n / 10) * 10;
+}
+
+const STANDARD_BUFFER = 0.05;
+const REASONING_BUFFER = 0.20;
+const MARGIN_FLOOR = 0.65;
+const WORST_CASE_NET_PER_CREDIT = 0.174;
+const COST_BUDGET_PER_CREDIT = WORST_CASE_NET_PER_CREDIT * (1 - MARGIN_FLOOR);
+export const OVERRUN_CAP_MULTIPLIER = 1.3;
+
+export function computeCreditCharge(estimatedApiCost: number, hasReasoningModels: boolean = false): number {
+  const buffer = hasReasoningModels ? REASONING_BUFFER : STANDARD_BUFFER;
+  const bufferedCost = estimatedApiCost * (1 + buffer);
+  const raw = bufferedCost / COST_BUDGET_PER_CREDIT;
+  return Math.max(2, niceRound(raw));
+}
+
+export function estimateDebateCostWithBufferInfo(
+  councilModels: string[],
+  chairmanModel: string,
+  attachmentTokens: number = 0,
+  priorContextTokens: number = 0
+): { standardCost: number; reasoningCost: number; hasReasoningModels: boolean } {
   const baseInput = BASE_PROMPT_TOKENS + SYSTEM_OVERHEAD_TOKENS + priorContextTokens;
   const councilCount = councilModels.length || 3;
-  let totalApiCost = 0;
+  let standardCost = 0;
+  let reasoningCost = 0;
 
   for (const modelId of councilModels) {
     const model = getModelById(modelId);
@@ -973,7 +1007,11 @@ export function estimateDebateCost(
     const s2Output = Math.round(STAGE2_OUTPUT_CAP * UTIL);
     const s2Cost = (s2Input * model.apiCostInput + s2Output * model.apiCostOutput * model.reasoningTokenMultiplier) / 1_000_000;
 
-    totalApiCost += s1Cost + s2Cost;
+    if (model.isReasoningModel) {
+      reasoningCost += s1Cost + s2Cost;
+    } else {
+      standardCost += s1Cost + s2Cost;
+    }
   }
 
   const chairman = getModelById(chairmanModel);
@@ -983,27 +1021,15 @@ export function estimateDebateCost(
     const s3Input = baseInput + councilCount * s1Out + councilCount * s2Out;
     const s3Output = Math.round(STAGE3_OUTPUT_CAP * UTIL);
     const s3Cost = (s3Input * chairman.apiCostInput + s3Output * chairman.apiCostOutput * chairman.reasoningTokenMultiplier) / 1_000_000;
-    totalApiCost += s3Cost;
+
+    if (chairman.isReasoningModel) {
+      reasoningCost += s3Cost;
+    } else {
+      standardCost += s3Cost;
+    }
   }
 
-  return totalApiCost;
-}
-
-function niceRound(n: number): number {
-  if (n <= 10) return Math.round(n);
-  if (n <= 20) return Math.round(n / 2) * 2;
-  if (n <= 50) return Math.round(n / 5) * 5;
-  return Math.round(n / 10) * 10;
-}
-
-const FAILURE_BUFFER = 0.05;
-const TARGET_MARGIN = 0.40;
-const WORST_CASE_NET_PER_CREDIT = 0.0957;
-
-export function computeCreditCharge(estimatedApiCost: number): number {
-  const bufferedCost = estimatedApiCost * (1 + FAILURE_BUFFER);
-  const raw = bufferedCost / (WORST_CASE_NET_PER_CREDIT * (1 - TARGET_MARGIN));
-  return Math.max(2, niceRound(raw));
+  return { standardCost, reasoningCost, hasReasoningModels: reasoningCost > 0 };
 }
 
 export function getDebateCreditCost(
@@ -1012,6 +1038,12 @@ export function getDebateCreditCost(
   attachmentTokens: number = 0,
   priorContextTokens: number = 0
 ): number {
-  const apiCost = estimateDebateCost(councilModels, chairmanModel, attachmentTokens, priorContextTokens);
-  return computeCreditCharge(apiCost);
+  const { standardCost, reasoningCost, hasReasoningModels } = estimateDebateCostWithBufferInfo(
+    councilModels, chairmanModel, attachmentTokens, priorContextTokens
+  );
+  const bufferedStandard = standardCost * (1 + STANDARD_BUFFER);
+  const bufferedReasoning = reasoningCost * (1 + REASONING_BUFFER);
+  const totalBuffered = bufferedStandard + bufferedReasoning;
+  const raw = totalBuffered / COST_BUDGET_PER_CREDIT;
+  return Math.max(2, niceRound(raw));
 }

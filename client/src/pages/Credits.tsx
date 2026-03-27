@@ -10,30 +10,30 @@ import { getRefgrowReferral } from "@/hooks/use-refgrow";
 const PACKS = [
   {
     size: 100,
-    priceRaw: 15,
+    priceRaw: 29,
     label: "Explorer",
-    debateEstimate: 35,
-    perCredit: "$0.15",
+    debateEstimate: 33,
+    perCredit: "$0.29",
     badge: null as string | null,
     discount: null as string | null,
   },
   {
-    size: 325,
-    priceRaw: 39,
+    size: 400,
+    priceRaw: 89,
     label: "Strategist",
-    debateEstimate: 100,
-    perCredit: "$0.12",
+    debateEstimate: 128,
+    perCredit: "$0.22",
     badge: "Most Popular",
-    discount: "Save 20%",
+    discount: "Save 24%",
   },
   {
-    size: 900,
-    priceRaw: 89,
-    label: "Visionary",
-    debateEstimate: 300,
-    perCredit: "~$0.10",
+    size: 1000,
+    priceRaw: 179,
+    label: "Mastermind",
+    debateEstimate: 315,
+    perCredit: "$0.18",
     badge: "Best Value",
-    discount: "Save 33%",
+    discount: "Save 38%",
   },
 ];
 
@@ -44,7 +44,7 @@ const FAQ_ITEMS = [
   },
   {
     question: "What happens to unused credits?",
-    answer: "Your credits stay active for a full 60 days — more than enough time for most users. Buy any additional pack before they expire and your entire balance, including leftover credits, gets a fresh 60-day window.",
+    answer: "Explorer credits are valid for 90 days. Strategist credits last 120 days. Mastermind credits last 180 days from purchase.",
   },
   {
     question: "Can I choose which AI models participate?",

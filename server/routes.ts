@@ -7,7 +7,7 @@ import OpenAI from "openai";
 import sharp from "sharp";
 import rateLimit from "express-rate-limit";
 import { registerObjectStorageRoutes, ObjectStorageService, ObjectPermission } from "./replit_integrations/object_storage";
-import { DEFAULT_COUNCIL_MODELS, DEFAULT_CHAIRMAN_MODEL, isVisionCapable, getDebateCreditCost, AVAILABLE_MODELS, FREE_TIER_CREDITS, getUserTier, getModelContextWindow, MODEL_FALLBACKS, getModelById } from "@shared/models";
+import { DEFAULT_COUNCIL_MODELS, DEFAULT_CHAIRMAN_MODEL, isVisionCapable, getDebateCreditCost, AVAILABLE_MODELS, FREE_TIER_CREDITS, getUserTier, getModelContextWindow, MODEL_FALLBACKS, getModelById, OVERRUN_CAP_MULTIPLIER } from "@shared/models";
 import { users } from "@shared/models/auth";
 import { isAuthenticated } from "./replit_integrations/auth";
 import { authStorage } from "./replit_integrations/auth/storage";
@@ -1790,7 +1790,12 @@ Rules:
       try {
         const conv = await storage.getConversation(conversationId);
         const reservedAmount = conv?.reservedCredits || creditCost;
-        const actualCost = conv?.estimatedCredits || creditCost;
+        let actualCost = conv?.estimatedCredits || creditCost;
+        const overrunCap = Math.ceil(creditCost * OVERRUN_CAP_MULTIPLIER);
+        if (actualCost > overrunCap) {
+          console.log(`[OVERRUN] Debate #${conversationId}: actual=${actualCost} exceeds cap=${overrunCap} (1.3× original ${creditCost}). Capping charge.`);
+          actualCost = overrunCap;
+        }
         const refundAmount = reservedAmount - actualCost;
         if (refundAmount > 0) {
           await storage.refundDebateCredits(userId, refundAmount, `Settlement for debate #${conversationId}: reserved ${reservedAmount}, charged ${actualCost}, refunded ${refundAmount}`, conversationId);
@@ -2847,7 +2852,7 @@ export async function registerRoutes(
       const pack = getCreditPackBySize(Number(packSize));
       
       if (!pack) {
-        return res.status(400).json({ message: "Invalid pack size. Choose 100, 325, or 900." });
+        return res.status(400).json({ message: "Invalid pack size. Choose 100, 400, or 1000." });
       }
       
       const stripe = await getUncachableStripeClient();
@@ -2882,6 +2887,8 @@ export async function registerRoutes(
         metadata: {
           userId,
           credits: String(packSize),
+          tier: pack.metadata.tier,
+          expirationDays: String(pack.expirationDays),
           ...(referral ? { referral_code: String(referral) } : {}),
         },
         success_url: `${baseUrl}/?checkout=success&credits=${packSize}&session_id={CHECKOUT_SESSION_ID}`,
@@ -3075,7 +3082,7 @@ export async function registerRoutes(
           if (alreadyLogged) continue;
 
           const credits = parseInt(session.metadata.credits, 10);
-          if (credits && [100, 325, 900, 150, 370, 870, 10, 30, 50].includes(credits)) {
+          if (credits && [100, 400, 1000, 325, 900, 150, 370, 870, 10, 30, 50].includes(credits)) {
             const inserted = await storage.logCreditTransaction({
               userId,
               type: "recovery",
@@ -3155,7 +3162,7 @@ export async function registerRoutes(
       }
       
       const credits = parseInt(session.metadata?.credits || '0', 10);
-      if (!credits || ![100, 325, 900, 150, 370, 870, 10, 30, 50].includes(credits)) {
+      if (!credits || ![100, 400, 1000, 325, 900, 150, 370, 870, 10, 30, 50].includes(credits)) {
         return res.status(400).json({ message: "Invalid credits in session" });
       }
       
