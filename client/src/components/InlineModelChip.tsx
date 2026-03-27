@@ -282,7 +282,26 @@ export default function InlineModelChip({
             <div className="model-popover-scroll">
               {sortedModels.length === 0 ? (
                 <div className="no-models-message">No models found</div>
-              ) : activeRole || searchQuery ? (
+              ) : searchQuery ? (
+                sortedModels.map((m) => {
+                  const isSelected = selectedModels.includes(m.id);
+                  const isCurrentSlot = m.id === modelId;
+                  const isDisabled = isSelected && !isCurrentSlot;
+                  return (
+                    <ModelRow
+                      key={m.id}
+                      m={m}
+                      isCurrentSlot={isCurrentSlot}
+                      isDisabled={isDisabled}
+                      isSelected={isSelected}
+                      activeRole={activeRole}
+                      hasAttachments={hasAttachments}
+                      onSelect={handleSelect}
+                      testIdPrefix={testIdPrefix}
+                    />
+                  );
+                })
+              ) : activeRole ? (
                 <>
                   {(showAllRanked ? sortedModels : rankedTop5).map((m) => {
                     const isSelected = selectedModels.includes(m.id);

@@ -267,7 +267,21 @@ export default function ChairmanChip({
             <div className="model-popover-scroll">
               {sortedModels.length === 0 ? (
                 <div className="no-models-message">No models found</div>
-              ) : activeRole || searchQuery ? (
+              ) : searchQuery ? (
+                sortedModels.map((m) => {
+                  const isCurrentSelection = m.id === modelId;
+                  return (
+                    <ModelRow
+                      key={m.id}
+                      m={m}
+                      isCurrentSelection={isCurrentSelection}
+                      activeRole={activeRole}
+                      hasAttachments={hasAttachments}
+                      onSelect={handleSelect}
+                    />
+                  );
+                })
+              ) : activeRole ? (
                 <>
                   {(showAllRanked ? sortedModels : rankedTop5).map((m) => {
                     const isCurrentSelection = m.id === modelId;
