@@ -73,7 +73,7 @@ export async function sendCreditExpiryWarning(email: string, userName: string | 
             Use Your Credits
           </a>
           <p style="font-size: 13px; line-height: 1.5; color: #9ca3af; margin-top: 32px;">
-            Each credit pack has its own expiration window. Use them or grab a new pack to keep going.
+            Buy a new pack and your remaining credits roll over automatically.
           </p>
           <p style="font-size: 13px; color: #9ca3af; margin-top: 24px;">— The Council Team</p>
         </div>
@@ -122,7 +122,7 @@ export async function sendCreditExpiryFinalWarning(email: string, userName: stri
             Use Your Credits
           </a>
           <p style="font-size: 13px; line-height: 1.5; color: #9ca3af; margin-top: 32px;">
-            Each credit pack has its own expiration window. New purchases don't extend existing batches.
+            Buy a new pack and your remaining credits roll over automatically.
           </p>
           <p style="font-size: 13px; color: #9ca3af; margin-top: 24px;">— The Council Team</p>
         </div>

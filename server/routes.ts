@@ -21,7 +21,7 @@ import fs from "fs";
 import { db } from "./db";
 import { sql, eq } from "drizzle-orm";
 import { conversations, messages } from "@shared/schema";
-import { creditTransactions } from "@shared/models/auth";
+import { creditTransactions, creditBatches } from "@shared/models/auth";
 import { securityLog } from "./securityLogger";
 import { checkPerUserLimit } from "./security/rateLimiter";
 import { requireRecentAuth } from "./security/recentAuth";
@@ -3245,17 +3245,71 @@ export async function registerRoutes(
         const packTier = pack?.metadata?.tier ?? (session.metadata?.tier || 'unknown');
         const expiresAt = new Date();
         expiresAt.setDate(expiresAt.getDate() + expirationDays);
-        await storage.createCreditBatch({
-          userId,
-          creditsRemaining: credits,
-          creditsOriginal: credits,
-          expiresAt,
-          packTier,
-          stripeSessionId: sessionId,
-          status: "active",
-        });
 
-        console.log(`[CREDITS] Added ${credits} credits to user ${userId} via session ${sessionId} (batch expires ${expiresAt.toISOString()})`);
+        const fifoLockKey = storage.fifoLockKey(userId);
+        await db.execute(sql`SELECT pg_advisory_lock(${fifoLockKey})`);
+
+        let rolloverResult: { newBatch: typeof creditBatches.$inferSelect; rolledOverCredits: number; batchCount: number };
+        try {
+          rolloverResult = await db.transaction(async (tx) => {
+            const existingBatches = await tx.select()
+              .from(creditBatches)
+              .where(sql`user_id = ${userId} AND status = 'active' AND credits_remaining > 0 AND expires_at > NOW() AND pack_tier != 'free' FOR UPDATE`);
+
+            const [newBatch] = await tx.insert(creditBatches).values({
+              userId,
+              creditsRemaining: credits,
+              creditsOriginal: credits,
+              expiresAt,
+              packTier,
+              stripeSessionId: sessionId,
+              status: "active",
+            }).returning();
+
+            let rolledOverCredits = 0;
+
+            for (const oldBatch of existingBatches) {
+              const remaining = oldBatch.creditsRemaining;
+
+              await tx.update(creditBatches)
+                .set({ status: "rolled_over" })
+                .where(eq(creditBatches.id, oldBatch.id));
+
+              if (remaining > 0) {
+                rolledOverCredits += remaining;
+
+                await tx.insert(creditTransactions).values({
+                  userId,
+                  type: "rollover",
+                  amount: remaining,
+                  balanceAfter: 0,
+                  description: `${remaining} credits rolled over from batch #${oldBatch.id} into batch #${newBatch.id}`,
+                });
+              }
+            }
+
+            if (rolledOverCredits > 0) {
+              await tx.update(creditBatches)
+                .set({
+                  creditsRemaining: credits + rolledOverCredits,
+                  creditsOriginal: credits + rolledOverCredits,
+                })
+                .where(eq(creditBatches.id, newBatch.id));
+            }
+
+            return { newBatch, rolledOverCredits, batchCount: existingBatches.length };
+          });
+        } finally {
+          await db.execute(sql`SELECT pg_advisory_unlock(${fifoLockKey})`);
+        }
+
+        const { newBatch, rolledOverCredits, batchCount } = rolloverResult;
+
+        if (rolledOverCredits > 0) {
+          console.log(`[CREDITS] Rolled over ${rolledOverCredits} credits from ${batchCount} batch(es) into batch #${newBatch.id} (now ${credits + rolledOverCredits} total)`);
+        }
+
+        console.log(`[CREDITS] Added ${credits} purchased credits to user ${userId} via session ${sessionId} (batch #${newBatch.id} expires ${expiresAt.toISOString()})`);
         storage.trackEvent("purchase_completed", userId, { credits, packTier, sessionId, amountPaid: (session.amount_total || 0) / 100 });
 
         try {

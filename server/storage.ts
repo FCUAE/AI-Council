@@ -55,6 +55,7 @@ export interface IStorage {
 
   createCreditBatch(batch: InsertCreditBatch): Promise<CreditBatch>;
   getActiveBatches(userId: string): Promise<CreditBatch[]>;
+  fifoLockKey(userId: string): number;
   consumeCreditsFIFO(userId: string, amount: number): Promise<void>;
   refundCreditsFIFO(userId: string, amount: number): Promise<void>;
   syncUserCreditsFromBatches(userId: string): Promise<number>;
@@ -406,7 +407,7 @@ export class DatabaseStorage implements IStorage {
       .orderBy(asc(creditBatches.expiresAt));
   }
 
-  private fifoLockKey(userId: string): number {
+  fifoLockKey(userId: string): number {
     let hash = 0x50000;
     for (let i = 0; i < userId.length; i++) {
       hash = ((hash << 5) - hash + userId.charCodeAt(i)) | 0;
