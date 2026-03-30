@@ -2,7 +2,7 @@ export const CREDIT_PACKS = [
   {
     name: 'Council Explorer',
     credits: 100,
-    description: '~15–50 debates depending on models chosen. Great for trying AI Council.',
+    description: '100 credits · Up to 50 debates · Unlock all AI models',
     unitAmount: 2900,
     expirationDays: 90,
     metadata: { type: 'credit_pack', credits: '100', tier: 'explorer' },
@@ -10,7 +10,7 @@ export const CREDIT_PACKS = [
   {
     name: 'Council Strategist',
     credits: 400,
-    description: '~55–200 debates depending on models chosen. For regular use.',
+    description: '400 credits · Up to 200 debates · Unlock all AI models',
     unitAmount: 8900,
     expirationDays: 120,
     metadata: { type: 'credit_pack', credits: '400', tier: 'strategist' },
@@ -18,7 +18,7 @@ export const CREDIT_PACKS = [
   {
     name: 'Council Mastermind',
     credits: 1000,
-    description: '~130–500 debates depending on models chosen. For power users and teams.',
+    description: '1,000 credits · Up to 500 debates · Unlock all AI models',
     unitAmount: 17900,
     expirationDays: 180,
     metadata: { type: 'credit_pack', credits: '1000', tier: 'mastermind' },
