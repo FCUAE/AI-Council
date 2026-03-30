@@ -255,49 +255,6 @@ export default function Credits() {
           })}
         </div>
 
-        <div className="mb-6" data-testid="model-showcase">
-          <button
-            type="button"
-            onClick={() => {
-              const next = !modelsExpanded;
-              setModelsExpanded(next);
-              if (next) trackEvent("models_list_expanded");
-            }}
-            className="w-full flex items-center justify-center gap-2 text-[13px] font-medium text-[#737373] hover:text-[#1a1a1a] transition-colors bg-transparent border-0 cursor-pointer py-2"
-            data-testid="button-toggle-models"
-          >
-            <Sparkles className="w-3.5 h-3.5 text-[#4f46e5]" />
-            See all {AVAILABLE_MODELS.length} models
-            <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${modelsExpanded ? "rotate-180" : ""}`} />
-          </button>
-
-          <div
-            className={`overflow-hidden transition-all duration-300 ease-in-out ${modelsExpanded ? "max-h-[2000px] opacity-100 mt-3" : "max-h-0 opacity-0"}`}
-          >
-            <div className="bg-white rounded-2xl ring-1 ring-[#eaeaea] shadow-[0_2px_8px_-2px_rgba(0,0,0,0.05)] p-5">
-              {Object.entries(getModelsByProvider()).map(([provider, models]) => (
-                <div key={provider} className="mb-4 last:mb-0" data-testid={`provider-group-${provider}`}>
-                  <h4 className="text-[12px] font-semibold text-[#999] uppercase tracking-wide mb-2" data-testid={`text-provider-${provider}`}>{provider}</h4>
-                  <div className="flex flex-wrap gap-2">
-                    {models.map((m) => (
-                      <span
-                        key={m.name}
-                        className="inline-flex items-center gap-1.5 text-[12px] font-medium text-[#1a1a1a] bg-[#fafafa] rounded-lg px-2.5 py-1.5 ring-1 ring-[#f0f0f0]"
-                        data-testid={`model-chip-${m.name}`}
-                      >
-                        {m.name}
-                        <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${BADGE_COLORS[m.badge] || "bg-gray-100 text-gray-500"}`} data-testid={`badge-model-${m.name}`}>
-                          {m.badge}
-                        </span>
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-
         <div className="bg-white rounded-2xl ring-1 ring-[#eaeaea] shadow-[0_2px_8px_-2px_rgba(0,0,0,0.05)] p-6 mb-6" data-testid="checkout-strip">
           <div className="flex items-center justify-between mb-5">
             <div className="text-[14px] text-[#737373]">
@@ -342,6 +299,49 @@ export default function Credits() {
               <Shield className="w-3 h-3" />
               Secure via Stripe
             </span>
+          </div>
+        </div>
+
+        <div className="mt-8 mb-6" data-testid="model-showcase">
+          <button
+            type="button"
+            onClick={() => {
+              const next = !modelsExpanded;
+              setModelsExpanded(next);
+              if (next) trackEvent("models_list_expanded");
+            }}
+            className="w-full flex items-center justify-center gap-2 text-[13px] font-medium text-[#737373] hover:text-[#1a1a1a] transition-colors bg-transparent border-0 cursor-pointer py-2"
+            data-testid="button-toggle-models"
+          >
+            <Sparkles className="w-3.5 h-3.5 text-[#4f46e5]" />
+            See all {AVAILABLE_MODELS.length} models
+            <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${modelsExpanded ? "rotate-180" : ""}`} />
+          </button>
+
+          <div
+            className={`overflow-hidden transition-all duration-300 ease-in-out ${modelsExpanded ? "max-h-[2000px] opacity-100 mt-3" : "max-h-0 opacity-0"}`}
+          >
+            <div className="bg-white rounded-2xl ring-1 ring-[#eaeaea] shadow-[0_2px_8px_-2px_rgba(0,0,0,0.05)] p-5">
+              {Object.entries(getModelsByProvider()).map(([provider, models]) => (
+                <div key={provider} className="mb-4 last:mb-0" data-testid={`provider-group-${provider}`}>
+                  <h4 className="text-[12px] font-semibold text-[#999] uppercase tracking-wide mb-2" data-testid={`text-provider-${provider}`}>{provider}</h4>
+                  <div className="flex flex-wrap gap-2">
+                    {models.map((m) => (
+                      <span
+                        key={m.name}
+                        className="inline-flex items-center gap-1.5 text-[12px] font-medium text-[#1a1a1a] bg-[#fafafa] rounded-lg px-2.5 py-1.5 ring-1 ring-[#f0f0f0]"
+                        data-testid={`model-chip-${m.name}`}
+                      >
+                        {m.name}
+                        <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${BADGE_COLORS[m.badge] || "bg-gray-100 text-gray-500"}`} data-testid={`badge-model-${m.name}`}>
+                          {m.badge}
+                        </span>
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
 
