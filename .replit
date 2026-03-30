@@ -54,4 +54,4 @@ VITE_REFGROW_PROJECT_ID = "665"
 
 [postMerge]
 path = "scripts/post-merge.sh"
-timeoutMs = 20000
+timeoutMs = 60000
