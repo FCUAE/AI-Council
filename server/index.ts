@@ -109,6 +109,9 @@ app.use(helmet({
         "https://stunning-beetle-45.clerk.accounts.dev",
         "https://clerk.askaicouncil.com",
         "https://challenges.cloudflare.com",
+        "https://refgrow.com",
+        "https://refgrowcdn.com",
+        "https://scripts.refgrowcdn.com",
       ],
       fontSrc: [
         "'self'",
