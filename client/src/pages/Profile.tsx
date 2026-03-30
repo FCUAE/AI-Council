@@ -227,7 +227,13 @@ export default function Profile() {
       return data;
     },
     onSuccess: (data) => {
-      if (data?.url) window.location.href = data.url;
+      if (data?.url) {
+        if (data.url.startsWith("https://checkout.stripe.com/")) {
+          window.location.href = data.url;
+        } else {
+          toast({ title: "Error", description: "Invalid payment redirect URL", variant: "destructive" });
+        }
+      }
     },
   });
 
