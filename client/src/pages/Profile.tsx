@@ -316,7 +316,7 @@ export default function Profile() {
   };
 
   return (
-    <div className="p-6 md:p-10 max-w-4xl mx-auto w-full">
+    <div className="p-4 md:p-10 max-w-4xl mx-auto w-full">
       <div className="mb-8">
         <button
           onClick={() => setLocation("/")}
@@ -451,7 +451,7 @@ export default function Profile() {
                 </button>
               </div>
             ) : hasPassword ? (
-              <form onSubmit={passwordForm.handleSubmit(handleChangePassword)} className="space-y-4 max-w-md">
+              <form onSubmit={passwordForm.handleSubmit(handleChangePassword)} className="space-y-4 w-full md:max-w-md">
                 <div className="space-y-2">
                   <label htmlFor="current-password" className="block text-[13px] font-medium text-[#737373]">Current Password</label>
                   <div className="relative">
@@ -548,7 +548,7 @@ export default function Profile() {
                 </div>
               </form>
             ) : (
-              <form onSubmit={setPasswordForm.handleSubmit(handleSetPassword)} className="space-y-4 max-w-md">
+              <form onSubmit={setPasswordForm.handleSubmit(handleSetPassword)} className="space-y-4 w-full md:max-w-md">
                 <p className="text-[13px] text-[#737373] mb-2">
                   Set a password so you can also sign in with your email address.
                 </p>
@@ -642,7 +642,7 @@ export default function Profile() {
                   <Loader2 className="w-5 h-5 text-[#737373] animate-spin" />
                 </div>
               ) : paymentMethod ? (
-                <div className="flex items-center justify-between p-4 border border-[#eaeaea] rounded-xl bg-white">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 border border-[#eaeaea] rounded-xl bg-white">
                   <div className="flex items-center gap-4">
                     <div className="w-12 h-8 bg-gradient-to-r from-blue-600 to-blue-400 rounded flex items-center justify-center">
                       <CreditCard className="w-5 h-5 text-white" />
@@ -666,9 +666,9 @@ export default function Profile() {
                   </button>
                 </div>
               ) : (
-                <div className="flex items-center justify-between p-4 border border-dashed border-[#d4d4d4] rounded-xl bg-[#fafafa]">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 border border-dashed border-[#d4d4d4] rounded-xl bg-[#fafafa]">
                   <div className="flex items-center gap-4">
-                    <div className="w-12 h-8 bg-[#eaeaea] rounded flex items-center justify-center">
+                    <div className="w-12 h-8 bg-[#eaeaea] rounded flex items-center justify-center shrink-0">
                       <CreditCard className="w-5 h-5 text-[#737373]" />
                     </div>
                     <p className="text-[14px] text-[#737373]" data-testid="text-no-payment">No payment method on file</p>
@@ -697,10 +697,10 @@ export default function Profile() {
                   {invoices.map((invoice, index) => (
                     <div
                       key={invoice.id}
-                      className="flex items-center justify-between p-3 bg-white rounded-lg border border-[#eaeaea]"
+                      className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 bg-white rounded-lg border border-[#eaeaea]"
                       data-testid={`row-billing-${index}`}
                     >
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-3 min-w-0">
                         <div className="w-8 h-8 bg-[#f5f5f5] rounded-lg flex items-center justify-center">
                           <FileText className="w-[13px] h-[13px] text-[#737373]" />
                         </div>

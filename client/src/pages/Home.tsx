@@ -3,7 +3,8 @@ import { useAuth } from "@/hooks/use-auth";
 import { useUsage } from "@/hooks/use-usage";
 import { useClerk } from "@clerk/react";
 import { useLocation } from "wouter";
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useCallback, useEffect, useMemo } from "react";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { AnimatePresence, motion } from "framer-motion";
 import InlineModelChip from "@/components/InlineModelChip";
 import ChairmanChip from "@/components/ChairmanChip";
@@ -48,6 +49,7 @@ export default function Home() {
   const [prompt, setPrompt] = useState("");
   const [error, setError] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const isMobile = useIsMobile();
   const [wordIndex, setWordIndex] = useState(globalWordIndex);
 
   useEffect(() => {
@@ -211,7 +213,7 @@ export default function Home() {
 
   return (
     <div className="flex flex-col flex-1 h-full">
-      <div className="flex-1 flex flex-col items-center justify-center px-8 pb-0">
+      <div className="flex-1 flex flex-col items-center justify-center px-4 md:px-8 pb-0">
         <div className="w-full max-w-[960px] mx-auto">
           <div className="flex flex-col items-center text-center mb-8">
             <div className="inline-flex items-center gap-2 bg-[#f5f5f5] border border-[#eaeaea] rounded-full px-4 py-1.5 mb-6">
@@ -222,9 +224,10 @@ export default function Home() {
               <span className="font-medium text-xs text-[#1a1a1a] tracking-[-0.5px]">AI Council v2.0 is live</span>
             </div>
 
-            <h1 className="font-semibold text-[48px] leading-[56px] text-[#1a1a1a] tracking-[-0.7px] mb-4" data-testid="text-hero-title">
-              Ask once. AIs debate. You get the<br />most intelligent{" "}
-              <span className="inline-block relative overflow-hidden align-bottom" style={{ height: '56px' }}>
+            <h1 className="font-semibold text-[28px] leading-[36px] md:text-[48px] md:leading-[56px] text-[#1a1a1a] tracking-[-0.7px] mb-4" data-testid="text-hero-title">
+              Ask once. AIs debate. You get the<br className="hidden md:inline" />
+              {" "}most intelligent{" "}
+              <span className="inline-block relative overflow-hidden align-bottom" style={{ height: isMobile ? '36px' : '56px' }}>
                 <AnimatePresence mode="wait">
                   <motion.span
                     key={ROTATING_WORDS[wordIndex]}
@@ -246,7 +249,7 @@ export default function Home() {
 
           </div>
 
-          <div className="grid grid-cols-3 gap-5 mb-6" data-testid="feature-cards">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-5 mb-6" data-testid="feature-cards">
             {featureCards.map((card, index) => (
               <div
                 key={index}
@@ -290,7 +293,7 @@ export default function Home() {
                     <Info className="w-4 h-4 text-[#a3a3a3] cursor-help" />
                   </button>
                 </TooltipTrigger>
-                <TooltipContent className="max-w-[400px] bg-[#1a1a1a] text-white border-[#333] p-4 text-[12px] leading-relaxed" side="bottom" align="center">
+                <TooltipContent className="max-w-[min(400px,calc(100vw-2rem))] bg-[#1a1a1a] text-white border-[#333] p-4 text-[12px] leading-relaxed" side="bottom" align="center">
                   <p className="mb-2">When you ask ChatGPT or Claude a question, you get one model's single attempt at an answer. Here's what happens when you ask the AI Council:</p>
                   <ul className="space-y-2 mb-2">
                     <li>• 3 independent analyses — each model works through your question separately, with no groupthink.</li>
@@ -306,7 +309,7 @@ export default function Home() {
         </div>
       </div>
 
-      <div className="sticky bottom-0 bg-gradient-to-t from-white via-white to-transparent pt-4 pb-6 px-8 z-20">
+      <div className="sticky bottom-0 bg-gradient-to-t from-white via-white to-transparent pt-4 pb-4 md:pb-6 px-4 md:px-8 z-20">
         <div className="w-full max-w-[960px] mx-auto">
           <form onSubmit={(e) => { e.preventDefault(); handleSubmit(); }}>
             <input
@@ -426,8 +429,8 @@ export default function Home() {
                 </button>
               </div>
 
-              <div className="px-4 py-3 border-t border-[#eaeaea] bg-[rgba(245,245,245,0.5)] rounded-b-2xl overflow-visible">
-                <div className="flex items-center gap-0 min-w-0 overflow-visible">
+              <div className="px-3 md:px-4 py-3 border-t border-[#eaeaea] bg-[rgba(245,245,245,0.5)] rounded-b-2xl overflow-visible">
+                <div className="flex items-center gap-0 min-w-0 overflow-x-auto md:overflow-visible" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
                   <button
                     type="button"
                     onClick={() => fileInputRef.current?.click()}

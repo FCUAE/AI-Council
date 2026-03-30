@@ -777,19 +777,19 @@ export default function Chat() {
 
                     {message.role === 'chairman' && (
                       <div className="bg-white rounded-2xl border border-[#eaeaea] shadow-[0_8px_32px_rgba(0,0,0,0.08),0_2px_8px_rgba(0,0,0,0.04)] overflow-hidden" data-testid={`message-verdict-${message.id}`}>
-                        <div className="px-6 py-5 border-b border-[#eaeaea] flex items-center justify-between">
+                        <div className="px-4 py-4 md:px-6 md:py-5 border-b border-[#eaeaea] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                           <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-full bg-[#4f46e5] flex items-center justify-center shadow-sm">
+                            <div className="w-10 h-10 rounded-full bg-[#4f46e5] flex items-center justify-center shadow-sm shrink-0">
                               <Star className="w-5 h-5 text-white" />
                             </div>
                             <div>
-                              <h2 className="text-lg font-bold text-[#1a1a1a]">The Verdict</h2>
-                              <p className="text-[12px] text-[#737373]">Final answer synthesized by {getModelName(chairmanModel)} (Lead)</p>
+                              <h2 className="text-base md:text-lg font-bold text-[#1a1a1a]">The Verdict</h2>
+                              <p className="text-[11px] md:text-[12px] text-[#737373]">Final answer synthesized by {getModelName(chairmanModel)} (Lead)</p>
                             </div>
                           </div>
                           <button
                             onClick={() => handleCopyVerdict(message.content, message.id)}
-                            className="flex items-center gap-2 px-4 py-2 text-[13px] font-medium text-[#1a1a1a] bg-[#f5f5f5] border border-[#eaeaea] rounded-lg hover:bg-[#eaeaea] transition-colors cursor-pointer"
+                            className="flex items-center gap-2 px-4 py-2 text-[13px] font-medium text-[#1a1a1a] bg-[#f5f5f5] border border-[#eaeaea] rounded-lg hover:bg-[#eaeaea] transition-colors cursor-pointer self-start sm:self-auto shrink-0"
                             data-testid={`button-copy-${message.id}`}
                           >
                             {copiedId === message.id ? (
@@ -800,7 +800,7 @@ export default function Chat() {
                           </button>
                         </div>
 
-                        <div className="px-8 py-8 md:px-10">
+                        <div className="px-4 py-6 md:px-10 md:py-8">
                           <VerdictText content={message.content} />
                         </div>
 
@@ -849,7 +849,7 @@ export default function Chat() {
           </div>
 
           {(conversation.status === 'error' || conversation.status === 'cancelled') && !isProcessing && (
-            <div className="shrink-0 w-full px-6 pb-2 flex justify-center">
+            <div className="shrink-0 w-full px-3 md:px-6 pb-2 flex justify-center">
               <div className="w-full max-w-[960px]">
                 <div className="bg-white rounded-2xl border border-[#eaeaea] shadow-[0_1px_3px_rgba(0,0,0,0.02),0_4px_12px_rgba(0,0,0,0.04)] p-6 flex flex-col items-center gap-4">
                   <div className="flex items-center gap-2">
@@ -898,7 +898,7 @@ export default function Chat() {
           )}
 
           {!isProcessing && conversation.status !== 'error' && conversation.status !== 'cancelled' && (
-            <div className="shrink-0 w-full bg-gradient-to-t from-white via-white to-transparent pt-8 pb-6 px-6 flex justify-center">
+            <div className="shrink-0 w-full bg-gradient-to-t from-white via-white to-transparent pt-6 md:pt-8 pb-4 md:pb-6 px-3 md:px-6 flex justify-center">
               <div className="w-full max-w-[960px]">
                 {(uploadedFiles.length > 0 || pendingFiles.length > 0) && (
                   <div className="flex gap-2 mb-2 px-1 overflow-x-auto scrollbar-hide" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
@@ -957,8 +957,8 @@ export default function Chat() {
                       </button>
                     </div>
 
-                    <div className="bg-[#f5f5f5]/50 px-4 py-3 border-t border-[#eaeaea] rounded-b-2xl overflow-visible">
-                        <div className="flex items-center gap-3 min-w-0 overflow-visible">
+                    <div className="bg-[#f5f5f5]/50 px-3 md:px-4 py-3 border-t border-[#eaeaea] rounded-b-2xl overflow-visible">
+                        <div className="flex items-center gap-3 min-w-0 overflow-x-auto md:overflow-visible" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
                           <button
                             type="button"
                             onClick={() => fileInputRef.current?.click()}

@@ -16,7 +16,9 @@ import { useAuth } from "@/hooks/use-auth";
 import { useUsage } from "@/hooks/use-usage";
 import { useConversations, useRenameConversation, useDeleteConversation } from "@/hooks/use-conversations";
 import { useEffect, useState, useRef } from "react";
-import { MessageSquare, Plus, Settings, LogOut, MoreHorizontal, Pencil, Trash2, Loader2, Send } from "lucide-react";
+import { MessageSquare, Plus, Settings, LogOut, MoreHorizontal, Pencil, Trash2, Loader2, Send, Menu, X } from "lucide-react";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
 import {
   DropdownMenu,
@@ -68,7 +70,8 @@ function groupConversationsByDate(conversations: any[]) {
   return groups;
 }
 
-function AppSidebar() {
+function AppSidebar({ mobileOpen, setMobileOpen }: { mobileOpen: boolean; setMobileOpen: (open: boolean) => void }) {
+  const isMobile = useIsMobile();
   const { user, isAuthenticated, isLoading: authLoading, logout } = useAuth();
   const { data: usage } = useUsage(isAuthenticated);
   const { data: conversations, isLoading } = useConversations();
@@ -171,25 +174,38 @@ function AppSidebar() {
   const progressWidth = usage ? Math.min((usage.debateCredits / maxCredits) * 100, 100) : 0;
 
 
-  return (
+  const handleNavigation = (path: string) => {
+    setLocation(path);
+    if (isMobile) setMobileOpen(false);
+  };
+
+  const sidebarContent = (
     <>
-      <aside className="fixed top-3 left-3 w-[256px] h-[calc(100vh-24px)] bg-[#fafafa] border-r border-[#eaeaea] flex flex-col z-[8000] rounded-l-2xl" data-testid="sidebar">
         <div className="flex-1 overflow-hidden flex flex-col">
           <div className="px-4 pt-4 pb-2">
-            <div className="flex items-center px-2">
+            <div className="flex items-center justify-between px-2">
               <button
-                onClick={() => setLocation("/")}
+                onClick={() => handleNavigation("/")}
                 className="bg-transparent border-0 p-0 cursor-pointer flex items-center"
                 data-testid="button-home"
               >
                 <img src={logoImg} alt="AI Council" className="h-7 w-auto" data-testid="img-logo" />
               </button>
+              {isMobile && (
+                <button
+                  onClick={() => setMobileOpen(false)}
+                  className="w-8 h-8 flex items-center justify-center rounded-lg bg-transparent border border-[#eaeaea] cursor-pointer hover:bg-[#f5f5f5] transition-colors"
+                  data-testid="button-close-sidebar"
+                >
+                  <X className="w-4 h-4 text-[#737373]" />
+                </button>
+              )}
             </div>
           </div>
 
           <div className="px-4 pt-3 pb-2">
             <button
-              onClick={() => setLocation("/")}
+              onClick={() => handleNavigation("/")}
               className="w-full h-11 bg-white border border-[#eaeaea] rounded-lg shadow-sm flex items-center justify-between px-3 cursor-pointer hover:border-[#d1d5db] transition-colors"
               data-testid="button-new-debate"
             >
@@ -254,7 +270,7 @@ function AppSidebar() {
                               ) : (
                                 <>
                                   <button
-                                    onClick={() => setLocation(`/chat/${conv.id}`)}
+                                    onClick={() => handleNavigation(`/chat/${conv.id}`)}
                                     className="flex-1 min-w-0 flex items-center gap-2.5 bg-transparent border-0 p-0 cursor-pointer text-left"
                                     data-testid={`button-conversation-${conv.id}`}
                                   >
@@ -337,7 +353,7 @@ function AppSidebar() {
                 </div>
                 {(usage?.debateCredits || 0) === 0 ? (
                   <button
-                    onClick={() => setLocation("/credits")}
+                    onClick={() => handleNavigation("/credits")}
                     className="w-full text-[10px] font-semibold text-white bg-[#1a1a1a] border-0 py-1.5 rounded-lg cursor-pointer hover:bg-[#2b2b2b] transition-colors flex items-center justify-center gap-1"
                     data-testid="button-buy-credits"
                   >
@@ -345,7 +361,7 @@ function AppSidebar() {
                   </button>
                 ) : (
                   <button
-                    onClick={() => setLocation("/credits")}
+                    onClick={() => handleNavigation("/credits")}
                     className="w-full text-[10px] font-medium text-[#1a1a1a] bg-white border border-[#eaeaea] py-1 rounded-lg cursor-pointer hover:border-[#d1d5db] transition-colors flex items-center justify-center gap-1"
                     data-testid="button-buy-credits"
                   >
@@ -356,7 +372,7 @@ function AppSidebar() {
 
 
               <button
-                onClick={() => setLocation("/affiliate")}
+                onClick={() => handleNavigation("/affiliate")}
                 className="w-full h-8 mb-2 bg-transparent border border-[#eaeaea] rounded-lg font-medium text-xs text-[#737373] cursor-pointer hover:border-[#d1d5db] hover:text-[#1a1a1a] transition-colors flex items-center justify-center gap-1.5"
                 data-testid="button-affiliate"
               >
@@ -374,7 +390,7 @@ function AppSidebar() {
                 </button>
               )}
 
-              <div className="flex items-center justify-between rounded-lg px-2 py-2 cursor-pointer hover:bg-[#f5f5f5] transition-all group" onClick={() => setLocation("/profile")}>
+              <div className="flex items-center justify-between rounded-lg px-2 py-2 cursor-pointer hover:bg-[#f5f5f5] transition-all group" onClick={() => handleNavigation("/profile")}>
                 <div className="flex items-center gap-2.5 overflow-hidden">
                   <div className="w-7 h-7 rounded-full bg-[#eef2ff] flex items-center justify-center flex-shrink-0" data-testid="img-avatar">
                     <span className="text-[11px] font-semibold text-[#4f46e5]">
@@ -422,7 +438,28 @@ function AppSidebar() {
             </div>
           )}
         </div>
-      </aside>
+    </>
+  );
+
+  return (
+    <>
+      {isMobile ? (
+        <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
+          <SheetContent side="left" className="w-[280px] p-0 bg-[#fafafa] border-r border-[#eaeaea] flex flex-col [&>button]:hidden">
+            <SheetHeader className="sr-only">
+              <SheetTitle>Navigation</SheetTitle>
+              <SheetDescription>App navigation sidebar</SheetDescription>
+            </SheetHeader>
+            <div className="flex-1 flex flex-col h-full overflow-hidden" data-testid="sidebar">
+              {sidebarContent}
+            </div>
+          </SheetContent>
+        </Sheet>
+      ) : (
+        <aside className="fixed top-3 left-3 w-[256px] h-[calc(100vh-24px)] bg-[#fafafa] border-r border-[#eaeaea] flex flex-col z-[8000] rounded-l-2xl" data-testid="sidebar">
+          {sidebarContent}
+        </aside>
+      )}
 
       <AlertDialog open={deleteConfirmId !== null} onOpenChange={(open) => { if (!open) setDeleteConfirmId(null); }}>
         <AlertDialogContent>
@@ -628,11 +665,11 @@ function LoggedOutHeader() {
   };
 
   return (
-    <header className="flex items-center justify-between p-4 lg:px-8 lg:py-5 border-b border-[#eaeaea] bg-white relative z-[100]">
+    <header className="flex items-center justify-between px-3 py-3 md:p-4 lg:px-8 lg:py-5 border-b border-[#eaeaea] bg-white relative z-[100]">
       <div className="flex items-center">
-        <img src={logoImg} alt="AI Council" className="h-8 w-auto" data-testid="img-logo-header" />
+        <img src={logoImg} alt="AI Council" className="h-7 md:h-8 w-auto" data-testid="img-logo-header" />
       </div>
-      <div className="flex items-center gap-3" style={{ position: 'relative', zIndex: 9999 }}>
+      <div className="flex items-center gap-2 md:gap-3" style={{ position: 'relative', zIndex: 9999 }}>
         <button
           onClick={() => handleAuth("signIn")}
           className="hidden sm:flex items-center justify-center gap-2 bg-white border border-[#eaeaea] text-[#1a1a1a] text-sm font-medium py-2 px-4 rounded-lg shadow-sm hover:bg-[#fafafa] hover:border-[#d4d4d4] transition-all cursor-pointer"
@@ -642,7 +679,7 @@ function LoggedOutHeader() {
         </button>
         <button
           onClick={() => handleAuth("signUp")}
-          className="flex items-center justify-center gap-2 bg-[#1a1a1a] text-white text-sm font-medium py-2 px-4 lg:px-5 rounded-lg shadow-sm hover:bg-[#2b2b2b] transition-colors border-0 cursor-pointer"
+          className="flex items-center justify-center gap-2 bg-[#1a1a1a] text-white text-xs md:text-sm font-medium py-2 px-3 md:px-4 lg:px-5 rounded-lg shadow-sm hover:bg-[#2b2b2b] transition-colors border-0 cursor-pointer whitespace-nowrap"
           data-testid="button-get-free"
         >
           Get 12 Free Debates
@@ -665,6 +702,8 @@ function useRefgrowSignupTracking() {
 
 function AppLayout() {
   const { isAuthenticated, isLoading } = useAuth();
+  const isMobile = useIsMobile();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   useRefgrowSignupTracking();
 
   if (isLoading) {
@@ -674,9 +713,21 @@ function AppLayout() {
   if (isAuthenticated) {
     return (
       <div className="flex min-h-screen bg-[#fafafa]">
-        <AppSidebar />
-        <main className="ml-[268px] flex-1 min-h-screen min-w-0 overflow-x-hidden">
-          <div className="bg-white border border-[#eaeaea] rounded-2xl shadow-[0px_1px_3px_rgba(0,0,0,0.04),0px_4px_24px_rgba(0,0,0,0.06)] min-h-[calc(100vh-24px)] mt-3 mr-3 mb-3 flex flex-col">
+        <AppSidebar mobileOpen={mobileMenuOpen} setMobileOpen={setMobileMenuOpen} />
+        <main className={`${isMobile ? '' : 'ml-[268px]'} flex-1 min-h-screen min-w-0 overflow-x-hidden`}>
+          {isMobile && (
+            <div className="sticky top-0 z-40 flex items-center gap-3 px-4 py-3 bg-white border-b border-[#eaeaea]">
+              <button
+                onClick={() => setMobileMenuOpen(true)}
+                className="w-9 h-9 flex items-center justify-center rounded-lg bg-transparent border border-[#eaeaea] cursor-pointer hover:bg-[#f5f5f5] transition-colors"
+                data-testid="button-hamburger"
+              >
+                <Menu className="w-5 h-5 text-[#1a1a1a]" />
+              </button>
+              <img src={logoImg} alt="AI Council" className="h-6 w-auto" />
+            </div>
+          )}
+          <div className={`bg-white border border-[#eaeaea] rounded-2xl shadow-[0px_1px_3px_rgba(0,0,0,0.04),0px_4px_24px_rgba(0,0,0,0.06)] min-h-[calc(100vh-24px)] ${isMobile ? 'mx-1 mt-1 mb-1 rounded-xl' : 'mt-3 mr-3 mb-3'} flex flex-col`}>
             <Router />
           </div>
         </main>
@@ -687,7 +738,7 @@ function AppLayout() {
 
   return (
     <div className="flex flex-col min-h-screen bg-[#fafafa]">
-      <div className="flex-1 flex flex-col border border-[#eaeaea] rounded-2xl shadow-[0px_4px_24px_rgba(0,0,0,0.06),0px_1px_3px_rgba(0,0,0,0.04)] bg-white overflow-hidden m-3">
+      <div className="flex-1 flex flex-col border border-[#eaeaea] rounded-2xl shadow-[0px_4px_24px_rgba(0,0,0,0.06),0px_1px_3px_rgba(0,0,0,0.04)] bg-white overflow-hidden m-1 md:m-3">
         <LoggedOutHeader />
         <main className="flex-1 flex flex-col relative overflow-y-auto bg-white">
           <Router />
@@ -726,7 +777,7 @@ function PreAuthHeader() {
 function PreAuthLayout() {
   return (
     <div className="flex flex-col min-h-screen bg-[#fafafa]">
-      <div className="flex-1 flex flex-col border border-[#eaeaea] rounded-2xl shadow-[0px_4px_24px_rgba(0,0,0,0.06),0px_1px_3px_rgba(0,0,0,0.04)] bg-white overflow-hidden m-3">
+      <div className="flex-1 flex flex-col border border-[#eaeaea] rounded-2xl shadow-[0px_4px_24px_rgba(0,0,0,0.06),0px_1px_3px_rgba(0,0,0,0.04)] bg-white overflow-hidden m-1 md:m-3">
         <PreAuthHeader />
         <main className="flex-1 flex flex-col relative overflow-y-auto bg-white">
           <div className="flex-1 flex flex-col items-center justify-center px-4 py-12">

@@ -255,8 +255,8 @@ export default function Credits() {
           })}
         </div>
 
-        <div className="bg-white rounded-2xl ring-1 ring-[#eaeaea] shadow-[0_2px_8px_-2px_rgba(0,0,0,0.05)] p-6 mb-6" data-testid="checkout-strip">
-          <div className="flex items-center justify-between mb-5">
+        <div className="bg-white rounded-2xl ring-1 ring-[#eaeaea] shadow-[0_2px_8px_-2px_rgba(0,0,0,0.05)] p-4 md:p-6 mb-6" data-testid="checkout-strip">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-5">
             <div className="text-[14px] text-[#737373]">
               <span className="font-semibold text-[#1a1a1a]" data-testid="text-selected-plan">{pack.label}</span>
               {" — "}
