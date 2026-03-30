@@ -94,9 +94,13 @@ The backend implements a council deliberation pattern:
   - Mastermind: 1000 credits / $179.00 ($0.18/cr, Save 38%) — "~130-500 debates depending on models chosen." 180-day expiration. (Best Value)
 - **FIFO credit batches** (`credit_batches` table): Credits are tracked as individual batches with tiered expiration (free=60d, Explorer=90d, Strategist=120d, Mastermind=180d). Consumption uses FIFO (soonest-to-expire first), refunds go to latest-expiring batch first. Each batch tracks `credits_remaining`, `credits_original`, `expires_at`, `pack_tier`, and `status` (active/expired/dormant/removed).
   - **Batch lifecycle**: Active → Expired (soft, after expiry date) → Dormant (30d grace for reactivation) → Removed (hard delete of dormant batches)
-  - **Expiry warnings**: 7-day warning email, 24-hour final warning email via Resend
+  - **Expiry warnings**: Tier-aware warning emails (Explorer=14d, Strategist=21d, Mastermind=30d first warning), 48-hour final warning for all tiers via Resend
+  - **Email lifecycle**: Purchase confirmation → mid-life engagement nudge (conditional, only for inactive users <50% usage) → first warning → 48h final warning → expired notice → 7d post-expiry re-engagement → 25d dormancy final notice
+  - **Free-tier emails**: Welcome email on signup → engagement nudge at mid-life if low usage → 7d warning → free-expired conversion email
+  - **User-level consolidation**: Max one email per user per day. Multiple batches hitting thresholds on same day get consolidated into one email (highest-urgency as primary, others as line items).
+  - **Unsubscribe**: `email_unsubscribed` boolean on users table. HMAC-signed unsubscribe links in promotional email footers. Transactional warnings (expiry notices) remain exempt per CAN-SPAM. Endpoint: `GET /api/unsubscribe?uid=&token=`
   - **Free-tier batch**: New users get a free batch (10 credits, 60-day expiry) created atomically at signup via `INSERT ... WHERE NOT EXISTS`
-  - **Cron**: `server/cron.ts` runs batch-aware expiration daily (7d warn, 24h final warn, soft expire, dormant cleanup)
+  - **Cron**: `server/cron.ts` runs batch-aware expiration daily with tier-aware warning windows, engagement nudges, post-expiry drip, dormancy notices, and user-level consolidation
   - **Sync**: `/api/user/usage` returns `expiringCredits` and `expiringInDays` for the soonest-expiring active batch
   - **Sidebar**: Shows amber/red warning when a batch is within 14 days of expiry
 - **Credit refund on failure/cancel**: All refund paths (timeout, cancel, error, recovery, settlement) call both `refundDebateCredits()` (legacy ledger) and `refundCreditsFIFO()` (batch system) for consistency. Settlement is idempotency-guarded via `conv.settled`.
@@ -114,7 +118,7 @@ The backend implements a council deliberation pattern:
 - **Refgrow affiliate program**: Tracking script loads on every page via `client/index.html`. Referral ID (`window.tolt_referral`) is passed as `client_reference_id` in Stripe checkout sessions. Authenticated users access the affiliate dashboard at `/affiliate` (embeds Refgrow widget with user's email). Sidebar has "Affiliate Program" link.
 
 ### Database Schema
-- **users**: Auth users with `deliberationCount`, `debateCredits` (default 10), `subscriptionStatus`, `stripeCustomerId`, `stripeSubscriptionId`, `monthlyDebatesUsed`, `monthlyResetAt`, `creditsPurchasedAt`, `creditsExpiryWarned`, `totalApiCost` (numeric, cumulative API cost in dollars), `totalRevenue` (numeric, cumulative Stripe payments in dollars)
+- **users**: Auth users with `deliberationCount`, `debateCredits` (default 10), `subscriptionStatus`, `stripeCustomerId`, `stripeSubscriptionId`, `monthlyDebatesUsed`, `monthlyResetAt`, `creditsPurchasedAt`, `creditsExpiryWarned`, `totalApiCost` (numeric, cumulative API cost in dollars), `totalRevenue` (numeric, cumulative Stripe payments in dollars), `emailUnsubscribed` (boolean, opt-out of promotional emails), `lastEmailSentAt` (timestamp, for daily consolidation)
 - **platform_analytics**: Daily snapshot table for platform-wide metrics (total API cost, tokens, credits charged, revenue, debate count, active users). Created via migration but populated on-demand via admin endpoint.
 - **sessions**: Legacy table (no longer used — Clerk handles sessions)
 - **conversations**: Stores chat sessions with title, status, optional custom model selection (models array), chairmanModel, and userId (scoped to user)

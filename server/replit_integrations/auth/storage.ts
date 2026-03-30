@@ -66,6 +66,15 @@ class AuthStorage implements IAuthStorage {
         } catch (batchErr: any) {
           console.error(`[AUTH] Non-fatal: failed to create free batch for user ${user.id}:`, batchErr.message);
         }
+
+        if (user.email) {
+          try {
+            const { sendFreeWelcome } = await import("../../email");
+            await sendFreeWelcome(user.email, user.firstName, user.debateCredits, user.id);
+          } catch (emailErr: any) {
+            console.error(`[AUTH] Non-fatal: failed to send welcome email for user ${user.id}:`, emailErr.message);
+          }
+        }
       }
 
       return { status: "success", user };

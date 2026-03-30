@@ -68,6 +68,16 @@ export interface IStorage {
   getSoonestExpiringBatch(userId: string): Promise<CreditBatch | undefined>;
 
   trackEvent(event: string, userId?: string, metadata?: Record<string, unknown>): Promise<void>;
+
+  wasUserEmailedToday(userId: string): Promise<boolean>;
+  markUserEmailed(userId: string): Promise<void>;
+  setEmailUnsubscribed(userId: string, unsubscribed: boolean): Promise<void>;
+  getMidLifeBatches(): Promise<CreditBatch[]>;
+  getPostExpiryBatches(daysAfterExpiry: number): Promise<CreditBatch[]>;
+  getDormancyNoticeBatches(daysAfterExpiry: number): Promise<CreditBatch[]>;
+  markBatchEmailSent(batchId: number, field: 'engagement_nudge_sent' | 'post_expiry_sent' | 'dormancy_notice_sent'): Promise<void>;
+  getCreditUsagePercent(userId: string): Promise<number>;
+  getFreeTierExpiredBatches(): Promise<CreditBatch[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -547,6 +557,74 @@ export class DatabaseStorage implements IStorage {
       .orderBy(asc(creditBatches.expiresAt))
       .limit(1);
     return batch;
+  }
+
+  async wasUserEmailedToday(userId: string): Promise<boolean> {
+    const [user] = await db.select({ lastEmailSentAt: users.lastEmailSentAt }).from(users).where(eq(users.id, userId));
+    if (!user?.lastEmailSentAt) return false;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return user.lastEmailSentAt >= today;
+  }
+
+  async markUserEmailed(userId: string): Promise<void> {
+    await db.update(users).set({ lastEmailSentAt: new Date() }).where(eq(users.id, userId));
+  }
+
+  async setEmailUnsubscribed(userId: string, unsubscribed: boolean): Promise<void> {
+    await db.update(users).set({ emailUnsubscribed: unsubscribed }).where(eq(users.id, userId));
+  }
+
+  async getMidLifeBatches(): Promise<CreditBatch[]> {
+    return db.select().from(creditBatches).where(
+      sql`status = 'active' AND credits_remaining > 0 AND engagement_nudge_sent = false AND expires_at > NOW() AND purchased_at + (expires_at - purchased_at) / 2 <= NOW()`
+    );
+  }
+
+  async getPostExpiryBatches(daysAfterExpiry: number): Promise<CreditBatch[]> {
+    const threshold = new Date();
+    threshold.setDate(threshold.getDate() - daysAfterExpiry);
+    return db.select().from(creditBatches).where(
+      sql`status = 'dormant' AND post_expiry_sent = false AND expires_at <= ${threshold}`
+    );
+  }
+
+  async getDormancyNoticeBatches(daysAfterExpiry: number): Promise<CreditBatch[]> {
+    const threshold = new Date();
+    threshold.setDate(threshold.getDate() - daysAfterExpiry);
+    return db.select().from(creditBatches).where(
+      sql`status = 'dormant' AND dormancy_notice_sent = false AND expires_at <= ${threshold}`
+    );
+  }
+
+  async markBatchEmailSent(batchId: number, field: 'engagement_nudge_sent' | 'post_expiry_sent' | 'dormancy_notice_sent'): Promise<void> {
+    if (field === 'engagement_nudge_sent') {
+      await db.update(creditBatches).set({ engagementNudgeSent: true }).where(eq(creditBatches.id, batchId));
+    } else if (field === 'post_expiry_sent') {
+      await db.update(creditBatches).set({ postExpirySent: true }).where(eq(creditBatches.id, batchId));
+    } else {
+      await db.update(creditBatches).set({ dormancyNoticeSent: true }).where(eq(creditBatches.id, batchId));
+    }
+  }
+
+  async getCreditUsagePercent(userId: string): Promise<number> {
+    const batches = await db.select({
+      remaining: creditBatches.creditsRemaining,
+      original: creditBatches.creditsOriginal,
+    }).from(creditBatches).where(
+      and(eq(creditBatches.userId, userId), sql`status IN ('active', 'dormant')`)
+    );
+    if (batches.length === 0) return 0;
+    const totalOriginal = batches.reduce((sum, b) => sum + b.original, 0);
+    const totalRemaining = batches.reduce((sum, b) => sum + b.remaining, 0);
+    if (totalOriginal === 0) return 0;
+    return Math.round(((totalOriginal - totalRemaining) / totalOriginal) * 100);
+  }
+
+  async getFreeTierExpiredBatches(): Promise<CreditBatch[]> {
+    return db.select().from(creditBatches).where(
+      sql`status = 'dormant' AND pack_tier = 'free' AND post_expiry_sent = false`
+    );
   }
 
   async trackEvent(event: string, userId?: string, metadata?: Record<string, unknown>): Promise<void> {

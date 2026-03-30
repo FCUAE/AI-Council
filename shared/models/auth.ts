@@ -19,6 +19,8 @@ export const users = pgTable("users", {
   creditsExpiryFinalWarned: boolean("credits_expiry_final_warned").default(false).notNull(),
   totalApiCost: numeric("total_api_cost").default("0").notNull(),
   totalRevenue: numeric("total_revenue").default("0").notNull(),
+  emailUnsubscribed: boolean("email_unsubscribed").default(false).notNull(),
+  lastEmailSentAt: timestamp("last_email_sent_at"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -50,6 +52,9 @@ export const creditBatches = pgTable("credit_batches", {
   stripeSessionId: varchar("stripe_session_id"),
   warningSent: boolean("warning_sent").default(false).notNull(),
   finalWarningSent: boolean("final_warning_sent").default(false).notNull(),
+  engagementNudgeSent: boolean("engagement_nudge_sent").default(false).notNull(),
+  postExpirySent: boolean("post_expiry_sent").default(false).notNull(),
+  dormancyNoticeSent: boolean("dormancy_notice_sent").default(false).notNull(),
 });
 
 export type UpsertUser = typeof users.$inferInsert;

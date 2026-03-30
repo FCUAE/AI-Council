@@ -3321,6 +3321,16 @@ export async function registerRoutes(
         } catch (revErr: any) {
           console.error(`[REVENUE] Error tracking revenue for user ${userId}:`, revErr.message);
         }
+
+        try {
+          const purchaseUser = await storage.getUserById(userId);
+          if (purchaseUser?.email) {
+            const { sendPurchaseConfirmation } = await import("./email");
+            await sendPurchaseConfirmation(purchaseUser.email, purchaseUser.firstName, credits, packTier, expiresAt, userId);
+          }
+        } catch (emailErr: any) {
+          console.error(`[EMAIL] Non-fatal: failed to send purchase confirmation for user ${userId}:`, emailErr.message);
+        }
       }
 
       const updatedBalance = await storage.syncUserCreditsFromBatches(userId);
@@ -3630,6 +3640,35 @@ export async function registerRoutes(
 
   app.get("/api/admin/check", isAuthenticated, async (req, res) => {
     res.json({ isAdmin: isAdmin(req) });
+  });
+
+  app.get("/api/unsubscribe", async (req, res) => {
+    try {
+      const uid = req.query.uid as string;
+      const token = req.query.token as string;
+      if (!uid || !token) {
+        return res.status(400).send("Invalid unsubscribe link.");
+      }
+
+      const { verifyUnsubscribeToken } = await import("./email");
+      if (!verifyUnsubscribeToken(uid, token)) {
+        return res.status(403).send("Invalid or expired unsubscribe link.");
+      }
+
+      await storage.setEmailUnsubscribed(uid, true);
+      res.send(`
+        <html>
+          <body style="font-family: 'Inter', -apple-system, sans-serif; max-width: 560px; margin: 40px auto; padding: 24px; text-align: center;">
+            <h2 style="font-size: 20px; font-weight: 600; margin-bottom: 16px;">You've been unsubscribed</h2>
+            <p style="font-size: 15px; color: #4b5563; margin-bottom: 16px;">You will no longer receive promotional emails from AI Council.</p>
+            <p style="font-size: 13px; color: #9ca3af;">You'll still receive important account notifications like credit expiry warnings.</p>
+          </body>
+        </html>
+      `);
+    } catch (error: any) {
+      console.error("[unsubscribe] Error:", error?.message);
+      res.status(500).send("Something went wrong. Please try again.");
+    }
   });
 
   return httpServer;
