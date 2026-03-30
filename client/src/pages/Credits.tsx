@@ -2,11 +2,32 @@ import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
 import { useClerk } from "@clerk/react";
-import { ArrowLeft, Lock, AlertCircle, Zap, Shield, CreditCard, Clock } from "lucide-react";
+import { ArrowLeft, Lock, AlertCircle, Zap, Shield, CreditCard, Clock, ChevronDown, Sparkles } from "lucide-react";
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
 import { authFetch } from "@/lib/clerk-token";
 import { getRefgrowReferral } from "@/hooks/use-refgrow";
 import { trackEvent } from "@/lib/analytics";
+import { AVAILABLE_MODELS } from "@shared/models";
+
+const BADGE_COLORS: Record<string, string> = {
+  "Deep Thinker": "bg-violet-100 text-violet-700",
+  "Recommended": "bg-blue-100 text-blue-700",
+  "Fast": "bg-amber-100 text-amber-700",
+  "Quick Draft": "bg-gray-100 text-gray-500",
+  "Best for Vision": "bg-emerald-100 text-emerald-700",
+  "Best for Research": "bg-cyan-100 text-cyan-700",
+  "Best for Long Files": "bg-teal-100 text-teal-700",
+  "Value Pick": "bg-orange-100 text-orange-700",
+};
+
+function getModelsByProvider() {
+  const grouped: Record<string, { name: string; badge: string }[]> = {};
+  for (const m of AVAILABLE_MODELS) {
+    if (!grouped[m.provider]) grouped[m.provider] = [];
+    grouped[m.provider].push({ name: m.name, badge: m.badge });
+  }
+  return grouped;
+}
 
 const PACKS = [
   {
@@ -75,6 +96,7 @@ export default function Credits() {
   const [selectedPack, setSelectedPack] = useState(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [modelsExpanded, setModelsExpanded] = useState(false);
 
   const pack = PACKS[selectedPack];
 
@@ -206,8 +228,13 @@ export default function Credits() {
                   {p.debateRange} debates
                 </p>
 
-                <p className="text-[12px] text-[#999] mb-auto">
+                <p className="text-[12px] text-[#999] mb-1">
                   depending on models chosen
+                </p>
+
+                <p className="flex items-center gap-1 text-[12px] font-medium text-[#4f46e5] mb-auto" data-testid={`unlock-models-${p.size}`}>
+                  <Sparkles className="w-3 h-3" />
+                  Unlock all {AVAILABLE_MODELS.length}+ AI models
                 </p>
 
                 <div className="mt-4 pt-3 border-t border-[#f0f0f0] flex items-center flex-wrap gap-y-1">
@@ -226,6 +253,49 @@ export default function Credits() {
               </button>
             );
           })}
+        </div>
+
+        <div className="mb-6" data-testid="model-showcase">
+          <button
+            type="button"
+            onClick={() => {
+              const next = !modelsExpanded;
+              setModelsExpanded(next);
+              if (next) trackEvent("models_list_expanded");
+            }}
+            className="w-full flex items-center justify-center gap-2 text-[13px] font-medium text-[#737373] hover:text-[#1a1a1a] transition-colors bg-transparent border-0 cursor-pointer py-2"
+            data-testid="button-toggle-models"
+          >
+            <Sparkles className="w-3.5 h-3.5 text-[#4f46e5]" />
+            See all {AVAILABLE_MODELS.length} models
+            <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${modelsExpanded ? "rotate-180" : ""}`} />
+          </button>
+
+          <div
+            className={`overflow-hidden transition-all duration-300 ease-in-out ${modelsExpanded ? "max-h-[2000px] opacity-100 mt-3" : "max-h-0 opacity-0"}`}
+          >
+            <div className="bg-white rounded-2xl ring-1 ring-[#eaeaea] shadow-[0_2px_8px_-2px_rgba(0,0,0,0.05)] p-5">
+              {Object.entries(getModelsByProvider()).map(([provider, models]) => (
+                <div key={provider} className="mb-4 last:mb-0" data-testid={`provider-group-${provider}`}>
+                  <h4 className="text-[12px] font-semibold text-[#999] uppercase tracking-wide mb-2" data-testid={`text-provider-${provider}`}>{provider}</h4>
+                  <div className="flex flex-wrap gap-2">
+                    {models.map((m) => (
+                      <span
+                        key={m.name}
+                        className="inline-flex items-center gap-1.5 text-[12px] font-medium text-[#1a1a1a] bg-[#fafafa] rounded-lg px-2.5 py-1.5 ring-1 ring-[#f0f0f0]"
+                        data-testid={`model-chip-${m.name}`}
+                      >
+                        {m.name}
+                        <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${BADGE_COLORS[m.badge] || "bg-gray-100 text-gray-500"}`} data-testid={`badge-model-${m.name}`}>
+                          {m.badge}
+                        </span>
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
 
         <div className="bg-white rounded-2xl ring-1 ring-[#eaeaea] shadow-[0_2px_8px_-2px_rgba(0,0,0,0.05)] p-6 mb-6" data-testid="checkout-strip">
