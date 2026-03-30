@@ -109,7 +109,7 @@ export default function Home() {
     return sum;
   }, [tokenEstimates]);
 
-  const isFreeUser = !usage?.isSubscribed && (usage?.deliberationCount || 0) <= FREE_TIER_CREDITS && (usage?.debateCredits || 0) <= FREE_TIER_CREDITS;
+  const isFreeUser = !usage?.isSubscribed && (usage?.debateCredits || 0) <= FREE_TIER_CREDITS;
 
   const isDeliverable = DELIVERABLE_KEYWORDS.test(prompt);
   const localCreditCost = getDebateCreditCost(selectedModels, chairmanModel, totalAttachmentTokens, 0, isDeliverable);
@@ -395,7 +395,9 @@ export default function Home() {
       const errorCode = (err as any)?.code || "";
       const serverCost = (err as any)?.creditCost;
       const serverDebateCredits = (err as any)?.debateCredits;
-      if (errorCode === "PAYWALL" || errorText.includes("PAYWALL") || errorText.includes("credits")) {
+      if (errorCode === "TIER_RESTRICTED") {
+        setError("Please upgrade your plan to use these models.");
+      } else if (errorCode === "PAYWALL" || errorText.includes("PAYWALL") || errorText.includes("credits")) {
         const costDisplay = serverCost ?? creditCost;
         const balanceDisplay = serverDebateCredits ?? userCredits;
         setError(errorText || `Insufficient credits. This debate costs ${costDisplay} credit${costDisplay !== 1 ? 's' : ''} but you only have ${balanceDisplay}. Purchase more on the Credits page.`);

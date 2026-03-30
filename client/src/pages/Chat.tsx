@@ -228,7 +228,7 @@ export default function Chat() {
   const councilModels = councilModelsOverride || conversation?.models || DEFAULT_COUNCIL_MODELS;
   const chairmanModel = chairmanModelOverride || conversation?.chairmanModel || DEFAULT_CHAIRMAN_MODEL;
 
-  const isFreeUser = !usage?.isSubscribed && (usage?.deliberationCount || 0) <= FREE_TIER_CREDITS && (usage?.debateCredits || 0) <= FREE_TIER_CREDITS;
+  const isFreeUser = !usage?.isSubscribed && (usage?.debateCredits || 0) <= FREE_TIER_CREDITS;
 
   const totalAttachmentTokens = useMemo(() => {
     let sum = 0;
@@ -534,6 +534,8 @@ export default function Chat() {
         );
         setFileError(`The cost for this reply updated to ${actualCost} credit${actualCost !== 1 ? 's' : ''} (was ${creditCost}). Please review and send again.`);
         setEstimateRetryCount(c => c + 1);
+      } else if (errorCode === "TIER_RESTRICTED") {
+        setFileError("Please upgrade your plan to use these models.");
       } else if (errorCode === "PAYWALL" || errorText.includes("PAYWALL") || errorText.includes("credits")) {
         const costDisplay = serverCost ?? creditCost;
         const balanceDisplay = serverDebateCredits ?? userCredits;
@@ -582,6 +584,8 @@ export default function Chat() {
         );
         setFileError(`The cost for expanding has updated to ${actualCost} credit${actualCost !== 1 ? 's' : ''} (was ${expandCreditCost}). Please try again.`);
         setEstimateRetryCount(c => c + 1);
+      } else if (errorCode === "TIER_RESTRICTED") {
+        setFileError("Please upgrade your plan to use these models.");
       } else if (errorCode === "PAYWALL" || errorText.includes("PAYWALL") || errorText.includes("credits")) {
         const serverCost = err?.creditCost;
         const serverDebateCredits = err?.debateCredits;

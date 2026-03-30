@@ -185,7 +185,7 @@ function AppSidebar() {
   const maxCredits = Math.max(usage?.debateCredits || 0, 100);
   const progressWidth = usage ? Math.min((usage.debateCredits / maxCredits) * 100, 100) : 0;
 
-  const isFreeUser = usage && !usage.isSubscribed && (usage.deliberationCount || 0) <= FREE_TIER_CREDITS && (usage.debateCredits || 0) <= FREE_TIER_CREDITS;
+  const isFreeUser = usage && !usage.isSubscribed && (usage.debateCredits || 0) <= FREE_TIER_CREDITS;
   const freeDebateEstimate = usage ? Math.floor(usage.debateCredits / 2) : 0;
   const debateEstimate = usage ? {
     low: Math.floor(usage.debateCredits / 8),
