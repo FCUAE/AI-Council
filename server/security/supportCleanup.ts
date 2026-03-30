@@ -16,6 +16,13 @@ function getObjectStorageService(): ObjectStorageService {
 }
 
 async function deleteFile(filename: string): Promise<"deleted" | "missing" | "error"> {
+  const resolvedBase = path.resolve(UPLOADS_DIR);
+  const resolvedTarget = path.resolve(UPLOADS_DIR, filename);
+  const rel = path.relative(resolvedBase, resolvedTarget);
+  if (rel === ".." || rel.startsWith(`..${path.sep}`) || path.isAbsolute(rel)) {
+    return "error";
+  }
+
   const localPath = path.join(UPLOADS_DIR, filename);
   try {
     if (fs.existsSync(localPath)) {
