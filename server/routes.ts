@@ -7,7 +7,7 @@ import OpenAI from "openai";
 import sharp from "sharp";
 import rateLimit from "express-rate-limit";
 import { registerObjectStorageRoutes, ObjectStorageService, ObjectPermission } from "./replit_integrations/object_storage";
-import { DEFAULT_COUNCIL_MODELS, DEFAULT_CHAIRMAN_MODEL, FREE_TIER_COUNCIL_MODELS, FREE_TIER_CHAIRMAN_MODEL, isVisionCapable, getDebateCreditCost, computeCreditCharge, AVAILABLE_MODELS, FREE_TIER_CREDITS, getUserTier, getModelContextWindow, MODEL_FALLBACKS, getModelById, OVERRUN_CAP_MULTIPLIER, DELIVERABLE_KEYWORDS, canUserAccessModels, getRequiredTierForModels } from "@shared/models";
+import { DEFAULT_COUNCIL_MODELS, DEFAULT_CHAIRMAN_MODEL, FREE_TIER_COUNCIL_MODELS, FREE_TIER_CHAIRMAN_MODEL, isVisionCapable, getDebateCreditCost, computeCreditCharge, AVAILABLE_MODELS, FREE_TIER_CREDITS, getUserTier, getModelContextWindow, MODEL_FALLBACKS, getModelById, OVERRUN_CAP_MULTIPLIER, DELIVERABLE_KEYWORDS } from "@shared/models";
 import { users } from "@shared/models/auth";
 import { isAuthenticated } from "./replit_integrations/auth";
 import { authStorage } from "./replit_integrations/auth/storage";
@@ -2354,22 +2354,6 @@ export async function registerRoutes(
       }
     }
 
-    const retryUser = await storage.getUserById(userId!);
-    if (retryUser) {
-      const retryTotalPurchased = await storage.getTotalCreditsPurchased(userId!);
-      const retryUserTier = getUserTier(retryTotalPurchased, retryUser.debateCredits);
-      const retryModels = [...(conv.models || DEFAULT_COUNCIL_MODELS), conv.chairmanModel || DEFAULT_CHAIRMAN_MODEL];
-      if (!canUserAccessModels(retryUserTier, retryModels)) {
-        const requiredTier = getRequiredTierForModels(retryModels);
-        return res.status(403).json({
-          success: false,
-          message: `Your current tier (${retryUserTier}) cannot use these models. You need the "${requiredTier}" tier or higher. Please upgrade or choose lower-cost models.`,
-          code: "TIER_RESTRICTED",
-          userTier: retryUserTier,
-          requiredTier,
-        });
-      }
-    }
 
     const updated = await db.update(conversations)
       .set({ status: "processing" })
@@ -2670,16 +2654,6 @@ export async function registerRoutes(
         ? (isFreeUser ? FREE_TIER_CHAIRMAN_MODEL : DEFAULT_CHAIRMAN_MODEL)
         : (chairmanModel || DEFAULT_CHAIRMAN_MODEL);
 
-      const allModels = [...effectiveModels, effectiveChairman];
-      if (!canUserAccessModels(userTier, allModels)) {
-        const requiredTier = getRequiredTierForModels(allModels);
-        return res.status(403).json({
-          message: `Your current tier (${userTier}) cannot use these models. You need the "${requiredTier}" tier or higher. Please upgrade or choose lower-cost models.`,
-          code: "TIER_RESTRICTED",
-          userTier,
-          requiredTier,
-        });
-      }
 
       const isDeliverable = DELIVERABLE_KEYWORDS.test(prompt);
       const creditCost = getDebateCreditCost(effectiveModels, effectiveChairman, attachmentTokens, 0, isDeliverable);
@@ -2820,18 +2794,6 @@ export async function registerRoutes(
         await storage.updateConversationModels(conversationId, effectiveModels, effectiveChairman);
       }
 
-      const addMsgTotalPurchased = await storage.getTotalCreditsPurchased(userId);
-      const addMsgUserTier = getUserTier(addMsgTotalPurchased, user.debateCredits);
-      const addMsgAllModels = [...effectiveModels, effectiveChairman];
-      if (!canUserAccessModels(addMsgUserTier, addMsgAllModels)) {
-        const requiredTier = getRequiredTierForModels(addMsgAllModels);
-        return res.status(403).json({
-          message: `Your current tier (${addMsgUserTier}) cannot use these models. You need the "${requiredTier}" tier or higher. Please upgrade or choose lower-cost models.`,
-          code: "TIER_RESTRICTED",
-          userTier: addMsgUserTier,
-          requiredTier,
-        });
-      }
 
       const clientAttachmentTokens = typeof req.body.attachmentTokens === 'number' ? Math.max(0, Math.round(req.body.attachmentTokens)) : 0;
       const serverAttachmentTokens = estimateAttachmentTokensFromMetadata(attachments || []);

@@ -967,35 +967,6 @@ export function getUserTier(totalCreditsPurchased: number, currentBalance: numbe
 
 export const DELIVERABLE_KEYWORDS = /\b(produce|create|write|build|design|draft|generate|develop|compose|craft|prepare|outline|plan|make|construct|formulate|devise|put together|come up with|give me|provide)\b/i;
 
-const TIER_RANK: Record<string, number> = {
-  free: 0,
-  explorer: 1,
-  strategist: 2,
-  mastermind: 3,
-};
-
-export function getRequiredTierForModels(modelIds: string[]): string {
-  let maxCost = 0;
-  for (const id of modelIds) {
-    const model = getModelById(id);
-    if (!model) {
-      return "strategist";
-    }
-    if (model.cost > maxCost) {
-      maxCost = model.cost;
-    }
-  }
-  if (maxCost <= 2) return "free";
-  if (maxCost === 3) return "explorer";
-  return "strategist";
-}
-
-export function canUserAccessModels(userTier: string, modelIds: string[]): boolean {
-  const requiredTier = getRequiredTierForModels(modelIds);
-  const userRank = TIER_RANK[userTier] ?? 0;
-  const requiredRank = TIER_RANK[requiredTier] ?? 0;
-  return userRank >= requiredRank;
-}
 
 const BASE_PROMPT_TOKENS = 800;
 const SYSTEM_OVERHEAD_TOKENS = 1500;
