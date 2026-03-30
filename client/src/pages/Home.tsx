@@ -360,9 +360,9 @@ export default function Home() {
     setError(null);
 
     if (!isAuthenticated) {
-      localStorage.setItem("council_pending_prompt", trimmedPrompt);
-      localStorage.setItem("council_pending_models", JSON.stringify(selectedModels));
-      localStorage.setItem("council_pending_chairman", chairmanModel);
+      sessionStorage.setItem("council_pending_prompt", trimmedPrompt);
+      sessionStorage.setItem("council_pending_models", JSON.stringify(selectedModels));
+      sessionStorage.setItem("council_pending_chairman", chairmanModel);
       try { clerk.openSignIn(); } catch { clerk.redirectToSignIn({ redirectUrl: window.location.href }); }
       return;
     }

@@ -205,7 +205,13 @@ app.use("/api/", (req: Request, res: Response, next: NextFunction) => {
 
   const origin = req.headers.origin;
   const allowed = getAllowedOrigins();
-  if (allowed.length === 0) return next();
+  if (allowed.length === 0) {
+    if (process.env.NODE_ENV === "production" || process.env.REPLIT_DEPLOYMENT === "1") {
+      console.error("[SECURITY] No allowed origins configured in production — blocking state-changing request");
+      return res.status(403).json({ message: "Forbidden" });
+    }
+    return next();
+  }
 
   if (!origin) {
     securityLog.csrfOriginMismatch({ route: req.path, origin: "(none)", method: req.method });

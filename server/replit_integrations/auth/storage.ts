@@ -1,5 +1,5 @@
 import { users, type User, type UpsertUser, creditTransactions, creditBatches } from "@shared/models/auth";
-import { conversations, messages, councilResponses } from "@shared/schema";
+import { conversations, messages, councilResponses, analyticsEvents, supportMessages } from "@shared/schema";
 import { db } from "../../db";
 import { eq, inArray, and, ne, sql } from "drizzle-orm";
 import { securityLog } from "../../securityLogger";
@@ -93,6 +93,9 @@ class AuthStorage implements IAuthStorage {
         await tx.delete(conversations).where(inArray(conversations.id, convIds));
       }
       await tx.delete(creditTransactions).where(eq(creditTransactions.userId, id));
+      await tx.delete(creditBatches).where(eq(creditBatches.userId, id));
+      await tx.delete(supportMessages).where(eq(supportMessages.userId, id));
+      await tx.delete(analyticsEvents).where(eq(analyticsEvents.userId, id));
       await tx.delete(users).where(eq(users.id, id));
     });
   }

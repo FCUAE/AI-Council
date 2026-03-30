@@ -112,9 +112,9 @@ export class ObjectStorageService {
         "Content-Length": metadata.size,
         "X-Content-Type-Options": "nosniff",
         "Content-Disposition": disposition,
-        "Cache-Control": `${
-          isPublic ? "public" : "private"
-        }, max-age=${cacheTtlSec}`,
+        "Cache-Control": isPublic
+          ? `public, max-age=${cacheTtlSec}`
+          : "private, no-store",
       });
 
       // Stream the file to the response
@@ -318,6 +318,8 @@ async function signObjectURL({
     method,
     expires_at: new Date(Date.now() + ttlSec * 1000).toISOString(),
   };
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 10000);
   const response = await fetch(
     `${REPLIT_SIDECAR_ENDPOINT}/object-storage/signed-object-url`,
     {
@@ -326,8 +328,10 @@ async function signObjectURL({
         "Content-Type": "application/json",
       },
       body: JSON.stringify(request),
+      signal: controller.signal,
     }
   );
+  clearTimeout(timer);
   if (!response.ok) {
     throw new Error(
       `Failed to sign object URL, errorcode: ${response.status}, ` +

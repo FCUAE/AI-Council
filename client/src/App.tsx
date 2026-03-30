@@ -559,15 +559,15 @@ function PendingPromptHandler() {
   useEffect(() => {
     if (isLoading || !isAuthenticated) return;
 
-    const pendingPrompt = localStorage.getItem("council_pending_prompt");
+    const pendingPrompt = sessionStorage.getItem("council_pending_prompt");
     if (!pendingPrompt) return;
 
-    const pendingModels = localStorage.getItem("council_pending_models");
-    const pendingChairman = localStorage.getItem("council_pending_chairman");
+    const pendingModels = sessionStorage.getItem("council_pending_models");
+    const pendingChairman = sessionStorage.getItem("council_pending_chairman");
 
-    localStorage.removeItem("council_pending_prompt");
-    localStorage.removeItem("council_pending_models");
-    localStorage.removeItem("council_pending_chairman");
+    sessionStorage.removeItem("council_pending_prompt");
+    sessionStorage.removeItem("council_pending_models");
+    sessionStorage.removeItem("council_pending_chairman");
 
     const models = pendingModels ? JSON.parse(pendingModels) : undefined;
     const chairmanModel = pendingChairman || undefined;
