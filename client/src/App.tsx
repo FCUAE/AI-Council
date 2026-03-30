@@ -682,7 +682,7 @@ function LoggedOutHeader() {
           className="flex items-center justify-center gap-2 bg-[#1a1a1a] text-white text-xs md:text-sm font-medium py-2 px-3 md:px-4 lg:px-5 rounded-lg shadow-sm hover:bg-[#2b2b2b] transition-colors border-0 cursor-pointer whitespace-nowrap"
           data-testid="button-get-free"
         >
-          Get 12 Free Debates
+          Get 3 Free Debates
         </button>
       </div>
     </header>
