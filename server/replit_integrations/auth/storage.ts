@@ -1,6 +1,7 @@
 import { users, type User, type UpsertUser, creditTransactions, creditBatches } from "@shared/models/auth";
 import { conversations, messages, councilResponses, analyticsEvents, supportMessages } from "@shared/schema";
 import { db } from "../../db";
+import { pool } from "../../db";
 import { eq, inArray, and, ne, sql } from "drizzle-orm";
 import { securityLog } from "../../securityLogger";
 
@@ -80,6 +81,29 @@ class AuthStorage implements IAuthStorage {
     }
   }
   async deleteUser(id: string): Promise<void> {
+    let filenames: string[] = [];
+    const client = await pool.connect();
+    try {
+      const fileResult = await client.query(
+        'SELECT filename FROM file_uploads WHERE user_id = $1',
+        [id]
+      );
+      filenames = fileResult.rows.map((r: any) => r.filename);
+    } finally {
+      client.release();
+    }
+
+    if (filenames.length > 0) {
+      const { objectStorageService } = await import("../object_storage/objectStorage");
+      for (const filename of filenames) {
+        try {
+          await objectStorageService.deleteObjectEntityFile(`/objects/${filename}`);
+        } catch (err: any) {
+          console.error(`[DELETE_USER] Failed to delete file ${filename}:`, err.message);
+        }
+      }
+    }
+
     await db.transaction(async (tx) => {
       const userConvs = await tx.select({ id: conversations.id }).from(conversations).where(eq(conversations.userId, id));
       if (userConvs.length > 0) {
@@ -96,6 +120,7 @@ class AuthStorage implements IAuthStorage {
       await tx.delete(creditBatches).where(eq(creditBatches.userId, id));
       await tx.delete(supportMessages).where(eq(supportMessages.userId, id));
       await tx.delete(analyticsEvents).where(eq(analyticsEvents.userId, id));
+      await tx.execute(sql`DELETE FROM file_uploads WHERE user_id = ${id}`);
       await tx.delete(users).where(eq(users.id, id));
     });
   }
