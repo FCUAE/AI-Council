@@ -24,7 +24,7 @@ Preferred communication style: Simple, everyday language.
 - **Framework**: React with TypeScript
 - **Routing**: Wouter (lightweight client-side routing)
 - **State Management**: TanStack React Query for server state
-- **Styling**: Tailwind CSS with shadcn/ui component library, custom SCSS in `client/src/styles/carbon.scss`
+- **Styling**: Tailwind CSS with shadcn/ui component library
 - **Animations**: Framer Motion for smooth transitions
 - **Icons**: Carbon Icons (`@carbon/icons-react`) for UI, Lucide for secondary icons
 - **Build Tool**: Vite with hot module replacement

@@ -1,6 +1,6 @@
-import fs from "fs";
+import fs from "fs/promises";
 import path from "path";
-import { execFileSync } from "child_process";
+import { execFile } from "child_process";
 import { randomUUID } from "crypto";
 
 const MAX_TEXT_LENGTH = 200000;
@@ -8,14 +8,14 @@ const PARSE_TIMEOUT_MS = 30_000;
 const MAX_FILE_SIZE_BYTES = 50 * 1024 * 1024;
 const UPLOADS_DIR = path.join(process.cwd(), "uploads");
 
-function validateFilePath(filePath: string): string | null {
+async function validateFilePath(filePath: string): Promise<string | null> {
   const resolved = path.resolve(filePath);
   if (!resolved.startsWith(UPLOADS_DIR + path.sep) && resolved !== UPLOADS_DIR) {
     console.error(`[documentParser] Path traversal blocked`);
     return null;
   }
   try {
-    const real = fs.realpathSync(resolved);
+    const real = await fs.realpath(resolved);
     if (!real.startsWith(UPLOADS_DIR + path.sep) && real !== UPLOADS_DIR) {
       console.error(`[documentParser] Symlink escape blocked`);
       return null;
@@ -38,15 +38,17 @@ function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise
 
 export async function extractTextFromFile(filePath: string, mimeType: string): Promise<string | null> {
   try {
-    const safePath = validateFilePath(filePath);
+    const safePath = await validateFilePath(filePath);
     if (!safePath) return null;
 
-    if (!fs.existsSync(safePath)) {
+    try {
+      await fs.access(safePath);
+    } catch {
       console.error(`[documentParser] File not found: ${safePath}`);
       return null;
     }
 
-    const stat = fs.statSync(safePath);
+    const stat = await fs.stat(safePath);
     if (stat.size > MAX_FILE_SIZE_BYTES) {
       console.error(`[documentParser] File too large: ${stat.size} bytes (max ${MAX_FILE_SIZE_BYTES})`);
       return null;
@@ -62,7 +64,7 @@ export async function extractTextFromFile(filePath: string, mimeType: string): P
     ) {
       text = await withTimeout(extractDocxText(safePath), PARSE_TIMEOUT_MS, "DOCX extraction");
     } else if (isPlainTextType(mimeType)) {
-      text = fs.readFileSync(safePath, "utf-8");
+      text = await fs.readFile(safePath, "utf-8");
     }
 
     if (text && text.trim().length === 0) {
@@ -85,9 +87,9 @@ export async function extractTextFromFile(filePath: string, mimeType: string): P
   }
 }
 
-function checkFileSize(filePath: string, label: string): boolean {
+async function checkFileSize(filePath: string, label: string): Promise<boolean> {
   try {
-    const stat = fs.statSync(filePath);
+    const stat = await fs.stat(filePath);
     if (stat.size > MAX_FILE_SIZE_BYTES) {
       console.error(`[documentParser] ${label}: file too large (${stat.size} bytes, max ${MAX_FILE_SIZE_BYTES})`);
       return false;
@@ -100,9 +102,9 @@ function checkFileSize(filePath: string, label: string): boolean {
 
 async function extractPdfText(filePath: string): Promise<string | null> {
   try {
-    if (!checkFileSize(filePath, "extractPdfText")) return null;
+    if (!(await checkFileSize(filePath, "extractPdfText"))) return null;
     const { PDFParse } = await import("pdf-parse");
-    const fileBuffer = fs.readFileSync(filePath);
+    const fileBuffer = await fs.readFile(filePath);
     const uint8 = new Uint8Array(fileBuffer);
     const parser = new PDFParse(uint8);
     const result = await parser.getText();
@@ -125,9 +127,9 @@ async function extractPdfText(filePath: string): Promise<string | null> {
 
 async function extractDocxText(filePath: string): Promise<string | null> {
   try {
-    if (!checkFileSize(filePath, "extractDocxText")) return null;
+    if (!(await checkFileSize(filePath, "extractDocxText"))) return null;
     const mammoth = await import("mammoth");
-    const buffer = fs.readFileSync(filePath);
+    const buffer = await fs.readFile(filePath);
     const result = await mammoth.extractRawText({ buffer });
     return result.value || null;
   } catch (error: unknown) {
@@ -155,22 +157,33 @@ function isPlainTextType(mimeType: string): boolean {
 
 const MAX_PDF_PAGES = 3;
 
-export function renderPdfToImages(filePath: string): string[] {
-  try {
-    const safePath = validateFilePath(filePath);
-    if (!safePath) return [];
-    if (!checkFileSize(safePath, "renderPdfToImages")) return [];
+function execFileAsync(cmd: string, args: string[], options: { timeout: number }): Promise<void> {
+  return new Promise((resolve, reject) => {
+    execFile(cmd, args, options, (error) => {
+      if (error) reject(error);
+      else resolve();
+    });
+  });
+}
 
-    if (!fs.existsSync(UPLOADS_DIR)) {
-      fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+export async function renderPdfToImages(filePath: string): Promise<string[]> {
+  try {
+    const safePath = await validateFilePath(filePath);
+    if (!safePath) return [];
+    if (!(await checkFileSize(safePath, "renderPdfToImages"))) return [];
+
+    try {
+      await fs.access(UPLOADS_DIR);
+    } catch {
+      await fs.mkdir(UPLOADS_DIR, { recursive: true });
     }
 
     const prefix = path.join(UPLOADS_DIR, `pdf-render-${randomUUID()}`);
-    execFileSync("pdftoppm", ["-png", "-r", "150", "-l", String(MAX_PDF_PAGES), safePath, prefix], {
+    await execFileAsync("pdftoppm", ["-png", "-r", "150", "-l", String(MAX_PDF_PAGES), safePath, prefix], {
       timeout: 30000,
     });
 
-    const dir = fs.readdirSync(UPLOADS_DIR);
+    const dir = await fs.readdir(UPLOADS_DIR);
     const baseName = path.basename(prefix);
     const rendered = dir
       .filter(f => f.startsWith(baseName) && f.endsWith(".png"))
@@ -192,12 +205,12 @@ export function renderPdfToImages(filePath: string): string[] {
 
 export async function getPdfPageCount(filePath: string): Promise<number> {
   try {
-    const safePath = validateFilePath(filePath);
+    const safePath = await validateFilePath(filePath);
     if (!safePath) return 0;
-    if (!checkFileSize(safePath, "getPdfPageCount")) return 0;
+    if (!(await checkFileSize(safePath, "getPdfPageCount"))) return 0;
     const inner = async () => {
       const { PDFParse } = await import("pdf-parse");
-      const fileBuffer = fs.readFileSync(safePath);
+      const fileBuffer = await fs.readFile(safePath);
       const uint8 = new Uint8Array(fileBuffer);
       const parser = new PDFParse(uint8);
       const result = await parser.getText();
@@ -209,12 +222,12 @@ export async function getPdfPageCount(filePath: string): Promise<number> {
   }
 }
 
-export function cleanupRenderedImages(filePaths: string[]): void {
+export async function cleanupRenderedImages(filePaths: string[]): Promise<void> {
   for (const fp of filePaths) {
     try {
-      const safeFp = validateFilePath(fp);
-      if (safeFp && fs.existsSync(safeFp) && path.basename(safeFp).startsWith("pdf-render-")) {
-        fs.unlinkSync(safeFp);
+      const safeFp = await validateFilePath(fp);
+      if (safeFp && path.basename(safeFp).startsWith("pdf-render-")) {
+        await fs.unlink(safeFp);
       }
     } catch {}
   }

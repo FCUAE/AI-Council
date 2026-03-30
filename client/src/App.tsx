@@ -1,20 +1,22 @@
 import { Switch, Route, useLocation } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
-import { ClerkProvider, UserButton, useAuth as useClerkAuth, useClerk } from "@clerk/react";
-import NotFound from "@/pages/not-found";
+import { ClerkProvider, useAuth as useClerkAuth, useClerk } from "@clerk/react";
 import Home from "@/pages/Home";
-import Chat from "@/pages/Chat";
-import Credits from "@/pages/Credits";
-import Profile from "@/pages/Profile";
-import Affiliate from "@/pages/Affiliate";
-import Admin from "@/pages/Admin";
+import { lazy, Suspense } from "react";
+
+const Chat = lazy(() => import("@/pages/Chat"));
+const Credits = lazy(() => import("@/pages/Credits"));
+const Profile = lazy(() => import("@/pages/Profile"));
+const Affiliate = lazy(() => import("@/pages/Affiliate"));
+const Admin = lazy(() => import("@/pages/Admin"));
+const NotFound = lazy(() => import("@/pages/not-found"));
 
 import { useAuth } from "@/hooks/use-auth";
 import { useUsage } from "@/hooks/use-usage";
 import { useConversations, useRenameConversation, useDeleteConversation } from "@/hooks/use-conversations";
 import { useEffect, useState, useRef } from "react";
-import { MessageSquare, Plus, Settings, LogOut, User, MoreHorizontal, Pencil, Trash2, Loader2, Info, Users, Send } from "lucide-react";
+import { MessageSquare, Plus, Settings, LogOut, MoreHorizontal, Pencil, Trash2, Loader2, Send } from "lucide-react";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
 import {
   DropdownMenu,
@@ -37,23 +39,6 @@ import SupportWidget from "@/components/SupportWidget";
 import { setClerkTokenGetter, authFetch } from "@/lib/clerk-token";
 import { useToast } from "@/hooks/use-toast";
 import { trackRefgrowSignup } from "@/hooks/use-refgrow";
-import { FREE_TIER_CREDITS } from "@shared/models";
-
-function formatRelativeTime(dateString: string | Date): string {
-  const date = typeof dateString === 'string' ? new Date(dateString) : dateString;
-  const now = new Date();
-  const diffMs = now.getTime() - date.getTime();
-  const diffSeconds = Math.floor(diffMs / 1000);
-  const diffMinutes = Math.floor(diffSeconds / 60);
-  const diffHours = Math.floor(diffMinutes / 60);
-  const diffDays = Math.floor(diffHours / 24);
-
-  if (diffSeconds < 60) return "just now";
-  if (diffMinutes < 60) return `${diffMinutes}m ago`;
-  if (diffHours < 24) return `${diffHours}h ago`;
-  if (diffDays < 7) return `${diffDays}d ago`;
-  return date.toLocaleDateString();
-}
 
 function groupConversationsByDate(conversations: any[]) {
   const now = new Date();
@@ -184,13 +169,6 @@ function AppSidebar() {
 
   const maxCredits = Math.max(usage?.debateCredits || 0, 100);
   const progressWidth = usage ? Math.min((usage.debateCredits / maxCredits) * 100, 100) : 0;
-
-  const isFreeUser = usage && !usage.isSubscribed && (usage.debateCredits || 0) <= FREE_TIER_CREDITS;
-  const freeDebateEstimate = usage ? Math.floor(usage.debateCredits / 2) : 0;
-  const debateEstimate = usage ? {
-    low: Math.floor(usage.debateCredits / 8),
-    high: Math.floor(usage.debateCredits / 3),
-  } : { low: 0, high: 0 };
 
 
   return (
@@ -601,17 +579,27 @@ function PendingPromptHandler() {
   return null;
 }
 
+function PageFallback() {
+  return (
+    <div className="flex-1 flex items-center justify-center min-h-[40vh]">
+      <div className="w-6 h-6 border-2 border-[#eaeaea] border-t-[#1a1a1a] rounded-full animate-spin" />
+    </div>
+  );
+}
+
 function Router() {
   return (
-    <Switch>
-      <Route path="/" component={Home} />
-      <Route path="/chat/:id" component={Chat} />
-      <Route path="/credits" component={Credits} />
-      <Route path="/profile" component={Profile} />
-      <Route path="/affiliate" component={Affiliate} />
-      <Route path="/admin" component={Admin} />
-      <Route component={NotFound} />
-    </Switch>
+    <Suspense fallback={<PageFallback />}>
+      <Switch>
+        <Route path="/" component={Home} />
+        <Route path="/chat/:id" component={Chat} />
+        <Route path="/credits" component={Credits} />
+        <Route path="/profile" component={Profile} />
+        <Route path="/affiliate" component={Affiliate} />
+        <Route path="/admin" component={Admin} />
+        <Route component={NotFound} />
+      </Switch>
+    </Suspense>
   );
 }
 

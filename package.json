@@ -12,8 +12,6 @@
   },
   "dependencies": {
     "@carbon/icons-react": "^11.71.0",
-    "@carbon/react": "^1.97.0",
-    "@carbon/styles": "^1.96.0",
     "@clerk/express": "^2.0.2",
     "@clerk/react": "^6.0.2",
     "@google-cloud/storage": "^7.18.0",
@@ -92,7 +90,6 @@
     "recharts": "^2.15.2",
     "resend": "^4.0.0",
     "rollup": "^4.59.0",
-    "sass": "^1.97.1",
     "sharp": "^0.34.5",
     "stripe": "^20.4.1",
     "stripe-replit-sync": "^1.0.0",

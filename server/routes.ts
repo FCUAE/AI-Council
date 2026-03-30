@@ -1161,7 +1161,7 @@ ${previousContext}
         if (!result.text && result.attachment.type === "application/pdf" && result.localPath) {
           if (totalRenderedImages < MAX_TOTAL_RENDERED_IMAGES) {
             const remainingBudget = MAX_TOTAL_RENDERED_IMAGES - totalRenderedImages;
-            const rendered = renderPdfToImages(result.localPath);
+            const rendered = await renderPdfToImages(result.localPath);
             const usable = rendered.slice(0, remainingBudget);
             const excess = rendered.slice(remainingBudget);
             for (const imgPath of excess) {
@@ -1844,7 +1844,7 @@ Rules:
     
     clearTimeout(processTimer);
     clearMessageController(userMessageId);
-    cleanupRenderedImages(renderedImagePaths);
+    await cleanupRenderedImages(renderedImagePaths);
     // Note: attachment files are NOT cleaned up here so follow-up questions
     // can still reference them. They are cleaned up when the conversation is deleted.
 
@@ -1901,7 +1901,7 @@ Rules:
       }
     }
     clearMessageController(userMessageId);
-    cleanupRenderedImages(renderedImagePaths);
+    await cleanupRenderedImages(renderedImagePaths);
   }
 }
 

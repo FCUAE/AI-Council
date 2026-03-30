@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, timestamp, jsonb, varchar, numeric, date } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, timestamp, jsonb, varchar, numeric, date, index } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -50,7 +50,9 @@ export const conversations = pgTable("conversations", {
   verdictLedger: text("verdict_ledger"),
   errorReason: text("error_reason"),
   createdAt: timestamp("created_at").defaultNow(),
-});
+}, (table) => [
+  index("conversations_user_id_idx").on(table.userId),
+]);
 
 // Individual messages in a conversation (user prompts + council responses)
 export const messages = pgTable("messages", {
@@ -61,7 +63,9 @@ export const messages = pgTable("messages", {
   attachments: jsonb("attachments").$type<Array<{ name: string; url: string; type: string; size: number }>>(), // file attachments
   status: text("status").notNull().default("processing"), // processing, complete, cancelled
   createdAt: timestamp("created_at").defaultNow(),
-});
+}, (table) => [
+  index("messages_conversation_id_idx").on(table.conversationId),
+]);
 
 // Council member responses for each user message
 export const councilResponses = pgTable("council_responses", {
@@ -73,7 +77,9 @@ export const councilResponses = pgTable("council_responses", {
   error: text("error"),
   substitutedFor: text("substituted_for"),
   createdAt: timestamp("created_at").defaultNow(),
-});
+}, (table) => [
+  index("council_responses_message_id_idx").on(table.messageId),
+]);
 
 // Keep old tables for backward compatibility
 export const queries = pgTable("queries", {

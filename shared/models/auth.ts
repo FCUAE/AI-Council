@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { boolean, integer, numeric, pgTable, serial, text, timestamp, varchar } from "drizzle-orm/pg-core";
+import { boolean, index, integer, numeric, pgTable, serial, text, timestamp, varchar } from "drizzle-orm/pg-core";
 
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -34,7 +34,9 @@ export const creditTransactions = pgTable("credit_transactions", {
   stripeSessionId: varchar("stripe_session_id"),
   conversationId: integer("conversation_id"),
   createdAt: timestamp("created_at").defaultNow(),
-});
+}, (table) => [
+  index("credit_transactions_user_id_idx").on(table.userId),
+]);
 
 export const creditBatches = pgTable("credit_batches", {
   id: serial("id").primaryKey(),

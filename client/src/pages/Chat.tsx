@@ -15,30 +15,12 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useRef, useEffect, useMemo, useState, useCallback } from "react";
 import { DEFAULT_COUNCIL_MODELS, DEFAULT_CHAIRMAN_MODEL, getModelById, getDebateCreditCost, FREE_TIER_CREDITS } from "@shared/models";
 
-
-interface CostEstimate {
-  creditCost: number;
-  userTier: string;
-}
+import { useFileUpload, useAdjustTextareaHeight } from "@/hooks/use-file-upload";
+import { useCostEstimation } from "@/hooks/use-cost-estimation";
 import { renderMarkdown, lightTheme } from "@/lib/markdown-renderer";
-import { compressImageIfNeeded, isImageFile } from "@/lib/imageCompression";
 import InlineModelChip from "@/components/InlineModelChip";
 import ChairmanChip from "@/components/ChairmanChip";
 import { trackEvent } from "@/lib/analytics";
-
-interface UploadedFile {
-  name: string;
-  url: string;
-  type: string;
-  size: number;
-}
-
-interface PendingFile {
-  id: string;
-  name: string;
-  type: string;
-  status: 'compressing' | 'uploading' | 'complete' | 'error';
-}
 
 const messageSchema = z.object({
   message: z.string().min(1, "Give the Council more to work with."),
@@ -151,13 +133,15 @@ export default function Chat() {
   const { isAuthenticated } = useAuth();
   const { data: usage } = useUsage(isAuthenticated);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
-  const [pendingFiles, setPendingFiles] = useState<PendingFile[]>([]);
-  const [isUploading, setIsUploading] = useState(false);
-  const [tokenEstimates, setTokenEstimates] = useState<Map<string, number>>(new Map());
-  const [pendingExtractions, setPendingExtractions] = useState(0);
+  const {
+    uploadedFiles, setUploadedFiles,
+    pendingFiles, isUploading,
+    tokenEstimates, setTokenEstimates,
+    totalAttachmentTokens, pendingExtractions,
+    fileError, setFileError,
+    fileInputRef, handleFileUpload, removeFile, clearFiles,
+  } = useFileUpload();
   const [isCancelling, setIsCancelling] = useState(false);
   const [isRetrying, setIsRetrying] = useState(false);
   const [copiedId, setCopiedId] = useState<number | null>(null);
@@ -170,15 +154,7 @@ export default function Chat() {
 
   const messageValue = watch("message");
 
-  const adjustTextareaHeight = useCallback(() => {
-    const textarea = textareaRef.current;
-    if (textarea) {
-      textarea.style.height = 'auto';
-      const maxHeight = 200;
-      textarea.style.height = `${Math.min(textarea.scrollHeight, maxHeight)}px`;
-      textarea.style.overflowY = textarea.scrollHeight > maxHeight ? 'auto' : 'hidden';
-    }
-  }, []);
+  const adjustTextareaHeight = useAdjustTextareaHeight(textareaRef);
 
   useEffect(() => {
     adjustTextareaHeight();
@@ -230,12 +206,6 @@ export default function Chat() {
 
   const isFreeUser = !usage?.isSubscribed && (usage?.debateCredits || 0) <= FREE_TIER_CREDITS;
 
-  const totalAttachmentTokens = useMemo(() => {
-    let sum = 0;
-    tokenEstimates.forEach(v => { sum += v; });
-    return sum;
-  }, [tokenEstimates]);
-
   const approxPriorContextTokens = useMemo(() => {
     if (!conversation?.messages?.length) return 0;
     if (conversation.messages.length >= 4 && conversation.contextSummary) {
@@ -253,13 +223,19 @@ export default function Chat() {
   const localCreditCost = getDebateCreditCost(councilModels, chairmanModel, totalAttachmentTokens, approxPriorContextTokens);
   const expandCreditCost = getDebateCreditCost(councilModels, chairmanModel, 0, approxPriorContextTokens);
   const hasEnoughCreditsForExpand = (usage?.debateCredits ?? 0) >= expandCreditCost;
-  const [serverEstimate, setServerEstimate] = useState<CostEstimate | null>(null);
-  const [isEstimating, setIsEstimating] = useState(false);
-  const [estimateRetryCount, setEstimateRetryCount] = useState(0);
-  const estimateTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const estimateAbortRef = useRef<AbortController | null>(null);
 
-  const costEstimateConfirmed = serverEstimate !== null && !isEstimating;
+  const {
+    serverEstimate, setServerEstimate,
+    isEstimating, costEstimateConfirmed, setEstimateRetryCount,
+  } = useCostEstimation({
+    models: councilModels,
+    chairmanModel,
+    totalAttachmentTokens,
+    uploadedFiles,
+    isAuthenticated,
+    conversationId: id,
+    extraDeps: [conversationMessageCount, hasContextSummary],
+  });
 
   const handleSelectCouncilModel = useCallback((slotIndex: number, modelId: string) => {
     setCouncilModelsOverride(prev => {
@@ -271,200 +247,16 @@ export default function Chat() {
     setServerEstimate(null);
     setEstimateRetryCount(c => c + 1);
     trackEvent("model_selected", { modelId, slot: slotIndex, role: "council" });
-  }, [conversation?.models]);
+  }, [conversation?.models, setServerEstimate, setEstimateRetryCount]);
 
   const handleSelectChairmanModel = useCallback((modelId: string) => {
     setChairmanModelOverride(modelId);
     setServerEstimate(null);
     setEstimateRetryCount(c => c + 1);
     trackEvent("model_selected", { modelId, role: "chairman" });
-  }, []);
-
-  useEffect(() => {
-    if (!isAuthenticated) {
-      setServerEstimate(null);
-      setIsEstimating(false);
-      return;
-    }
-
-    setIsEstimating(true);
-    setServerEstimate(null);
-
-    if (estimateTimerRef.current) clearTimeout(estimateTimerRef.current);
-    if (estimateAbortRef.current) estimateAbortRef.current.abort("cleanup");
-
-    const abortController = new AbortController();
-    estimateAbortRef.current = abortController;
-
-    estimateTimerRef.current = setTimeout(async () => {
-      try {
-        const attachmentMeta = uploadedFiles.map(f => ({ name: f.name, url: f.url, type: f.type, size: f.size }));
-        const res = await authFetch('/api/estimate-cost', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            models: councilModels,
-            chairmanModel,
-            attachments: attachmentMeta.length > 0 ? attachmentMeta : undefined,
-            attachmentTokens: totalAttachmentTokens > 0 ? totalAttachmentTokens : undefined,
-            conversationId: id,
-          }),
-          signal: abortController.signal,
-        });
-        if (abortController.signal.aborted) return;
-        if (res.ok) {
-          const data: CostEstimate = await res.json();
-          if (!abortController.signal.aborted) {
-            setServerEstimate(data);
-            setIsEstimating(false);
-          }
-        } else {
-          if (!abortController.signal.aborted) {
-            setTimeout(() => { if (!abortController.signal.aborted) setEstimateRetryCount(c => c + 1); }, 3000);
-          }
-        }
-      } catch (e: any) {
-        if (e?.name === 'AbortError') return;
-        if (!abortController.signal.aborted) {
-          setTimeout(() => { if (!abortController.signal.aborted) setEstimateRetryCount(c => c + 1); }, 3000);
-        }
-      }
-    }, 400);
-
-    return () => {
-      if (estimateTimerRef.current) clearTimeout(estimateTimerRef.current);
-      abortController.abort("cleanup");
-    };
-  }, [councilModels, chairmanModel, totalAttachmentTokens, uploadedFiles, isAuthenticated, estimateRetryCount, id, conversationMessageCount, hasContextSummary]);
+  }, [setServerEstimate, setEstimateRetryCount]);
 
   const creditCost = serverEstimate?.creditCost ?? localCreditCost;
-
-  const MAX_FILE_SIZE = 10 * 1024 * 1024;
-  const MAX_FILES = 30;
-  const UPLOAD_BATCH_SIZE = 5;
-  const ALLOWED_FILE_TYPES = ['image/', 'application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'text/plain', 'text/markdown', 'application/json', 'text/csv'];
-
-  const isAllowedFileType = useCallback((file: File): boolean => {
-    return ALLOWED_FILE_TYPES.some(type => file.type.startsWith(type)) ||
-      ['.pdf', '.doc', '.docx', '.txt', '.md', '.json', '.csv'].some(ext => file.name.toLowerCase().endsWith(ext));
-  }, []);
-
-  const [fileError, setFileError] = useState<string | null>(null);
-
-  const handleFileUpload = useCallback(async (files: FileList | null) => {
-    if (!files || files.length === 0) return;
-    setFileError(null);
-
-    const allFiles = Array.from(files);
-
-    const resetInput = () => {
-      if (fileInputRef.current) fileInputRef.current.value = "";
-    };
-
-    if (uploadedFiles.length + allFiles.length > MAX_FILES) {
-      setFileError("Maximum 30 files per debate.");
-      resetInput();
-      return;
-    }
-
-    const validFiles: { file: File; fileId: string }[] = [];
-    for (const file of allFiles) {
-      if (file.size > MAX_FILE_SIZE) {
-        setFileError("This file is too large. Maximum size is 10MB.");
-        continue;
-      }
-      if (!isAllowedFileType(file)) {
-        setFileError("This file type isn't supported yet. Try PDF, images, docs, or text files.");
-        continue;
-      }
-      const fileId = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-      validFiles.push({ file, fileId });
-    }
-
-    if (validFiles.length === 0) {
-      resetInput();
-      return;
-    }
-
-    const remaining = MAX_FILES - uploadedFiles.length;
-    const trimmedFiles = validFiles.slice(0, remaining);
-
-    setPendingFiles(prev => [
-      ...prev,
-      ...trimmedFiles.map(({ file, fileId }) => ({
-        id: fileId,
-        name: file.name,
-        type: file.type,
-        status: (isImageFile(file) ? 'compressing' : 'uploading') as PendingFile['status'],
-      })),
-    ]);
-
-    setIsUploading(true);
-
-    const processFile = async ({ file, fileId }: { file: File; fileId: string }) => {
-      try {
-        const processedFile = await compressImageIfNeeded(file);
-        setPendingFiles(prev => prev.map(f => f.id === fileId ? { ...f, status: 'uploading' as const } : f));
-        const formData = new FormData();
-        formData.append('file', processedFile);
-        const uploadRes = await authFetch("/api/uploads/direct", {
-          method: "POST",
-          body: formData,
-        });
-        if (!uploadRes.ok) throw new Error("Failed to upload file");
-        const { objectPath } = await uploadRes.json();
-        setPendingFiles(prev => prev.filter(f => f.id !== fileId));
-        setUploadedFiles(prev => [...prev, { name: processedFile.name, url: objectPath, type: processedFile.type || "application/octet-stream", size: processedFile.size }]);
-
-        setPendingExtractions(prev => prev + 1);
-        authFetch('/api/uploads/extract-text', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ fileUrl: objectPath, fileType: processedFile.type }),
-        })
-          .then(res => res.ok ? res.json() : null)
-          .then(data => {
-            if (data?.tokenEstimate) {
-              setTokenEstimates(prev => {
-                const next = new Map(prev);
-                next.set(objectPath, data.tokenEstimate);
-                return next;
-              });
-            }
-          })
-          .catch(() => {})
-          .finally(() => setPendingExtractions(prev => prev - 1));
-      } catch (err: any) {
-        console.error("Upload failed:", err);
-        const isNetworkError = !navigator.onLine || err.message?.includes('fetch') || err.message?.includes('network');
-        setFileError(isNetworkError ? "Connection lost. Check your internet and try again." : "Upload failed. Try again or use a different file.");
-        setPendingFiles(prev => prev.map(f => f.id === fileId ? { ...f, status: 'error' as const } : f));
-        setTimeout(() => { setPendingFiles(prev => prev.filter(f => f.id !== fileId)); }, 3000);
-      }
-    };
-
-    for (let i = 0; i < trimmedFiles.length; i += UPLOAD_BATCH_SIZE) {
-      const batch = trimmedFiles.slice(i, i + UPLOAD_BATCH_SIZE);
-      await Promise.allSettled(batch.map(processFile));
-    }
-
-    setIsUploading(false);
-    resetInput();
-  }, [isAllowedFileType, uploadedFiles.length]);
-
-  const removeFile = useCallback((index: number) => {
-    setUploadedFiles(prev => {
-      const fileToRemove = prev[index];
-      if (fileToRemove) {
-        setTokenEstimates(prevEstimates => {
-          const next = new Map(prevEstimates);
-          next.delete(fileToRemove.url);
-          return next;
-        });
-      }
-      return prev.filter((_, i) => i !== index);
-    });
-  }, []);
 
   const scrollToBottom = (behavior: ScrollBehavior = "smooth") => {
     messagesEndRef.current?.scrollIntoView({ behavior });
@@ -517,8 +309,7 @@ export default function Chat() {
         chairmanModel: chairmanModelOverride || undefined,
       });
       reset();
-      setUploadedFiles([]);
-      setTokenEstimates(new Map());
+      clearFiles();
       if (textareaRef.current) textareaRef.current.style.height = 'auto';
       queryClient.invalidateQueries({ queryKey: ["/api/user/usage"] });
     } catch (err: any) {

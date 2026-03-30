@@ -3,20 +3,15 @@ import { useAuth } from "@/hooks/use-auth";
 import { useUsage } from "@/hooks/use-usage";
 import { useClerk } from "@clerk/react";
 import { useLocation } from "wouter";
-import { useState, useRef, useCallback, useEffect, useMemo } from "react";
+import { useState, useRef, useEffect } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import InlineModelChip from "@/components/InlineModelChip";
 import ChairmanChip from "@/components/ChairmanChip";
 
 import { DEFAULT_COUNCIL_MODELS, DEFAULT_CHAIRMAN_MODEL, getDebateCreditCost, FREE_TIER_CREDITS, DELIVERABLE_KEYWORDS } from "@shared/models";
 
-
-interface CostEstimate {
-  creditCost: number;
-  userTier: string;
-}
-import { compressImageIfNeeded, isImageFile } from "@/lib/imageCompression";
-import { authFetch } from "@/lib/clerk-token";
+import { useFileUpload, useAdjustTextareaHeight } from "@/hooks/use-file-upload";
+import { useCostEstimation } from "@/hooks/use-cost-estimation";
 import { Brain, MessageSquareMore, Star, Paperclip, X, Info, ArrowUp, Zap } from "lucide-react";
 import { trackEvent } from "@/lib/analytics";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
@@ -26,30 +21,6 @@ import {
   Close,
   Reset,
 } from "@carbon/icons-react";
-
-interface UploadedFile {
-  name: string;
-  url: string;
-  type: string;
-  size: number;
-}
-
-interface PendingFile {
-  id: string;
-  name: string;
-  type: string;
-  status: 'compressing' | 'uploading' | 'complete' | 'error';
-}
-
-const MAX_FILE_SIZE = 10 * 1024 * 1024;
-const MAX_FILES = 30;
-const UPLOAD_BATCH_SIZE = 5;
-const ALLOWED_FILE_TYPES = ['image/', 'application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'text/plain', 'text/markdown', 'application/json', 'text/csv'];
-
-function isAllowedFileType(file: File): boolean {
-  return ALLOWED_FILE_TYPES.some(type => file.type.startsWith(type)) || 
-    ['.pdf', '.doc', '.docx', '.txt', '.md', '.json', '.csv'].some(ext => file.name.toLowerCase().endsWith(ext));
-}
 
 const MODEL_COLORS = ['#22c55e', '#3b82f6', '#a855f7'];
 
@@ -93,90 +64,37 @@ export default function Home() {
     document.title = "Council \u2014 AI Models That Debate to Find the Best Answer";
   }, []);
   
-  const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
-  const [pendingFiles, setPendingFiles] = useState<PendingFile[]>([]);
-  const [isUploading, setIsUploading] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [tokenEstimates, setTokenEstimates] = useState<Map<string, number>>(new Map());
-  const [pendingExtractions, setPendingExtractions] = useState(0);
+  const {
+    uploadedFiles, setUploadedFiles,
+    pendingFiles, isUploading,
+    tokenEstimates, setTokenEstimates,
+    totalAttachmentTokens, pendingExtractions,
+    fileError: fileUploadError, setFileError: setFileUploadError,
+    fileInputRef, handleFileUpload, removeFile, clearFiles,
+  } = useFileUpload();
+
+  const adjustTextareaHeight = useAdjustTextareaHeight(textareaRef);
   
   const [selectedModels, setSelectedModels] = useState<string[]>([...DEFAULT_COUNCIL_MODELS]);
   const [chairmanModel, setChairmanModel] = useState<string>(DEFAULT_CHAIRMAN_MODEL);
-
-  const totalAttachmentTokens = useMemo(() => {
-    let sum = 0;
-    tokenEstimates.forEach(v => { sum += v; });
-    return sum;
-  }, [tokenEstimates]);
 
   const isFreeUser = !usage?.isSubscribed && (usage?.debateCredits || 0) <= FREE_TIER_CREDITS;
 
   const isDeliverable = DELIVERABLE_KEYWORDS.test(prompt);
   const localCreditCost = getDebateCreditCost(selectedModels, chairmanModel, totalAttachmentTokens, 0, isDeliverable);
-  const [serverEstimate, setServerEstimate] = useState<CostEstimate | null>(null);
-  const [isEstimating, setIsEstimating] = useState(false);
-  const [estimateRetryCount, setEstimateRetryCount] = useState(0);
-  const estimateTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const estimateAbortRef = useRef<AbortController | null>(null);
 
-  const costEstimateConfirmed = serverEstimate !== null && !isEstimating;
-
-  useEffect(() => {
-    if (!isAuthenticated) {
-      setServerEstimate(null);
-      setIsEstimating(false);
-      return;
-    }
-
-    setIsEstimating(true);
-    setServerEstimate(null);
-
-    if (estimateTimerRef.current) clearTimeout(estimateTimerRef.current);
-    if (estimateAbortRef.current) estimateAbortRef.current.abort("cleanup");
-
-    const abortController = new AbortController();
-    estimateAbortRef.current = abortController;
-
-    estimateTimerRef.current = setTimeout(async () => {
-      try {
-        const attachmentMeta = uploadedFiles.map(f => ({ name: f.name, url: f.url, type: f.type, size: f.size }));
-        const res = await authFetch('/api/estimate-cost', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            models: selectedModels,
-            chairmanModel,
-            attachments: attachmentMeta.length > 0 ? attachmentMeta : undefined,
-            attachmentTokens: totalAttachmentTokens > 0 ? totalAttachmentTokens : undefined,
-            prompt: prompt.trim() || undefined,
-          }),
-          signal: abortController.signal,
-        });
-        if (abortController.signal.aborted) return;
-        if (res.ok) {
-          const data: CostEstimate = await res.json();
-          if (!abortController.signal.aborted) {
-            setServerEstimate(data);
-            setIsEstimating(false);
-          }
-        } else {
-          if (!abortController.signal.aborted) {
-            setTimeout(() => { if (!abortController.signal.aborted) setEstimateRetryCount(c => c + 1); }, 3000);
-          }
-        }
-      } catch (e: any) {
-        if (e?.name === 'AbortError') return;
-        if (!abortController.signal.aborted) {
-          setTimeout(() => { if (!abortController.signal.aborted) setEstimateRetryCount(c => c + 1); }, 3000);
-        }
-      }
-    }, 400);
-
-    return () => {
-      if (estimateTimerRef.current) clearTimeout(estimateTimerRef.current);
-      abortController.abort("cleanup");
-    };
-  }, [selectedModels, chairmanModel, totalAttachmentTokens, uploadedFiles, isAuthenticated, estimateRetryCount, isDeliverable]);
+  const {
+    serverEstimate, setServerEstimate,
+    isEstimating, costEstimateConfirmed, setEstimateRetryCount,
+  } = useCostEstimation({
+    models: selectedModels,
+    chairmanModel,
+    totalAttachmentTokens,
+    uploadedFiles,
+    isAuthenticated,
+    prompt,
+    isDeliverable,
+  });
 
   const creditCost = serverEstimate?.creditCost ?? localCreditCost;
   const userCredits = usage?.debateCredits || 0;
@@ -206,150 +124,9 @@ export default function Home() {
   const isDefaultConfig = JSON.stringify(selectedModels) === JSON.stringify(DEFAULT_COUNCIL_MODELS) 
     && chairmanModel === DEFAULT_CHAIRMAN_MODEL;
 
-  const adjustTextareaHeight = useCallback(() => {
-    const textarea = textareaRef.current;
-    if (textarea) {
-      textarea.style.height = 'auto';
-      const maxHeight = 200;
-      textarea.style.height = `${Math.min(textarea.scrollHeight, maxHeight)}px`;
-      textarea.style.overflowY = textarea.scrollHeight > maxHeight ? 'auto' : 'hidden';
-    }
-  }, []);
-
   useEffect(() => {
     adjustTextareaHeight();
   }, [prompt, adjustTextareaHeight]);
-
-  const handleFileUpload = async (files: FileList | null) => {
-    if (!files || files.length === 0) return;
-    
-    const allFiles = Array.from(files);
-
-    const resetInput = () => {
-      if (fileInputRef.current) fileInputRef.current.value = "";
-    };
-
-    if (uploadedFiles.length + allFiles.length > MAX_FILES) {
-      setError("Maximum 30 files per debate.");
-      resetInput();
-      return;
-    }
-
-    const validFiles: { file: File; fileId: string }[] = [];
-    for (const file of allFiles) {
-      if (file.size > MAX_FILE_SIZE) {
-        setError("This file is too large. Maximum size is 10MB.");
-        continue;
-      }
-      if (!isAllowedFileType(file)) {
-        setError("This file type isn't supported yet. Try PDF, images, docs, or text files.");
-        continue;
-      }
-      const fileId = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-      validFiles.push({ file, fileId });
-    }
-
-    if (validFiles.length === 0) {
-      resetInput();
-      return;
-    }
-
-    const remaining = MAX_FILES - uploadedFiles.length;
-    const trimmedFiles = validFiles.slice(0, remaining);
-
-    setPendingFiles(prev => [
-      ...prev,
-      ...trimmedFiles.map(({ file, fileId }) => ({
-        id: fileId,
-        name: file.name,
-        type: file.type,
-        status: (isImageFile(file) ? 'compressing' : 'uploading') as PendingFile['status'],
-      })),
-    ]);
-
-    setIsUploading(true);
-
-    const processFile = async ({ file, fileId }: { file: File; fileId: string }) => {
-      try {
-        const processedFile = await compressImageIfNeeded(file);
-
-        setPendingFiles(prev => prev.map(f =>
-          f.id === fileId ? { ...f, status: 'uploading' as const } : f
-        ));
-
-        const formData = new FormData();
-        formData.append('file', processedFile);
-
-        const uploadRes = await authFetch('/api/uploads/direct', {
-          method: 'POST',
-          body: formData,
-        });
-
-        if (!uploadRes.ok) throw new Error('Failed to upload file');
-        const { objectPath } = await uploadRes.json();
-
-        setPendingFiles(prev => prev.filter(f => f.id !== fileId));
-
-        setUploadedFiles(prev => [...prev, {
-          name: processedFile.name,
-          url: objectPath,
-          type: processedFile.type,
-          size: processedFile.size,
-        }]);
-
-        setPendingExtractions(prev => prev + 1);
-        authFetch('/api/uploads/extract-text', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ fileUrl: objectPath, fileType: processedFile.type }),
-        })
-          .then(res => res.ok ? res.json() : null)
-          .then(data => {
-            if (data?.tokenEstimate) {
-              setTokenEstimates(prev => {
-                const next = new Map(prev);
-                next.set(objectPath, data.tokenEstimate);
-                return next;
-              });
-            }
-          })
-          .catch(() => {})
-          .finally(() => setPendingExtractions(prev => prev - 1));
-      } catch (err: any) {
-        console.error('Upload failed:', err);
-        const isNetworkError = !navigator.onLine || err.message?.includes('fetch') || err.message?.includes('network');
-        setError(isNetworkError
-          ? "Connection lost. Check your internet and try again."
-          : "Upload failed. Try again or use a different file.");
-        setPendingFiles(prev => prev.map(f =>
-          f.id === fileId ? { ...f, status: 'error' as const } : f
-        ));
-        setTimeout(() => {
-          setPendingFiles(prev => prev.filter(f => f.id !== fileId));
-        }, 3000);
-      }
-    };
-
-    for (let i = 0; i < trimmedFiles.length; i += UPLOAD_BATCH_SIZE) {
-      const batch = trimmedFiles.slice(i, i + UPLOAD_BATCH_SIZE);
-      await Promise.allSettled(batch.map(processFile));
-    }
-
-    setIsUploading(false);
-    resetInput();
-  };
-
-  const removeFile = (index: number) => {
-    const fileToRemove = uploadedFiles[index];
-    if (fileToRemove) {
-      setTokenEstimates(prev => {
-        const next = new Map(prev);
-        next.delete(fileToRemove.url);
-        return next;
-      });
-    }
-    setUploadedFiles(prev => prev.filter((_, i) => i !== index));
-  };
 
   const handleSubmit = async () => {
     const trimmedPrompt = prompt.trim();
@@ -385,8 +162,7 @@ export default function Home() {
         chairmanModel: chairmanModel,
         attachmentTokens: totalAttachmentTokens > 0 ? totalAttachmentTokens : undefined,
       });
-      setUploadedFiles([]);
-      setTokenEstimates(new Map());
+      clearFiles();
       setPrompt("");
       refetchUsage();
       setLocation(`/chat/${result.id}`);
@@ -747,9 +523,9 @@ export default function Home() {
               </div>
             </div>
 
-            {error && (
+            {(error || fileUploadError) && (
               <div className="text-red-500 text-xs mt-2 px-1" data-testid="text-error">
-                {error}
+                {error || fileUploadError}
               </div>
             )}
           </form>

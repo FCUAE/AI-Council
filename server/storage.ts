@@ -24,20 +24,14 @@ export interface IStorage {
   createCouncilResponse(response: InsertCouncilResponse): Promise<typeof councilResponses.$inferSelect>;
   clearCouncilResponses(messageId: number): Promise<void>;
   
-  incrementDeliberationCount(userId: string): Promise<void>;
-  decrementDebateCredits(userId: string, amount?: number): Promise<void>;
-  addDebateCredits(userId: string, count: number): Promise<void>;
   getUserById(userId: string): Promise<User | undefined>;
   logCreditTransaction(tx: Omit<InsertCreditTransaction, "id" | "createdAt">): Promise<boolean>;
   isStripeSessionProcessed(stripeSessionId: string): Promise<boolean>;
   updateUserSubscription(userId: string, status: string, stripeCustomerId?: string, stripeSubscriptionId?: string): Promise<void>;
   resetMonthlyDebates(userId: string): Promise<void>;
-  incrementMonthlyDebates(userId: string): Promise<void>;
   refundDebateCredits(userId: string, amount: number, reason: string, conversationId?: number): Promise<boolean>;
   deductDebateCredits(userId: string, amount: number, reason: string, conversationId?: number): Promise<void>;
   getTotalCreditsPurchased(userId: string): Promise<number>;
-  updateConversationReservedCredits(id: number, credits: number): Promise<void>;
-  updateConversationEstimatedCredits(id: number, credits: number): Promise<void>;
   settleConversation(id: number, actualCost: number): Promise<void>;
   updateConversationApiCost(id: number, apiCost: number): Promise<void>;
   updateConversationTokens(id: number, promptTokens: number, completionTokens: number): Promise<void>;
@@ -73,14 +67,6 @@ export interface IStorage {
   getSoonestExpiringBatch(userId: string): Promise<CreditBatch | undefined>;
 
   trackEvent(event: string, userId?: string, metadata?: Record<string, unknown>): Promise<void>;
-
-  // Legacy methods
-  createQuery(query: InsertQuery): Promise<typeof queries.$inferSelect>;
-  getQuery(id: number): Promise<QueryWithResponses | undefined>;
-  getQueries(): Promise<(typeof queries.$inferSelect)[]>;
-  updateQueryStatus(id: number, status: string): Promise<void>;
-  createResponse(response: InsertResponse): Promise<typeof responses.$inferSelect>;
-  getResponses(queryId: number): Promise<(typeof responses.$inferSelect)[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -99,13 +85,23 @@ export class DatabaseStorage implements IStorage {
     if (!conv) return undefined;
 
     const msgs = await db.select().from(messages).where(eq(messages.conversationId, id)).orderBy(messages.createdAt);
-    
-    const messagesWithResponses: MessageWithResponses[] = await Promise.all(
-      msgs.map(async (msg) => {
-        const responses = await db.select().from(councilResponses).where(eq(councilResponses.messageId, msg.id));
-        return { ...msg, councilResponses: responses };
-      })
-    );
+
+    const msgIds = msgs.map(m => m.id);
+    const allResponses = msgIds.length > 0
+      ? await db.select().from(councilResponses).where(inArray(councilResponses.messageId, msgIds))
+      : [];
+
+    const responsesByMessageId = new Map<number, typeof allResponses>();
+    for (const resp of allResponses) {
+      const existing = responsesByMessageId.get(resp.messageId) || [];
+      existing.push(resp);
+      responsesByMessageId.set(resp.messageId, existing);
+    }
+
+    const messagesWithResponses: MessageWithResponses[] = msgs.map((msg) => ({
+      ...msg,
+      councilResponses: responsesByMessageId.get(msg.id) || [],
+    }));
 
     return { ...conv, messages: messagesWithResponses };
   }
@@ -117,27 +113,6 @@ export class DatabaseStorage implements IStorage {
     return db.select().from(conversations).orderBy(desc(conversations.createdAt));
   }
   
-  async incrementDeliberationCount(userId: string): Promise<void> {
-    await db.update(users).set({ 
-      deliberationCount: sql`${users.deliberationCount} + 1`,
-      updatedAt: new Date()
-    }).where(eq(users.id, userId));
-  }
-  
-  async decrementDebateCredits(userId: string, amount: number = 1): Promise<void> {
-    await db.update(users).set({ 
-      debateCredits: sql`GREATEST(0, ${users.debateCredits} - ${amount})`,
-      updatedAt: new Date()
-    }).where(eq(users.id, userId));
-  }
-  
-  async addDebateCredits(userId: string, count: number): Promise<void> {
-    await db.update(users).set({ 
-      debateCredits: sql`${users.debateCredits} + ${count}`,
-      updatedAt: new Date()
-    }).where(eq(users.id, userId));
-  }
-
   async refundDebateCredits(userId: string, amount: number, reason: string, conversationId?: number): Promise<boolean> {
     if (conversationId) {
       return await db.transaction(async (tx) => {
@@ -235,13 +210,6 @@ export class DatabaseStorage implements IStorage {
     }).where(eq(users.id, userId));
   }
   
-  async incrementMonthlyDebates(userId: string): Promise<void> {
-    await db.update(users).set({ 
-      monthlyDebatesUsed: sql`${users.monthlyDebatesUsed} + 1`,
-      updatedAt: new Date()
-    }).where(eq(users.id, userId));
-  }
-
   async updateConversationStatus(id: number, status: string, errorReason?: string): Promise<void> {
     const updates: any = { status };
     if (errorReason !== undefined) {
@@ -293,14 +261,6 @@ export class DatabaseStorage implements IStorage {
       sql`${creditTransactions.userId} = ${userId} AND ${creditTransactions.type} IN ('purchase', 'bonus', 'subscription', 'recovery')`
     );
     return result[0]?.total || 0;
-  }
-
-  async updateConversationReservedCredits(id: number, credits: number): Promise<void> {
-    await db.update(conversations).set({ reservedCredits: credits }).where(eq(conversations.id, id));
-  }
-
-  async updateConversationEstimatedCredits(id: number, credits: number): Promise<void> {
-    await db.update(conversations).set({ estimatedCredits: credits }).where(eq(conversations.id, id));
   }
 
   async settleConversation(id: number, actualCost: number): Promise<void> {
@@ -598,37 +558,6 @@ export class DatabaseStorage implements IStorage {
     } catch (err: any) {
       console.error(`[ANALYTICS] Failed to track event ${event}:`, err.message);
     }
-  }
-
-  // Legacy methods
-  async createQuery(query: InsertQuery): Promise<typeof queries.$inferSelect> {
-    const [newQuery] = await db.insert(queries).values(query).returning();
-    return newQuery;
-  }
-
-  async getQuery(id: number): Promise<QueryWithResponses | undefined> {
-    const [query] = await db.select().from(queries).where(eq(queries.id, id));
-    if (!query) return undefined;
-
-    const queryResponses = await db.select().from(responses).where(eq(responses.queryId, id));
-    return { ...query, responses: queryResponses };
-  }
-
-  async getQueries(): Promise<(typeof queries.$inferSelect)[]> {
-    return db.select().from(queries).orderBy(desc(queries.createdAt));
-  }
-
-  async updateQueryStatus(id: number, status: string): Promise<void> {
-    await db.update(queries).set({ status }).where(eq(queries.id, id));
-  }
-
-  async createResponse(response: InsertResponse): Promise<typeof responses.$inferSelect> {
-    const [newResponse] = await db.insert(responses).values(response).returning();
-    return newResponse;
-  }
-
-  async getResponses(queryId: number): Promise<(typeof responses.$inferSelect)[]> {
-    return db.select().from(responses).where(eq(responses.queryId, queryId));
   }
 
   async createSupportMessage(data: InsertSupportMessage): Promise<typeof supportMessages.$inferSelect> {
