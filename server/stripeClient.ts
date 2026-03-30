@@ -25,14 +25,18 @@ async function getCredentials() {
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 15000);
-  const response = await fetch(url.toString(), {
-    headers: {
-      'Accept': 'application/json',
-      'X-Replit-Token': xReplitToken
-    },
-    signal: controller.signal,
-  });
-  clearTimeout(timer);
+  let response: globalThis.Response;
+  try {
+    response = await fetch(url.toString(), {
+      headers: {
+        'Accept': 'application/json',
+        'X-Replit-Token': xReplitToken
+      },
+      signal: controller.signal,
+    });
+  } finally {
+    clearTimeout(timer);
+  }
 
   const data = await response.json();
   connectionSettings = data.items?.[0];

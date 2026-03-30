@@ -1,9 +1,13 @@
+import path from "path";
+import fs from "fs/promises";
 import { users, type User, type UpsertUser, creditTransactions, creditBatches } from "@shared/models/auth";
 import { conversations, messages, councilResponses, analyticsEvents, supportMessages } from "@shared/schema";
 import { db } from "../../db";
 import { pool } from "../../db";
 import { eq, inArray, and, ne, sql } from "drizzle-orm";
 import { securityLog } from "../../securityLogger";
+
+const UPLOADS_DIR = path.join(process.cwd(), "uploads");
 
 export type UpsertUserResult =
   | { status: "success"; user: User }
@@ -93,12 +97,12 @@ class AuthStorage implements IAuthStorage {
       client.release();
     }
 
-    if (filenames.length > 0) {
-      const { objectStorageService } = await import("../object_storage/objectStorage");
-      for (const filename of filenames) {
-        try {
-          await objectStorageService.deleteObjectEntityFile(`/objects/${filename}`);
-        } catch (err: any) {
+    for (const filename of filenames) {
+      try {
+        const filePath = path.join(UPLOADS_DIR, path.basename(filename));
+        await fs.unlink(filePath);
+      } catch (err: any) {
+        if (err.code !== "ENOENT") {
           console.error(`[DELETE_USER] Failed to delete file ${filename}:`, err.message);
         }
       }

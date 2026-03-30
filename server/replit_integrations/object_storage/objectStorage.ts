@@ -320,18 +320,22 @@ async function signObjectURL({
   };
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 10000);
-  const response = await fetch(
-    `${REPLIT_SIDECAR_ENDPOINT}/object-storage/signed-object-url`,
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(request),
-      signal: controller.signal,
-    }
-  );
-  clearTimeout(timer);
+  let response: globalThis.Response;
+  try {
+    response = await fetch(
+      `${REPLIT_SIDECAR_ENDPOINT}/object-storage/signed-object-url`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(request),
+        signal: controller.signal,
+      }
+    );
+  } finally {
+    clearTimeout(timer);
+  }
   if (!response.ok) {
     throw new Error(
       `Failed to sign object URL, errorcode: ${response.status}, ` +
