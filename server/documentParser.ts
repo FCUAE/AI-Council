@@ -6,6 +6,25 @@ import { randomUUID } from "crypto";
 const MAX_TEXT_LENGTH = 200000;
 const PARSE_TIMEOUT_MS = 30_000;
 const MAX_FILE_SIZE_BYTES = 50 * 1024 * 1024;
+const UPLOADS_DIR = path.join(process.cwd(), "uploads");
+
+function validateFilePath(filePath: string): string | null {
+  const resolved = path.resolve(filePath);
+  if (!resolved.startsWith(UPLOADS_DIR + path.sep) && resolved !== UPLOADS_DIR) {
+    console.error(`[documentParser] Path traversal blocked`);
+    return null;
+  }
+  try {
+    const real = fs.realpathSync(resolved);
+    if (!real.startsWith(UPLOADS_DIR + path.sep) && real !== UPLOADS_DIR) {
+      console.error(`[documentParser] Symlink escape blocked`);
+      return null;
+    }
+    return real;
+  } catch {
+    return resolved;
+  }
+}
 
 function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
   return new Promise((resolve, reject) => {
@@ -19,12 +38,15 @@ function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise
 
 export async function extractTextFromFile(filePath: string, mimeType: string): Promise<string | null> {
   try {
-    if (!fs.existsSync(filePath)) {
-      console.error(`[documentParser] File not found: ${filePath}`);
+    const safePath = validateFilePath(filePath);
+    if (!safePath) return null;
+
+    if (!fs.existsSync(safePath)) {
+      console.error(`[documentParser] File not found: ${safePath}`);
       return null;
     }
 
-    const stat = fs.statSync(filePath);
+    const stat = fs.statSync(safePath);
     if (stat.size > MAX_FILE_SIZE_BYTES) {
       console.error(`[documentParser] File too large: ${stat.size} bytes (max ${MAX_FILE_SIZE_BYTES})`);
       return null;
@@ -33,14 +55,14 @@ export async function extractTextFromFile(filePath: string, mimeType: string): P
     let text: string | null = null;
 
     if (mimeType === "application/pdf") {
-      text = await withTimeout(extractPdfText(filePath), PARSE_TIMEOUT_MS, "PDF extraction");
+      text = await withTimeout(extractPdfText(safePath), PARSE_TIMEOUT_MS, "PDF extraction");
     } else if (
       mimeType === "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
       mimeType === "application/msword"
     ) {
-      text = await withTimeout(extractDocxText(filePath), PARSE_TIMEOUT_MS, "DOCX extraction");
+      text = await withTimeout(extractDocxText(safePath), PARSE_TIMEOUT_MS, "DOCX extraction");
     } else if (isPlainTextType(mimeType)) {
-      text = fs.readFileSync(filePath, "utf-8");
+      text = fs.readFileSync(safePath, "utf-8");
     }
 
     if (text && text.trim().length === 0) {
@@ -135,24 +157,25 @@ const MAX_PDF_PAGES = 3;
 
 export function renderPdfToImages(filePath: string): string[] {
   try {
-    if (!checkFileSize(filePath, "renderPdfToImages")) return [];
+    const safePath = validateFilePath(filePath);
+    if (!safePath) return [];
+    if (!checkFileSize(safePath, "renderPdfToImages")) return [];
 
-    const uploadsDir = path.join(process.cwd(), "uploads");
-    if (!fs.existsSync(uploadsDir)) {
-      fs.mkdirSync(uploadsDir, { recursive: true });
+    if (!fs.existsSync(UPLOADS_DIR)) {
+      fs.mkdirSync(UPLOADS_DIR, { recursive: true });
     }
 
-    const prefix = path.join(uploadsDir, `pdf-render-${randomUUID()}`);
-    execFileSync("pdftoppm", ["-png", "-r", "150", "-l", String(MAX_PDF_PAGES), filePath, prefix], {
+    const prefix = path.join(UPLOADS_DIR, `pdf-render-${randomUUID()}`);
+    execFileSync("pdftoppm", ["-png", "-r", "150", "-l", String(MAX_PDF_PAGES), safePath, prefix], {
       timeout: 30000,
     });
 
-    const dir = fs.readdirSync(uploadsDir);
+    const dir = fs.readdirSync(UPLOADS_DIR);
     const baseName = path.basename(prefix);
     const rendered = dir
       .filter(f => f.startsWith(baseName) && f.endsWith(".png"))
       .sort()
-      .map(f => path.join(uploadsDir, f));
+      .map(f => path.join(UPLOADS_DIR, f));
 
     console.log(`[documentParser] Rendered ${rendered.length} page(s) from PDF as images`);
     return rendered;
@@ -169,10 +192,12 @@ export function renderPdfToImages(filePath: string): string[] {
 
 export async function getPdfPageCount(filePath: string): Promise<number> {
   try {
-    if (!checkFileSize(filePath, "getPdfPageCount")) return 0;
+    const safePath = validateFilePath(filePath);
+    if (!safePath) return 0;
+    if (!checkFileSize(safePath, "getPdfPageCount")) return 0;
     const inner = async () => {
       const { PDFParse } = await import("pdf-parse");
-      const fileBuffer = fs.readFileSync(filePath);
+      const fileBuffer = fs.readFileSync(safePath);
       const uint8 = new Uint8Array(fileBuffer);
       const parser = new PDFParse(uint8);
       const result = await parser.getText();
@@ -187,8 +212,9 @@ export async function getPdfPageCount(filePath: string): Promise<number> {
 export function cleanupRenderedImages(filePaths: string[]): void {
   for (const fp of filePaths) {
     try {
-      if (fs.existsSync(fp) && path.basename(fp).startsWith("pdf-render-")) {
-        fs.unlinkSync(fp);
+      const safeFp = validateFilePath(fp);
+      if (safeFp && fs.existsSync(safeFp) && path.basename(safeFp).startsWith("pdf-render-")) {
+        fs.unlinkSync(safeFp);
       }
     } catch {}
   }
