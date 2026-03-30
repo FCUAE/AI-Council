@@ -678,9 +678,12 @@ function useRefgrowSignupTracking() {
 function AppLayout() {
   const { isAuthenticated, isLoading } = useAuth();
   useRefgrowSignupTracking();
-  const showSidebar = isAuthenticated && !isLoading;
 
-  if (showSidebar) {
+  if (isLoading) {
+    return <PreAuthLayout />;
+  }
+
+  if (isAuthenticated) {
     return (
       <div className="flex min-h-screen bg-[#fafafa]">
         <AppSidebar />
