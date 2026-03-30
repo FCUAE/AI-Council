@@ -996,7 +996,7 @@ export default function Chat() {
                                       </button>
                                     </TooltipTrigger>
                                     <TooltipContent className="max-w-[320px] bg-[#1a1a1a] text-white border-[#333] p-3 text-[12px] leading-relaxed" side="top" align="end">
-                                      <p className="m-0">Calculating approximate credit cost for this reply based on your selected models.</p>
+                                      <p className="m-0">Calculating credit cost for this reply based on your selected models.</p>
                                     </TooltipContent>
                                   </Tooltip>
                                 </TooltipProvider>
@@ -1007,7 +1007,7 @@ export default function Chat() {
                                   ? 'text-red-500 bg-red-50 border border-red-200'
                                   : 'text-amber-700 bg-amber-50 border border-amber-200'
                               }`} data-testid="badge-credit-cost">
-                                ≈ {creditCost} credits
+                                {creditCost} credits
                                 <TooltipProvider delayDuration={200}>
                                   <Tooltip>
                                     <TooltipTrigger asChild>
@@ -1016,7 +1016,7 @@ export default function Chat() {
                                       </button>
                                     </TooltipTrigger>
                                     <TooltipContent className="max-w-[320px] bg-[#1a1a1a] text-white border-[#333] p-3 text-[12px] leading-relaxed" side="top" align="end">
-                                      <p className="m-0">This launches a council debate. 4 AI models will independently analyze your prompt, debate and challenge each other across 3 rounds, and synthesize a single, unified, highly intelligent answer.</p>
+                                      <p className="m-0">Price based on selected models and input size.</p>
                                     </TooltipContent>
                                   </Tooltip>
                                 </TooltipProvider>

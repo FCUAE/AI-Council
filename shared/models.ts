@@ -1003,7 +1003,7 @@ const REASONING_BUFFER = 0.35;
 const TARGET_MARGIN = 0.65;
 const WORST_CASE_NET_PER_CREDIT = 0.174;
 const COST_PER_CREDIT_BUDGET = 0.058;
-export const OVERRUN_CAP_MULTIPLIER = 1.3;
+const FLAT_PRICE_MULTIPLIER = 1.3;
 
 export function computeCreditCharge(
   standardApiCost: number,
@@ -1012,7 +1012,8 @@ export function computeCreditCharge(
   const bufferedStandard = standardApiCost * (1 + STANDARD_BUFFER);
   const bufferedReasoning = reasoningApiCost * (1 + REASONING_BUFFER);
   const totalBuffered = bufferedStandard + bufferedReasoning;
-  return Math.max(2, Math.ceil(totalBuffered / COST_PER_CREDIT_BUDGET));
+  const rawCredits = Math.max(2, Math.ceil(totalBuffered / COST_PER_CREDIT_BUDGET));
+  return niceRound(Math.ceil(rawCredits * FLAT_PRICE_MULTIPLIER));
 }
 
 export function estimateDebateCostWithBufferInfo(

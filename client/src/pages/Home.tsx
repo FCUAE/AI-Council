@@ -487,7 +487,7 @@ export default function Home() {
                               </button>
                             </TooltipTrigger>
                             <TooltipContent className="max-w-[320px] bg-[#1a1a1a] text-white border-[#333] p-3 text-[12px] leading-relaxed" side="top" align="end">
-                              <p className="m-0">Calculating approximate credit cost for this council based on your selected models.</p>
+                              <p className="m-0">Calculating credit cost for this council based on your selected models.</p>
                             </TooltipContent>
                           </Tooltip>
                         </TooltipProvider>
@@ -503,7 +503,7 @@ export default function Home() {
                         }`}
                         data-testid="text-credit-cost"
                       >
-                        ≈ {creditCost} {creditCost === 1 ? 'credit' : 'credits'}
+                        {creditCost} {creditCost === 1 ? 'credit' : 'credits'}
                         <TooltipProvider delayDuration={200}>
                           <Tooltip>
                             <TooltipTrigger asChild>
@@ -512,7 +512,7 @@ export default function Home() {
                               </button>
                             </TooltipTrigger>
                             <TooltipContent className="max-w-[320px] bg-[#1a1a1a] text-white border-[#333] p-3 text-[12px] leading-relaxed" side="top" align="end">
-                              <p className="m-0">This launches a council debate. 4 AI models will independently analyze your prompt, debate and challenge each other across 3 rounds, and synthesize a single, unified, highly intelligent answer.</p>
+                              <p className="m-0">Price based on selected models and input size.</p>
                             </TooltipContent>
                           </Tooltip>
                         </TooltipProvider>
