@@ -35,7 +35,7 @@ function unsubscribeFooter(userId: string): string {
 }
 
 function councilFooter(): string {
-  return `<p style="font-size: 13px; color: #9ca3af; margin-top: 24px;">— The Council Team</p>`;
+  return `<p style="font-size: 13px; color: #9ca3af; margin-top: 24px;">— The AI Council Team</p>`;
 }
 
 function tierLabel(tier: string): string {
@@ -88,9 +88,16 @@ async function getCredentials() {
 
 async function getUncachableResendClient() {
   const { apiKey, fromEmail } = await getCredentials();
+  let resolvedFrom = fromEmail || 'AI Council <noreply@askaicouncil.com>';
+  const emailMatch = resolvedFrom.match(/<([^>]+)>/);
+  if (emailMatch) {
+    resolvedFrom = `AI Council <${emailMatch[1]}>`;
+  } else if (resolvedFrom.includes('@')) {
+    resolvedFrom = `AI Council <${resolvedFrom}>`;
+  }
   return {
     client: new Resend(apiKey),
-    fromEmail: fromEmail || 'Council <noreply@askaicouncil.com>'
+    fromEmail: resolvedFrom
   };
 }
 
@@ -245,13 +252,13 @@ export async function sendPurchaseConfirmation(
       to: email,
       subject: `Your ${tier} pack is ready — ${credits} credits loaded`,
       html: wrapEmail(`
-        <h2 style="font-size: 20px; font-weight: 600; margin-bottom: 16px;">Welcome to the Council, ${name}!</h2>
+        <h2 style="font-size: 20px; font-weight: 600; margin-bottom: 16px;">Welcome to the AI Council, ${name}!</h2>
         <p style="font-size: 15px; line-height: 1.6; color: #4b5563; margin-bottom: 16px;">
           Your <strong>${tier} pack</strong> is active with <strong>${credits} credits</strong>. Here's what to know:
         </p>
         <div style="background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px; margin-bottom: 24px;">
           <p style="font-size: 14px; color: #4b5563; margin: 0 0 8px 0;">📅 <strong>Expires:</strong> ${expiryDate}</p>
-          <p style="font-size: 14px; color: #4b5563; margin: 0 0 8px 0;">⚡ <strong>Each debate:</strong> 2 credits</p>
+          <p style="font-size: 14px; color: #4b5563; margin: 0 0 8px 0;">⚡ <strong>Each debate:</strong> 2 credits (depending on models used)</p>
           <p style="font-size: 14px; color: #4b5563; margin: 0;">🔄 <strong>Rollover:</strong> Buy a new pack anytime and unused credits carry over</p>
         </div>
         <p style="font-size: 15px; line-height: 1.6; color: #4b5563; margin-bottom: 8px;"><strong>Starter prompts to try:</strong></p>
@@ -296,7 +303,7 @@ export async function sendEngagementNudge(
       html: wrapEmail(`
         <h2 style="font-size: 20px; font-weight: 600; margin-bottom: 16px;">Hey ${name},</h2>
         <p style="font-size: 15px; line-height: 1.6; color: #4b5563; margin-bottom: 16px;">
-          You have <strong>${credits} unused credits</strong> from your ${tier} pack with about <strong>${daysLeft} days</strong> left. Not sure what to ask the Council?
+          You have <strong>${credits} unused credits</strong> from your ${tier} pack with about <strong>${daysLeft} days</strong> left. Not sure what to ask the AI Council?
         </p>
         <p style="font-size: 15px; line-height: 1.6; color: #4b5563; margin-bottom: 8px;"><strong>Popular questions this week:</strong></p>
         <ul style="font-size: 14px; line-height: 1.8; color: #4b5563; margin-bottom: 24px; padding-left: 20px;">
@@ -335,14 +342,14 @@ export async function sendPostExpiryReengagement(
     await client.emails.send({
       from: fromEmail,
       to: email,
-      subject: `Miss the Council? Get back in with a fresh ${tier} pack`,
+      subject: `Miss the AI Council? Get back in with a fresh ${tier} pack`,
       html: wrapEmail(`
         <h2 style="font-size: 20px; font-weight: 600; margin-bottom: 16px;">Hey ${name},</h2>
         <p style="font-size: 15px; line-height: 1.6; color: #4b5563; margin-bottom: 16px;">
           Your ${tier} pack expired a week ago, but there's still time to pick up where you left off. Grab a new pack and your dormant credits will roll over.
         </p>
         <p style="font-size: 15px; line-height: 1.6; color: #4b5563; margin-bottom: 24px;">
-          The Council is ready whenever you are — just bring a question.
+          The AI Council is ready whenever you are — just bring a question.
         </p>
         <a href="${BASE_URL}/credits" style="display: inline-block; background: #1a1a1a; color: #ffffff; text-decoration: none; font-size: 14px; font-weight: 500; padding: 12px 24px; border-radius: 8px;">
           Get More Credits
@@ -416,7 +423,7 @@ export async function sendFreeWelcome(email: string, userName: string | null, cr
         <p style="font-size: 15px; line-height: 1.6; color: #4b5563; margin-bottom: 8px;"><strong>How it works:</strong></p>
         <ul style="font-size: 14px; line-height: 1.8; color: #4b5563; margin-bottom: 24px; padding-left: 20px;">
           <li>Ask any question and get perspectives from multiple AI models</li>
-          <li>The Council debates, then a chairman synthesizes the best answer</li>
+          <li>The AI Council debates, then a chairman synthesizes the best answer</li>
           <li>Great for business decisions, tech questions, creative projects, and more</li>
         </ul>
         <a href="${BASE_URL}" style="display: inline-block; background: #1a1a1a; color: #ffffff; text-decoration: none; font-size: 14px; font-weight: 500; padding: 12px 24px; border-radius: 8px;">
