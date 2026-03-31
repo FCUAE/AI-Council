@@ -73,7 +73,7 @@ function groupConversationsByDate(conversations: any[]) {
 function AppSidebar({ mobileOpen, setMobileOpen }: { mobileOpen: boolean; setMobileOpen: (open: boolean) => void }) {
   const isMobile = useIsMobile();
   const { user, isAuthenticated, isLoading: authLoading, logout } = useAuth();
-  const { data: usage } = useUsage(isAuthenticated);
+  const { data: usage, isLoading: usageLoading } = useUsage(isAuthenticated);
   const { data: conversations, isLoading } = useConversations();
   const [location, setLocation] = useLocation();
   const renameMutation = useRenameConversation();
@@ -323,7 +323,7 @@ function AppSidebar({ mobileOpen, setMobileOpen }: { mobileOpen: boolean; setMob
         </div>
 
         <div className="border-t border-[#eaeaea] bg-[#fafafa] px-4 pt-4 pb-4">
-          {authLoading ? (
+          {(authLoading || (isAuthenticated && usageLoading)) ? (
             <div className="h-10 rounded-lg bg-[#f5f5f5] animate-pulse" />
           ) : isAuthenticated && user ? (
             <>

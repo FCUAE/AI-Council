@@ -131,7 +131,7 @@ export default function Chat() {
   const { data: conversationStatus } = useConversationStatus(id);
   const addMessage = useAddMessage();
   const { isAuthenticated } = useAuth();
-  const { data: usage } = useUsage(isAuthenticated);
+  const { data: usage, isLoading: usageLoading } = useUsage(isAuthenticated);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const {
@@ -204,7 +204,7 @@ export default function Chat() {
   const councilModels = councilModelsOverride || conversation?.models || DEFAULT_COUNCIL_MODELS;
   const chairmanModel = chairmanModelOverride || conversation?.chairmanModel || DEFAULT_CHAIRMAN_MODEL;
 
-  const isFreeUser = !usage?.isSubscribed && (usage?.debateCredits || 0) <= FREE_TIER_CREDITS;
+  const isFreeUser = usageLoading ? false : !usage?.isSubscribed && (usage?.debateCredits || 0) <= FREE_TIER_CREDITS;
 
   const approxPriorContextTokens = useMemo(() => {
     if (!conversation?.messages?.length) return 0;

@@ -58,7 +58,7 @@ export default function Home() {
 
   const { isAuthenticated, isLoading: authLoading } = useAuth();
   const clerk = useClerk();
-  const { data: usage, refetch: refetchUsage } = useUsage(isAuthenticated);
+  const { data: usage, refetch: refetchUsage, isLoading: usageLoading } = useUsage(isAuthenticated);
   const createConversation = useCreateConversation();
 
 
@@ -80,7 +80,7 @@ export default function Home() {
   const [selectedModels, setSelectedModels] = useState<string[]>([...DEFAULT_COUNCIL_MODELS]);
   const [chairmanModel, setChairmanModel] = useState<string>(DEFAULT_CHAIRMAN_MODEL);
 
-  const isFreeUser = !usage?.isSubscribed && (usage?.debateCredits || 0) <= FREE_TIER_CREDITS;
+  const isFreeUser = usageLoading ? false : !usage?.isSubscribed && (usage?.debateCredits || 0) <= FREE_TIER_CREDITS;
 
   const isDeliverable = DELIVERABLE_KEYWORDS.test(prompt);
   const localCreditCost = getDebateCreditCost(selectedModels, chairmanModel, totalAttachmentTokens, 0, isDeliverable);
@@ -100,9 +100,9 @@ export default function Home() {
 
   const creditCost = serverEstimate?.creditCost ?? localCreditCost;
   const userCredits = usage?.debateCredits || 0;
-  const hasEnoughCredits = userCredits >= creditCost;
+  const hasEnoughCredits = usageLoading ? true : userCredits >= creditCost;
   const costPending = isEstimating || pendingExtractions > 0;
-  const canSubmit = isAuthenticated ? (costEstimateConfirmed && hasEnoughCredits) : true;
+  const canSubmit = isAuthenticated ? (costEstimateConfirmed && hasEnoughCredits && !usageLoading) : true;
 
   const upsellTrackedRef = useRef(false);
   useEffect(() => {
@@ -364,7 +364,7 @@ export default function Home() {
               </div>
             )}
 
-            {isAuthenticated && userCredits === 0 && (
+            {isAuthenticated && !usageLoading && userCredits === 0 && (
               <div className="flex items-center gap-3 px-4 py-3 bg-amber-50 border border-amber-200 rounded-xl mb-3" data-testid="upsell-banner">
                 <Zap className="w-4 h-4 text-amber-500 flex-shrink-0" />
                 <p className="text-[13px] text-amber-800 leading-snug flex-1 m-0">
