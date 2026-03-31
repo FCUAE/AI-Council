@@ -3596,10 +3596,10 @@ export async function registerRoutes(
           COALESCE(SUM(CASE WHEN expires_at <= NOW() + INTERVAL '7 days' AND expires_at > NOW() THEN credits_remaining ELSE 0 END), 0) as expiring_7d,
           COALESCE(SUM(CASE WHEN expires_at <= NOW() + INTERVAL '30 days' AND expires_at > NOW() THEN credits_remaining ELSE 0 END), 0) as expiring_30d,
           COALESCE(SUM(CASE WHEN expires_at <= NOW() + INTERVAL '90 days' AND expires_at > NOW() THEN credits_remaining ELSE 0 END), 0) as expiring_90d,
-          COALESCE(SUM(CASE WHEN status = 'dormant' THEN credits_remaining ELSE 0 END), 0) as dormant_credits,
-          COUNT(CASE WHEN status = 'dormant' THEN 1 END) as dormant_batches
+          COALESCE(SUM(CASE WHEN status = 'expired' THEN credits_remaining ELSE 0 END), 0) as expired_credits,
+          COUNT(CASE WHEN status = 'expired' THEN 1 END) as expired_batches
         FROM credit_batches
-        WHERE status IN ('active', 'dormant')
+        WHERE status IN ('active', 'expired')
       `);
 
       const recentEvents = await db.execute(sql`

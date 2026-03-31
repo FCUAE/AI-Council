@@ -119,11 +119,11 @@ export async function sendCreditExpiryWarning(
     await client.emails.send({
       from: fromEmail,
       to: email,
-      subject: `Your ${tier} pack — ${credits} credits expire in ${daysLeft} days`,
+      subject: `Your ${safeCredits} credits expire in ${safeDaysLeft} days`,
       html: wrapEmail(`
         <h2 style="font-size: 20px; font-weight: 600; margin-bottom: 16px;">Hey ${name},</h2>
         <p style="font-size: 15px; line-height: 1.6; color: #4b5563; margin-bottom: 16px;">
-          Just a heads up — you have <strong>${safeCredits} unused credits</strong> from your ${tier} pack that will expire in about <strong>${safeDaysLeft} days</strong>.
+          Just a heads up — you have <strong>${safeCredits} unused credits</strong> that will expire in about <strong>${safeDaysLeft} days</strong>.
         </p>
         <p style="font-size: 15px; line-height: 1.6; color: #4b5563; margin-bottom: 24px;">
           Don't let them go to waste! Use them to get expert AI debates on any question — from business strategy to code architecture to marketing campaigns.
@@ -132,7 +132,7 @@ export async function sendCreditExpiryWarning(
           Use Your Credits
         </a>
         <p style="font-size: 13px; line-height: 1.5; color: #9ca3af; margin-top: 32px;">
-          Each credit pack has its own expiration window. Buy a new pack and your remaining credits roll over automatically.
+          Buy a new pack and your remaining credits roll over automatically.
         </p>
         ${councilFooter()}
       `)
@@ -164,17 +164,14 @@ export async function sendCreditExpiryFinalWarning(
     await client.emails.send({
       from: fromEmail,
       to: email,
-      subject: `⚠️ ${tier} pack — ${credits} credits expire in 48 hours`,
+      subject: `⚠️ Your ${safeCredits} credits expire in 48 hours`,
       html: wrapEmail(`
         <h2 style="font-size: 20px; font-weight: 600; margin-bottom: 16px;">Hey ${name},</h2>
         <p style="font-size: 15px; line-height: 1.6; color: #4b5563; margin-bottom: 16px;">
-          ⏳ <strong>Your ${safeCredits} ${tier} credits expire in less than 48 hours.</strong>
-        </p>
-        <p style="font-size: 15px; line-height: 1.6; color: #4b5563; margin-bottom: 16px;">
-          Once they expire, they'll enter a 30-day dormant period — contact support within that window to reactivate them.
+          ⏳ <strong>Your ${safeCredits} credits expire in less than 48 hours.</strong>
         </p>
         <p style="font-size: 15px; line-height: 1.6; color: #4b5563; margin-bottom: 24px;">
-          Or use them before they expire — start an AI debate on anything you've been thinking about.
+          Use them before they expire — start an AI debate on anything you've been thinking about.
         </p>
         ${showRecharge ? `
           <a href="${BASE_URL}/credits" style="display: inline-block; background: #1a1a1a; color: #ffffff; text-decoration: none; font-size: 14px; font-weight: 500; padding: 12px 24px; border-radius: 8px; margin-right: 12px;">
@@ -209,14 +206,14 @@ export async function sendCreditExpiredNotice(email: string, userName: string | 
     await client.emails.send({
       from: fromEmail,
       to: email,
-      subject: `Your ${tier} pack credits have expired`,
+      subject: `Your ${safeExpiredCredits} credits have expired`,
       html: wrapEmail(`
         <h2 style="font-size: 20px; font-weight: 600; margin-bottom: 16px;">Hey ${name},</h2>
         <p style="font-size: 15px; line-height: 1.6; color: #4b5563; margin-bottom: 16px;">
-          Your <strong>${safeExpiredCredits} ${tier} credits</strong> have expired and entered a 30-day dormant period.
+          Your <strong>${safeExpiredCredits} credits</strong> have expired.
         </p>
         <p style="font-size: 15px; line-height: 1.6; color: #4b5563; margin-bottom: 24px;">
-          Need them back? Contact support within 30 days to reactivate. Or grab a fresh credit pack and keep going.
+          Grab a fresh credit pack and keep the debates going.
         </p>
         <a href="${BASE_URL}/credits" style="display: inline-block; background: #1a1a1a; color: #ffffff; text-decoration: none; font-size: 14px; font-weight: 500; padding: 12px 24px; border-radius: 8px;">
           Get More Credits
@@ -250,11 +247,11 @@ export async function sendPurchaseConfirmation(
     await client.emails.send({
       from: fromEmail,
       to: email,
-      subject: `Your ${tier} pack is ready — ${credits} credits loaded`,
+      subject: `Your credit pack is ready — ${credits} credits loaded`,
       html: wrapEmail(`
         <h2 style="font-size: 20px; font-weight: 600; margin-bottom: 16px;">Welcome to the AI Council, ${name}!</h2>
         <p style="font-size: 15px; line-height: 1.6; color: #4b5563; margin-bottom: 16px;">
-          Your <strong>${tier} pack</strong> is active with <strong>${credits} credits</strong>. Here's what to know:
+          Your <strong>credit pack</strong> is active with <strong>${credits} credits</strong>. Here's what to know:
         </p>
         <div style="background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px; margin-bottom: 24px;">
           <p style="font-size: 14px; color: #4b5563; margin: 0 0 8px 0;">📅 <strong>Expires:</strong> ${expiryDate}</p>
@@ -299,11 +296,11 @@ export async function sendEngagementNudge(
     await client.emails.send({
       from: fromEmail,
       to: email,
-      subject: `You still have ${credits} ${tier} credits — here are some ideas`,
+      subject: `You still have ${credits} credits — here are some ideas`,
       html: wrapEmail(`
         <h2 style="font-size: 20px; font-weight: 600; margin-bottom: 16px;">Hey ${name},</h2>
         <p style="font-size: 15px; line-height: 1.6; color: #4b5563; margin-bottom: 16px;">
-          You have <strong>${credits} unused credits</strong> from your ${tier} pack with about <strong>${daysLeft} days</strong> left. Not sure what to ask the AI Council?
+          You have <strong>${credits} unused credits</strong> with about <strong>${daysLeft} days</strong> left. Not sure what to ask the AI Council?
         </p>
         <p style="font-size: 15px; line-height: 1.6; color: #4b5563; margin-bottom: 8px;"><strong>Popular questions this week:</strong></p>
         <ul style="font-size: 14px; line-height: 1.8; color: #4b5563; margin-bottom: 24px; padding-left: 20px;">
@@ -342,11 +339,11 @@ export async function sendPostExpiryReengagement(
     await client.emails.send({
       from: fromEmail,
       to: email,
-      subject: `Miss the AI Council? Get back in with a fresh ${tier} pack`,
+      subject: `Miss the AI Council? Grab a fresh credit pack`,
       html: wrapEmail(`
         <h2 style="font-size: 20px; font-weight: 600; margin-bottom: 16px;">Hey ${name},</h2>
         <p style="font-size: 15px; line-height: 1.6; color: #4b5563; margin-bottom: 16px;">
-          Your ${tier} pack expired a week ago, but there's still time to pick up where you left off. Grab a new pack and your dormant credits will roll over.
+          Your credits expired, but you can pick up right where you left off with a new pack.
         </p>
         <p style="font-size: 15px; line-height: 1.6; color: #4b5563; margin-bottom: 24px;">
           The AI Council is ready whenever you are — just bring a question.
@@ -382,14 +379,14 @@ export async function sendDormancyFinalNotice(
     await client.emails.send({
       from: fromEmail,
       to: email,
-      subject: `⚠️ Your ${credits} dormant ${tier} credits will be permanently removed in 5 days`,
+      subject: `⚠️ Your credit balance of ${credits} credits will be removed in 5 days`,
       html: wrapEmail(`
         <h2 style="font-size: 20px; font-weight: 600; margin-bottom: 16px;">Hey ${name},</h2>
         <p style="font-size: 15px; line-height: 1.6; color: #4b5563; margin-bottom: 16px;">
-          Your <strong>${credits} dormant ${tier} credits</strong> will be permanently removed in <strong>5 days</strong>. After that, they cannot be recovered.
+          Your <strong>credit balance of ${credits} credits</strong> will be permanently removed in <strong>5 days</strong>. After that, they cannot be recovered.
         </p>
         <p style="font-size: 15px; line-height: 1.6; color: #4b5563; margin-bottom: 24px;">
-          Purchase a new pack now to save them — your dormant credits will roll over into the new pack automatically.
+          Purchase a new pack now to save them — your remaining credits will roll over into the new pack automatically.
         </p>
         <a href="${BASE_URL}/credits" style="display: inline-block; background: #1a1a1a; color: #ffffff; text-decoration: none; font-size: 14px; font-weight: 500; padding: 12px 24px; border-radius: 8px;">
           Recharge & Save Credits
@@ -450,14 +447,14 @@ export async function sendFreeExpiredConversion(email: string, userName: string 
     await client.emails.send({
       from: fromEmail,
       to: email,
-      subject: `Your free credits expired — unlock the full Council`,
+      subject: `Your free credits expired — unlock the full AI Council`,
       html: wrapEmail(`
         <h2 style="font-size: 20px; font-weight: 600; margin-bottom: 16px;">Hey ${name},</h2>
         <p style="font-size: 15px; line-height: 1.6; color: #4b5563; margin-bottom: 16px;">
-          Your free credits have expired, but you can keep the debates going with a credit pack. Plans start at just $29 for 100 credits (50 debates).
+          Your free credits have expired, but you can keep the debates going with a credit pack. Plans start at just $29 for 100 credits (up to 50 debates)*.
         </p>
         <p style="font-size: 15px; line-height: 1.6; color: #4b5563; margin-bottom: 24px;">
-          Upgrade now and get access to all AI models with longer expiration windows.
+          Upgrade now and get access to all AI models.
         </p>
         <a href="${BASE_URL}/credits" style="display: inline-block; background: #1a1a1a; color: #ffffff; text-decoration: none; font-size: 14px; font-weight: 500; padding: 12px 24px; border-radius: 8px;">
           Get More Credits
@@ -491,7 +488,7 @@ export async function sendConsolidatedExpiryWarning(
         <div style="background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px; margin-bottom: 24px;">
           <p style="font-size: 14px; color: #4b5563; margin: 0 0 8px 0;"><strong>Also expiring soon:</strong></p>
           ${secondaryBatches.map(b => `
-            <p style="font-size: 13px; color: #6b7280; margin: 4px 0;">${b.credits} ${tierLabel(b.packTier)} credits — ${b.daysLeft} day${b.daysLeft === 1 ? '' : 's'} left</p>
+            <p style="font-size: 13px; color: #6b7280; margin: 4px 0;">${b.credits} credits — ${b.daysLeft} day${b.daysLeft === 1 ? '' : 's'} left</p>
           `).join('')}
         </div>
       `
@@ -500,11 +497,11 @@ export async function sendConsolidatedExpiryWarning(
     await client.emails.send({
       from: fromEmail,
       to: email,
-      subject: `Your ${tier} pack — ${primaryBatch.credits} credits expire in ${primaryBatch.daysLeft} days`,
+      subject: `Your ${primaryBatch.credits} credits expire in ${primaryBatch.daysLeft} days`,
       html: wrapEmail(`
         <h2 style="font-size: 20px; font-weight: 600; margin-bottom: 16px;">Hey ${name},</h2>
         <p style="font-size: 15px; line-height: 1.6; color: #4b5563; margin-bottom: 16px;">
-          Your <strong>${primaryBatch.credits} ${tier} credits</strong> expire in about <strong>${primaryBatch.daysLeft} days</strong>.
+          Your <strong>${primaryBatch.credits} credits</strong> expire in about <strong>${primaryBatch.daysLeft} days</strong>.
         </p>
         ${secondarySection}
         <p style="font-size: 15px; line-height: 1.6; color: #4b5563; margin-bottom: 24px;">

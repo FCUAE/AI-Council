@@ -8,17 +8,14 @@ import {
   sendCreditExpiredNotice,
   sendEngagementNudge,
   sendPostExpiryReengagement,
-  sendDormancyFinalNotice,
   sendFreeExpiredConversion,
   sendConsolidatedExpiryWarning,
 } from "./email";
 import { withAdvisoryLock, LOCK_IDS } from "./security/advisoryLocks";
 
 const FINAL_WARNING_HOURS = 48;
-const DORMANCY_DAYS = 30;
 const CHECK_INTERVAL_MS = 24 * 60 * 60 * 1000;
 const POST_EXPIRY_DAYS = 7;
-const DORMANCY_NOTICE_DAYS = 25;
 
 const TIER_WARNING_DAYS: Record<string, number> = {
   explorer: 14,
@@ -31,8 +28,8 @@ function getWarningDays(packTier: string): number {
   return TIER_WARNING_DAYS[packTier] || 14;
 }
 
-type EmailPriority = 'final_warning' | 'warning' | 'engagement_nudge' | 'post_expiry' | 'dormancy_notice' | 'free_expired';
-const PRIORITY_ORDER: EmailPriority[] = ['final_warning', 'warning', 'dormancy_notice', 'post_expiry', 'engagement_nudge', 'free_expired'];
+type EmailPriority = 'final_warning' | 'warning' | 'engagement_nudge' | 'post_expiry' | 'free_expired';
+const PRIORITY_ORDER: EmailPriority[] = ['final_warning', 'warning', 'post_expiry', 'engagement_nudge', 'free_expired'];
 
 interface PendingEmail {
   userId: string;
@@ -156,24 +153,6 @@ async function checkCreditExpiration() {
         });
       }
 
-      const dormancyBatches = await storage.getDormancyNoticeBatches(DORMANCY_NOTICE_DAYS);
-      for (const batch of dormancyBatches) {
-        const [user] = await db.select().from(users).where(eq(users.id, batch.userId));
-        if (!user?.email) continue;
-
-        addPending({
-          userId: batch.userId,
-          email: user.email,
-          userName: user.firstName,
-          priority: 'dormancy_notice',
-          batchId: batch.id,
-          credits: batch.creditsRemaining,
-          daysLeft: 0,
-          packTier: batch.packTier,
-          isUnsubscribed: user.emailUnsubscribed,
-        });
-      }
-
       const freeExpiredBatches = await storage.getFreeTierExpiredBatches();
       for (const batch of freeExpiredBatches) {
         const [user] = await db.select().from(users).where(eq(users.id, batch.userId));
@@ -210,7 +189,7 @@ async function checkCreditExpiration() {
         userEmails.sort((a: PendingEmail, b: PendingEmail) => PRIORITY_ORDER.indexOf(a.priority) - PRIORITY_ORDER.indexOf(b.priority));
         const primary = userEmails[0];
 
-        const isTransactional = ['warning', 'final_warning', 'dormancy_notice'].includes(primary.priority);
+        const isTransactional = ['warning', 'final_warning'].includes(primary.priority);
         if (!isTransactional && primary.isUnsubscribed) {
           console.log(`[cron] Skipping promotional email for unsubscribed user ${userId}`);
           for (const pe of userEmails) {
@@ -268,12 +247,6 @@ async function checkCreditExpiration() {
             await storage.markBatchEmailSent(primary.batchId, 'post_expiry_sent');
             storage.trackEvent("post_expiry_reengagement_sent", userId, { batchId: primary.batchId });
           }
-        } else if (primary.priority === 'dormancy_notice') {
-          sent = await sendDormancyFinalNotice(primary.email, primary.userName, primary.credits, primary.packTier, userId);
-          if (sent) {
-            await storage.markBatchEmailSent(primary.batchId, 'dormancy_notice_sent');
-            storage.trackEvent("dormancy_notice_sent", userId, { batchId: primary.batchId });
-          }
         } else if (primary.priority === 'free_expired') {
           sent = await sendFreeExpiredConversion(primary.email, primary.userName, userId);
           if (sent) {
@@ -290,11 +263,11 @@ async function checkCreditExpiration() {
 
       if (sentCount > 0) console.log(`[cron] Sent ${sentCount} consolidated email(s)`);
 
-      let dormantCount = 0;
+      let expiredCount = 0;
       const expiredBatches = await storage.getExpiredBatches();
       for (const batch of expiredBatches) {
         const expiredCredits = batch.creditsRemaining;
-        await storage.updateBatchStatus(batch.id, "dormant");
+        await storage.updateBatchStatus(batch.id, "expired");
 
         if (expiredCredits > 0) {
           await db.insert(creditTransactions).values({
@@ -302,7 +275,7 @@ async function checkCreditExpiration() {
             type: "deduction",
             amount: -expiredCredits,
             balanceAfter: 0,
-            description: `${expiredCredits} credits expired (batch #${batch.id}, ${batch.packTier} pack)`,
+            description: `${expiredCredits} credits expired (batch #${batch.id})`,
           });
 
           await storage.syncUserCreditsFromBatches(batch.userId);
@@ -318,21 +291,12 @@ async function checkCreditExpiration() {
         }
 
         storage.trackEvent("credits_expired", batch.userId, { batchId: batch.id, creditsExpired: expiredCredits, packTier: batch.packTier });
-        dormantCount++;
-        console.log(`[cron] Batch #${batch.id} → dormant (${expiredCredits} credits, user ${batch.userId})`);
+        expiredCount++;
+        console.log(`[cron] Batch #${batch.id} → expired (${expiredCredits} credits, user ${batch.userId})`);
       }
-      if (dormantCount > 0) console.log(`[cron] Set ${dormantCount} batch(es) to dormant`);
+      if (expiredCount > 0) console.log(`[cron] Expired ${expiredCount} batch(es)`);
 
-      let removedCount = 0;
-      const dormantBatchesForRemoval = await storage.getDormantBatchesForRemoval(DORMANCY_DAYS);
-      for (const batch of dormantBatchesForRemoval) {
-        await storage.updateBatchStatus(batch.id, "expired");
-        removedCount++;
-        console.log(`[cron] Batch #${batch.id} → expired (permanently removed after ${DORMANCY_DAYS}d dormancy)`);
-      }
-      if (removedCount > 0) console.log(`[cron] Permanently expired ${removedCount} dormant batch(es)`);
-
-      if (sentCount === 0 && dormantCount === 0 && removedCount === 0) {
+      if (sentCount === 0 && expiredCount === 0) {
         console.log("[cron] No batches to warn or expire");
       }
     }
@@ -344,7 +308,7 @@ async function checkCreditExpiration() {
 }
 
 export function startCreditExpirationCron() {
-  console.log(`[cron] Batch credit expiration cron started (checks every 24h, tier-aware warnings, 48h final, dormancy ${DORMANCY_DAYS}d)`);
+  console.log(`[cron] Batch credit expiration cron started (checks every 24h, tier-aware warnings, 48h final)`);
 
   setTimeout(() => {
     checkCreditExpiration();

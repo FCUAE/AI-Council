@@ -531,7 +531,7 @@ export class DatabaseStorage implements IStorage {
     const cutoff = new Date();
     cutoff.setDate(cutoff.getDate() - dormancyDays);
     return db.select().from(creditBatches).where(
-      sql`status = 'dormant' AND expires_at <= ${cutoff}`
+      sql`status = 'expired' AND expires_at <= ${cutoff}`
     );
   }
 
@@ -585,7 +585,7 @@ export class DatabaseStorage implements IStorage {
     const threshold = new Date();
     threshold.setDate(threshold.getDate() - daysAfterExpiry);
     return db.select().from(creditBatches).where(
-      sql`status = 'dormant' AND post_expiry_sent = false AND expires_at <= ${threshold}`
+      sql`status = 'expired' AND post_expiry_sent = false AND expires_at <= ${threshold}`
     );
   }
 
@@ -593,7 +593,7 @@ export class DatabaseStorage implements IStorage {
     const threshold = new Date();
     threshold.setDate(threshold.getDate() - daysAfterExpiry);
     return db.select().from(creditBatches).where(
-      sql`status = 'dormant' AND dormancy_notice_sent = false AND expires_at <= ${threshold}`
+      sql`status = 'expired' AND dormancy_notice_sent = false AND expires_at <= ${threshold}`
     );
   }
 
@@ -612,7 +612,7 @@ export class DatabaseStorage implements IStorage {
       remaining: creditBatches.creditsRemaining,
       original: creditBatches.creditsOriginal,
     }).from(creditBatches).where(
-      and(eq(creditBatches.userId, userId), sql`status IN ('active', 'dormant')`)
+      and(eq(creditBatches.userId, userId), sql`status = 'active'`)
     );
     if (batches.length === 0) return 0;
     const totalOriginal = batches.reduce((sum, b) => sum + b.original, 0);
@@ -623,7 +623,7 @@ export class DatabaseStorage implements IStorage {
 
   async getFreeTierExpiredBatches(): Promise<CreditBatch[]> {
     return db.select().from(creditBatches).where(
-      sql`status = 'dormant' AND pack_tier = 'free' AND post_expiry_sent = false`
+      sql`status = 'expired' AND pack_tier = 'free' AND post_expiry_sent = false`
     );
   }
 
