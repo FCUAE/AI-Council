@@ -423,6 +423,26 @@ async function runAppMigrations(client: import('pg').PoolClient) {
       CREATE INDEX IF NOT EXISTS idx_analytics_events_event ON analytics_events(event);
       CREATE INDEX IF NOT EXISTS idx_analytics_events_created_at ON analytics_events(created_at);
 
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS email_unsubscribed BOOLEAN NOT NULL DEFAULT FALSE;
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS last_email_sent_at TIMESTAMP;
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS credits_expiry_final_warned BOOLEAN NOT NULL DEFAULT FALSE;
+
+      ALTER TABLE credit_batches ADD COLUMN IF NOT EXISTS engagement_nudge_sent BOOLEAN NOT NULL DEFAULT FALSE;
+      ALTER TABLE credit_batches ADD COLUMN IF NOT EXISTS post_expiry_sent BOOLEAN NOT NULL DEFAULT FALSE;
+      ALTER TABLE credit_batches ADD COLUMN IF NOT EXISTS dormancy_notice_sent BOOLEAN NOT NULL DEFAULT FALSE;
+
+      ALTER TABLE conversations ADD COLUMN IF NOT EXISTS estimated_credits INTEGER NOT NULL DEFAULT 0;
+      ALTER TABLE conversations ADD COLUMN IF NOT EXISTS actual_api_cost NUMERIC;
+      ALTER TABLE conversations ADD COLUMN IF NOT EXISTS verdict_ledger TEXT;
+      ALTER TABLE conversations ADD COLUMN IF NOT EXISTS error_reason TEXT;
+
+      ALTER TABLE messages ADD COLUMN IF NOT EXISTS attachments JSONB;
+      ALTER TABLE messages ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'processing';
+
+      ALTER TABLE support_messages ADD COLUMN IF NOT EXISTS user_id TEXT;
+      UPDATE support_messages SET user_id = 'unknown' WHERE user_id IS NULL;
+      ALTER TABLE support_messages ALTER COLUMN user_id SET NOT NULL;
+
       INSERT INTO credit_batches (user_id, credits_remaining, credits_original, purchased_at, expires_at, pack_tier, status)
       SELECT
         id,
