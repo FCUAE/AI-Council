@@ -954,7 +954,7 @@ export function getModelContextWindow(modelId: string): number {
 }
 
 export const COST_PER_CREDIT = 0.058;
-export const FREE_TIER_CREDITS = 30;
+export const FREE_TIER_CREDITS = 21;
 
 export function getUserTier(totalCreditsPurchased: number, currentBalance: number = 0): string {
   const effective = Math.max(totalCreditsPurchased, currentBalance);

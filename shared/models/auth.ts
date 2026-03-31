@@ -8,7 +8,7 @@ export const users = pgTable("users", {
   lastName: varchar("last_name"),
   profileImageUrl: varchar("profile_image_url"),
   deliberationCount: integer("deliberation_count").default(0).notNull(),
-  debateCredits: integer("debate_credits").default(10).notNull(),
+  debateCredits: integer("debate_credits").default(21).notNull(),
   subscriptionStatus: varchar("subscription_status").default("free").notNull(),
   stripeCustomerId: varchar("stripe_customer_id"),
   stripeSubscriptionId: varchar("stripe_subscription_id"),

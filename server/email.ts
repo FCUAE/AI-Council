@@ -415,7 +415,7 @@ export async function sendFreeWelcome(email: string, userName: string | null, cr
       html: wrapEmail(`
         <h2 style="font-size: 20px; font-weight: 600; margin-bottom: 16px;">Welcome, ${name}!</h2>
         <p style="font-size: 15px; line-height: 1.6; color: #4b5563; margin-bottom: 16px;">
-          You've just joined AI Council with <strong>${credits} free credits</strong>. Each debate costs 2 credits, so you have enough for ${Math.floor(credits / 2)} debates.
+          You've just joined AI Council with <strong>${credits} free credits</strong>. Each debate costs 7 credits, so you have enough for ${Math.floor(credits / 7)} debates.
         </p>
         <p style="font-size: 15px; line-height: 1.6; color: #4b5563; margin-bottom: 8px;"><strong>How it works:</strong></p>
         <ul style="font-size: 14px; line-height: 1.8; color: #4b5563; margin-bottom: 24px; padding-left: 20px;">

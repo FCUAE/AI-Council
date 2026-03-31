@@ -43,6 +43,13 @@
       "when": 1773346415884,
       "tag": "0005_fuzzy_dracula",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1774982282440,
+      "tag": "0006_rapid_jackpot",
+      "breakpoints": true
     }
   ]
 }
