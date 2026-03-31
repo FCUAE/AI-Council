@@ -126,7 +126,7 @@ export async function sendCreditExpiryWarning(
           Just a heads up — you have <strong>${safeCredits} unused credits</strong> that will expire in about <strong>${safeDaysLeft} days</strong>.
         </p>
         <p style="font-size: 15px; line-height: 1.6; color: #4b5563; margin-bottom: 24px;">
-          Don't let them go to waste! Use them to get expert AI debates on any question — from business strategy to code architecture to marketing campaigns.
+          Don't let them go to waste! Use them to tackle any challenge with expert AI debates — from business strategy to code architecture to marketing campaigns.
         </p>
         <a href="${BASE_URL}" style="display: inline-block; background: #1a1a1a; color: #ffffff; text-decoration: none; font-size: 14px; font-weight: 500; padding: 12px 24px; border-radius: 8px;">
           Use Your Credits
@@ -300,9 +300,9 @@ export async function sendEngagementNudge(
       html: wrapEmail(`
         <h2 style="font-size: 20px; font-weight: 600; margin-bottom: 16px;">Hey ${name},</h2>
         <p style="font-size: 15px; line-height: 1.6; color: #4b5563; margin-bottom: 16px;">
-          You have <strong>${credits} unused credits</strong> with about <strong>${daysLeft} days</strong> left. Not sure what to ask the AI Council?
+          You have <strong>${credits} unused credits</strong> with about <strong>${daysLeft} days</strong> left. Not sure what to bring to the AI Council?
         </p>
-        <p style="font-size: 15px; line-height: 1.6; color: #4b5563; margin-bottom: 8px;"><strong>Popular questions this week:</strong></p>
+        <p style="font-size: 15px; line-height: 1.6; color: #4b5563; margin-bottom: 8px;"><strong>Popular challenges this week:</strong></p>
         <ul style="font-size: 14px; line-height: 1.8; color: #4b5563; margin-bottom: 24px; padding-left: 20px;">
           <li>"What's the best way to validate a business idea?"</li>
           <li>"Should I hire or outsource my next project?"</li>
@@ -346,7 +346,7 @@ export async function sendPostExpiryReengagement(
           Your credits expired, but you can pick up right where you left off with a new pack.
         </p>
         <p style="font-size: 15px; line-height: 1.6; color: #4b5563; margin-bottom: 24px;">
-          The AI Council is ready whenever you are — just bring a question.
+          The AI Council is ready whenever you are — just bring a challenge.
         </p>
         <a href="${BASE_URL}/credits" style="display: inline-block; background: #1a1a1a; color: #ffffff; text-decoration: none; font-size: 14px; font-weight: 500; padding: 12px 24px; border-radius: 8px;">
           Get More Credits
@@ -419,9 +419,9 @@ export async function sendFreeWelcome(email: string, userName: string | null, cr
         </p>
         <p style="font-size: 15px; line-height: 1.6; color: #4b5563; margin-bottom: 8px;"><strong>How it works:</strong></p>
         <ul style="font-size: 14px; line-height: 1.8; color: #4b5563; margin-bottom: 24px; padding-left: 20px;">
-          <li>Ask any question and get perspectives from multiple AI models</li>
+          <li>Share any challenge and get perspectives from multiple AI models</li>
           <li>The AI Council debates, then a chairman synthesizes the best answer</li>
-          <li>Great for business decisions, tech questions, creative projects, and more</li>
+          <li>Great for business decisions, tech challenges, creative projects, and more</li>
         </ul>
         <a href="${BASE_URL}" style="display: inline-block; background: #1a1a1a; color: #ffffff; text-decoration: none; font-size: 14px; font-weight: 500; padding: 12px 24px; border-radius: 8px;">
           Start Your First Debate
