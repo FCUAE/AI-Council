@@ -9,7 +9,6 @@ import {
   sendEngagementNudge,
   sendPostExpiryReengagement,
   sendFreeExpiredConversion,
-  sendConsolidatedExpiryWarning,
 } from "./email";
 import { withAdvisoryLock, LOCK_IDS } from "./security/advisoryLocks";
 
@@ -217,21 +216,11 @@ async function checkCreditExpiration() {
             }
           }
         } else if (primary.priority === 'warning') {
-          const secondaryWarnings = userEmails.filter((pe: PendingEmail, i: number) => i > 0 && pe.priority === 'warning');
-          if (secondaryWarnings.length > 0) {
-            sent = await sendConsolidatedExpiryWarning(
-              primary.email,
-              primary.userName,
-              { credits: primary.credits, daysLeft: primary.daysLeft, packTier: primary.packTier },
-              secondaryWarnings.map((s: PendingEmail) => ({ credits: s.credits, daysLeft: s.daysLeft, packTier: s.packTier }))
-            );
-          } else {
-            sent = await sendCreditExpiryWarning(primary.email, primary.userName, primary.credits, primary.daysLeft, primary.packTier, userId);
-          }
+          sent = await sendCreditExpiryWarning(primary.email, primary.userName, primary.credits, primary.daysLeft, primary.packTier, userId);
           if (sent) {
             await storage.markBatchWarningSent(primary.batchId, 'warning_sent');
             storage.trackEvent("credits_expiring_notification_sent", userId, { batchId: primary.batchId, creditsRemaining: primary.credits, daysLeft: primary.daysLeft, type: "warning" });
-            for (const pe of secondaryWarnings) {
+            for (const pe of userEmails.slice(1).filter((e: PendingEmail) => e.priority === 'warning')) {
               await storage.markBatchWarningSent(pe.batchId, 'warning_sent');
             }
           }

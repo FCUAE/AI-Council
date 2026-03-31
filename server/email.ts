@@ -472,56 +472,6 @@ export async function sendFreeExpiredConversion(email: string, userName: string 
   }
 }
 
-export async function sendConsolidatedExpiryWarning(
-  email: string,
-  userName: string | null,
-  primaryBatch: { credits: number; daysLeft: number; packTier: string },
-  secondaryBatches: { credits: number; daysLeft: number; packTier: string }[]
-): Promise<boolean> {
-  try {
-    const { client, fromEmail } = await getUncachableResendClient();
-    const name = escapeHtml(userName || 'there');
-    const tier = tierLabel(primaryBatch.packTier);
-
-    const secondarySection = secondaryBatches.length > 0
-      ? `
-        <div style="background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px; margin-bottom: 24px;">
-          <p style="font-size: 14px; color: #4b5563; margin: 0 0 8px 0;"><strong>Also expiring soon:</strong></p>
-          ${secondaryBatches.map(b => `
-            <p style="font-size: 13px; color: #6b7280; margin: 4px 0;">${b.credits} credits — ${b.daysLeft} day${b.daysLeft === 1 ? '' : 's'} left</p>
-          `).join('')}
-        </div>
-      `
-      : '';
-
-    await client.emails.send({
-      from: fromEmail,
-      to: email,
-      subject: `Your ${primaryBatch.credits} credits expire in ${primaryBatch.daysLeft} days`,
-      html: wrapEmail(`
-        <h2 style="font-size: 20px; font-weight: 600; margin-bottom: 16px;">Hey ${name},</h2>
-        <p style="font-size: 15px; line-height: 1.6; color: #4b5563; margin-bottom: 16px;">
-          Your <strong>${primaryBatch.credits} credits</strong> expire in about <strong>${primaryBatch.daysLeft} days</strong>.
-        </p>
-        ${secondarySection}
-        <p style="font-size: 15px; line-height: 1.6; color: #4b5563; margin-bottom: 24px;">
-          Don't let them go to waste — start a debate today.
-        </p>
-        <a href="${BASE_URL}" style="display: inline-block; background: #1a1a1a; color: #ffffff; text-decoration: none; font-size: 14px; font-weight: 500; padding: 12px 24px; border-radius: 8px;">
-          Use Your Credits
-        </a>
-        ${councilFooter()}
-      `)
-    });
-
-    console.log(`[email] Sent consolidated expiry warning to ${email} (primary: ${primaryBatch.credits} credits, +${secondaryBatches.length} secondary)`);
-    return true;
-  } catch (error: unknown) {
-    logError('consolidated expiry warning', error);
-    return false;
-  }
-}
-
 export async function sendSupportMessage(senderEmail: string, message: string, imageUrls?: string[]): Promise<boolean> {
   try {
     const { client, fromEmail } = await getUncachableResendClient();
