@@ -230,7 +230,8 @@ app.use("/api/", (req: Request, res: Response, next: NextFunction) => {
     return res.status(403).json({ message: "Forbidden" });
   }
 
-  if (!allowed.includes(origin)) {
+  const originWithoutPort = origin.replace(/:\d+$/, "");
+  if (!allowed.includes(origin) && !allowed.includes(originWithoutPort)) {
     securityLog.csrfOriginMismatch({ route: req.path, origin, method: req.method });
     return res.status(403).json({ message: "Forbidden" });
   }
