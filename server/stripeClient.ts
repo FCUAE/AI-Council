@@ -18,28 +18,39 @@ async function getCredentials() {
   const isProduction = process.env.REPLIT_DEPLOYMENT === '1';
   const targetEnvironment = isProduction ? 'production' : 'development';
 
-  const url = new URL(`https://${hostname}/api/v2/connection`);
-  url.searchParams.set('include_secrets', 'true');
-  url.searchParams.set('connector_names', connectorName);
-  url.searchParams.set('environment', targetEnvironment);
+  async function fetchConnection(env: string) {
+    const url = new URL(`https://${hostname}/api/v2/connection`);
+    url.searchParams.set('include_secrets', 'true');
+    url.searchParams.set('connector_names', connectorName);
+    url.searchParams.set('environment', env);
 
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 15000);
-  let response: globalThis.Response;
-  try {
-    response = await fetch(url.toString(), {
-      headers: {
-        'Accept': 'application/json',
-        'X-Replit-Token': xReplitToken
-      },
-      signal: controller.signal,
-    });
-  } finally {
-    clearTimeout(timer);
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 15000);
+    let response: globalThis.Response;
+    try {
+      response = await fetch(url.toString(), {
+        headers: {
+          'Accept': 'application/json',
+          'X-Replit-Token': xReplitToken
+        },
+        signal: controller.signal,
+      });
+    } finally {
+      clearTimeout(timer);
+    }
+
+    const data = await response.json();
+    return data.items?.[0];
   }
 
-  const data = await response.json();
-  connectionSettings = data.items?.[0];
+  connectionSettings = await fetchConnection(targetEnvironment);
+
+  if (!connectionSettings?.settings?.publishable || !connectionSettings?.settings?.secret) {
+    if (!isProduction && targetEnvironment === 'development') {
+      console.warn('[Stripe] No sandbox connection found, falling back to production connection');
+      connectionSettings = await fetchConnection('production');
+    }
+  }
 
   if (!connectionSettings || (!connectionSettings.settings.publishable || !connectionSettings.settings.secret)) {
     throw new Error(`Stripe ${targetEnvironment} connection not found`);
