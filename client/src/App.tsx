@@ -456,7 +456,7 @@ function AppSidebar({ mobileOpen, setMobileOpen }: { mobileOpen: boolean; setMob
           </SheetContent>
         </Sheet>
       ) : (
-        <aside className="fixed top-3 left-3 w-[256px] h-[calc(100vh-24px)] bg-[#fafafa] flex flex-col z-[8000] rounded-l-2xl" data-testid="sidebar">
+        <aside className="fixed top-3 left-3 w-[256px] h-[calc(100vh-24px)] bg-[#fafafa] border-r border-[#eaeaea] flex flex-col z-[8000] rounded-l-2xl" data-testid="sidebar">
           {sidebarContent}
         </aside>
       )}
@@ -727,7 +727,7 @@ function AppLayout() {
               <img src={logoImg} alt="AI Council" className="h-6 w-auto" />
             </div>
           )}
-          <div className={`bg-white shadow-[0px_1px_3px_rgba(0,0,0,0.04),0px_4px_24px_rgba(0,0,0,0.06)] min-h-[calc(100vh-24px)] ${isMobile ? 'mx-1 mt-1 mb-1 rounded-xl border border-[#eaeaea]' : 'mt-3 mr-3 mb-3 rounded-r-2xl border border-[#eaeaea] border-l-[#e0e0e0]'} flex flex-col overflow-hidden`}>
+          <div className={`bg-white shadow-[0px_1px_3px_rgba(0,0,0,0.04),0px_4px_24px_rgba(0,0,0,0.06)] min-h-[calc(100vh-24px)] ${isMobile ? 'mx-1 mt-1 mb-1 rounded-xl border border-[#eaeaea]' : 'mt-3 mr-3 mb-3 rounded-2xl border border-[#eaeaea] border-l-0'} flex flex-col overflow-hidden`}>
             <Router />
           </div>
         </main>
