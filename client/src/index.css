@@ -107,6 +107,25 @@
   display: none;
 }
 
+.scrollbar-overlay {
+  overflow-y: overlay;
+  scrollbar-gutter: auto;
+}
+.scrollbar-overlay::-webkit-scrollbar {
+  width: 6px;
+  background: transparent;
+}
+.scrollbar-overlay::-webkit-scrollbar-track {
+  background: transparent;
+}
+.scrollbar-overlay::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.15);
+  border-radius: 999px;
+}
+.scrollbar-overlay::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.25);
+}
+
 /* Core Component Utilities */
 @layer components {
   .glass {

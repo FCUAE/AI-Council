@@ -152,7 +152,7 @@ export default function Credits() {
   }
 
   return (
-    <div className="flex flex-col h-full min-h-[calc(100vh-24px)] overflow-y-auto">
+    <div className="flex flex-col h-full overflow-y-auto">
       <div className="p-6 md:p-8 lg:p-12 max-w-[880px] mx-auto w-full">
 
         <div className="mb-8">

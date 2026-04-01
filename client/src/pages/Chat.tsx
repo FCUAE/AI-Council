@@ -457,7 +457,7 @@ export default function Chat() {
   };
 
   return (
-    <div className="flex flex-col h-full min-h-[calc(100vh-24px)] relative">
+    <div className="flex flex-col h-full relative">
       {isLoading ? (
         <div className="flex-1 flex items-center justify-center">
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col items-center gap-4">

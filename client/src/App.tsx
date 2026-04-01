@@ -739,7 +739,7 @@ function AppLayout() {
       <div className="min-h-screen bg-[#fafafa] p-3">
         <div className="flex border border-[#eaeaea] rounded-2xl shadow-[0px_1px_3px_rgba(0,0,0,0.04),0px_4px_24px_rgba(0,0,0,0.06)] h-[calc(100vh-24px)] overflow-hidden">
           <AppSidebar mobileOpen={mobileMenuOpen} setMobileOpen={setMobileMenuOpen} />
-          <main className="flex-1 min-w-0 overflow-y-auto overflow-x-hidden bg-white">
+          <main className="flex-1 min-w-0 overflow-y-auto overflow-x-hidden bg-white scrollbar-overlay">
             <Router />
           </main>
         </div>

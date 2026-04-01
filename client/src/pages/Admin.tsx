@@ -227,7 +227,7 @@ export default function Admin() {
   const expReport = dashboard?.expirationReport || {} as ExpirationReport;
 
   return (
-    <div className="flex flex-col h-full min-h-[calc(100vh-24px)] overflow-y-auto">
+    <div className="flex flex-col h-full overflow-y-auto">
       <div className="p-6 md:p-8 max-w-[1100px] mx-auto w-full">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
