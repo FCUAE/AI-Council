@@ -141,7 +141,16 @@ app.use(helmet({
   },
   crossOriginEmbedderPolicy: false,
   crossOriginOpenerPolicy: false,
+  referrerPolicy: { policy: "strict-origin-when-cross-origin" },
 }));
+
+app.use((_req, res, next) => {
+  res.setHeader(
+    "Permissions-Policy",
+    "camera=(), microphone=(), geolocation=(), interest-cohort=()"
+  );
+  next();
+});
 
 app.post(
   '/api/stripe/webhook',

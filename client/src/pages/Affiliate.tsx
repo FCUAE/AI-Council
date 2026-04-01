@@ -72,6 +72,8 @@ export default function Affiliate() {
     script.src = "https://scripts.refgrowcdn.com/page.js";
     script.async = true;
     script.defer = true;
+    script.integrity = "sha384-ouP9EXci++T7+BmosbQ7/W6bY1b6ItzfUUKFQjgUng8W2LCt4TTXnfEF10iQ+KkP";
+    script.crossOrigin = "anonymous";
     widgetRef.current.appendChild(script);
 
     const timeout = setTimeout(() => {

@@ -18,6 +18,7 @@ import { extractTextFromFile, renderPdfToImages, cleanupRenderedImages, getPdfPa
 import { sendSupportMessage } from "./email";
 import path from "path";
 import fs from "fs";
+import { isUrlSafeForFetch } from "./utils/urlSafety";
 import { db } from "./db";
 import { sql, eq } from "drizzle-orm";
 import { conversations, messages } from "@shared/schema";
@@ -218,29 +219,6 @@ function resolveLocalFilePath(url: string): string | null {
 }
 
 // Convert image URL to base64 data URI for reliable vision API calls
-function getExternalFetchAllowlist(): string[] {
-  const allowed: string[] = [];
-  if (process.env.REPLIT_DOMAINS) {
-    allowed.push(...process.env.REPLIT_DOMAINS.split(",").map(d => d.trim()).filter(Boolean));
-  }
-  if (process.env.REPLIT_DEV_DOMAIN) {
-    allowed.push(process.env.REPLIT_DEV_DOMAIN);
-  }
-  allowed.push("storage.googleapis.com");
-  return allowed;
-}
-
-function isUrlSafeForFetch(urlStr: string): boolean {
-  try {
-    const parsed = new URL(urlStr);
-    if (parsed.protocol !== 'https:') return false;
-    const hostname = parsed.hostname.toLowerCase();
-    const allowlist = getExternalFetchAllowlist();
-    return allowlist.some(d => hostname === d || hostname.endsWith(`.${d}`));
-  } catch {
-    return false;
-  }
-}
 
 async function imageUrlToBase64(imageUrl: string, userId?: string, isAdminUser?: boolean): Promise<string | null> {
   if (!imageUrl || typeof imageUrl !== 'string' || imageUrl.trim() === '') {

@@ -286,7 +286,8 @@ export function renderMarkdown(content: string, theme: MarkdownTheme): ReactNode
       const level = headerMatch[1].length;
       const headerText = headerMatch[2];
       const cls = level === 1 ? theme.heading1 : level === 2 ? theme.heading2 : theme.heading3;
-      elements.push(<h3 key={`h-${blockIdx++}`} className={cls}>{inline(headerText, `h${i}`)}</h3>);
+      const HeadingTag = `h${level}` as keyof JSX.IntrinsicElements;
+      elements.push(<HeadingTag key={`h-${blockIdx++}`} className={cls}>{inline(headerText, `h${i}`)}</HeadingTag>);
       continue;
     }
 

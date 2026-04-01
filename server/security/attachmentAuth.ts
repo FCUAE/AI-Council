@@ -3,6 +3,7 @@ import { db } from "../db";
 import { sql } from "drizzle-orm";
 import { securityLog } from "../securityLogger";
 import { ObjectStorageService, ObjectPermission } from "../replit_integrations/object_storage";
+import { isUrlSafeForFetch } from "../utils/urlSafety";
 
 const objectStorageService = new ObjectStorageService();
 
@@ -72,29 +73,6 @@ export function normalizeAttachmentUrl(rawUrl: string): string {
   }
 
   return normalized;
-}
-
-function isUrlSafeForFetch(urlStr: string): boolean {
-  try {
-    const parsed = new URL(urlStr);
-    if (parsed.protocol !== "https:") return false;
-    const hostname = parsed.hostname.toLowerCase();
-    const allowed: string[] = [];
-    if (process.env.REPLIT_DOMAINS) {
-      allowed.push(
-        ...process.env.REPLIT_DOMAINS.split(",")
-          .map((d) => d.trim())
-          .filter(Boolean)
-      );
-    }
-    if (process.env.REPLIT_DEV_DOMAIN) {
-      allowed.push(process.env.REPLIT_DEV_DOMAIN);
-    }
-    allowed.push("storage.googleapis.com");
-    return allowed.some((d) => hostname === d || hostname.endsWith(`.${d}`));
-  } catch {
-    return false;
-  }
 }
 
 export async function validateAttachmentAccess(
