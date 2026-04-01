@@ -456,7 +456,7 @@ function AppSidebar({ mobileOpen, setMobileOpen }: { mobileOpen: boolean; setMob
           </SheetContent>
         </Sheet>
       ) : (
-        <aside className="fixed top-3 left-3 w-[256px] h-[calc(100vh-24px)] bg-[#fafafa] flex flex-col z-[8000] rounded-l-2xl overflow-hidden shadow-[inset_-1px_0_0_#eaeaea]" data-testid="sidebar">
+        <aside className="w-[256px] bg-[#fafafa] border-r border-[#eaeaea] flex flex-col shrink-0" data-testid="sidebar">
           {sidebarContent}
         </aside>
       )}
@@ -711,11 +711,11 @@ function AppLayout() {
   }
 
   if (isAuthenticated) {
-    return (
-      <div className="flex min-h-screen bg-[#fafafa]">
-        <AppSidebar mobileOpen={mobileMenuOpen} setMobileOpen={setMobileMenuOpen} />
-        <main className={`${isMobile ? '' : 'ml-[268px]'} flex-1 min-h-screen min-w-0 overflow-x-hidden`}>
-          {isMobile && (
+    if (isMobile) {
+      return (
+        <div className="flex min-h-screen bg-[#fafafa]">
+          <AppSidebar mobileOpen={mobileMenuOpen} setMobileOpen={setMobileMenuOpen} />
+          <main className="flex-1 min-h-screen min-w-0 overflow-x-hidden">
             <div className="sticky top-0 z-40 flex items-center gap-3 px-4 py-3 bg-white border-b border-[#eaeaea]">
               <button
                 onClick={() => setMobileMenuOpen(true)}
@@ -726,11 +726,23 @@ function AppLayout() {
               </button>
               <img src={logoImg} alt="AI Council" className="h-6 w-auto" />
             </div>
-          )}
-          <div className={`bg-white shadow-[0px_1px_3px_rgba(0,0,0,0.04),0px_4px_24px_rgba(0,0,0,0.06)] min-h-[calc(100vh-24px)] ${isMobile ? 'mx-1 mt-1 mb-1 rounded-xl border border-[#eaeaea]' : 'mt-3 mr-3 mb-3 rounded-2xl border border-[#eaeaea] border-l-0'} flex flex-col overflow-hidden`}>
+            <div className="bg-white shadow-[0px_1px_3px_rgba(0,0,0,0.04),0px_4px_24px_rgba(0,0,0,0.06)] min-h-[calc(100vh-24px)] mx-1 mt-1 mb-1 rounded-xl border border-[#eaeaea] flex flex-col overflow-hidden">
+              <Router />
+            </div>
+          </main>
+          <SupportWidget />
+        </div>
+      );
+    }
+
+    return (
+      <div className="min-h-screen bg-[#fafafa] p-3">
+        <div className="flex border border-[#eaeaea] rounded-2xl shadow-[0px_1px_3px_rgba(0,0,0,0.04),0px_4px_24px_rgba(0,0,0,0.06)] h-[calc(100vh-24px)] overflow-hidden">
+          <AppSidebar mobileOpen={mobileMenuOpen} setMobileOpen={setMobileMenuOpen} />
+          <main className="flex-1 min-w-0 overflow-y-auto overflow-x-hidden bg-white">
             <Router />
-          </div>
-        </main>
+          </main>
+        </div>
         <SupportWidget />
       </div>
     );
