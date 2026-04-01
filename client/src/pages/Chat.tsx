@@ -894,7 +894,7 @@ export default function Chat() {
           )}
 
           {!isProcessing && conversation.status !== 'error' && conversation.status !== 'cancelled' && (
-            <div className="shrink-0 w-full bg-gradient-to-t from-white via-white to-transparent pt-3 pb-4 md:pb-6 px-4 md:px-6 flex justify-center">
+            <div className="shrink-0 w-full border-t border-[#f0f0f0] pb-4 md:pb-6 px-4 md:px-6 flex justify-center">
               <div className="w-full max-w-[1100px]">
                 {(uploadedFiles.length > 0 || pendingFiles.length > 0) && (
                   <div className="flex gap-2 mb-2 px-1 overflow-x-auto scrollbar-hide" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
