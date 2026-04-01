@@ -727,7 +727,7 @@ function AppLayout() {
               <img src={logoImg} alt="AI Council" className="h-6 w-auto" />
             </div>
           )}
-          <div className={`bg-white border border-[#eaeaea] shadow-[0px_1px_3px_rgba(0,0,0,0.04),0px_4px_24px_rgba(0,0,0,0.06)] min-h-[calc(100vh-24px)] ${isMobile ? 'mx-1 mt-1 mb-1 rounded-xl' : 'mt-3 mr-3 mb-3 rounded-2xl'} flex flex-col overflow-hidden`}>
+          <div className={`bg-white shadow-[0px_1px_3px_rgba(0,0,0,0.04),0px_4px_24px_rgba(0,0,0,0.06)] min-h-[calc(100vh-24px)] ${isMobile ? 'mx-1 mt-1 mb-1 rounded-xl border border-[#eaeaea]' : 'mt-3 mr-3 mb-3 rounded-2xl border-t border-r border-b border-[#eaeaea]'} flex flex-col overflow-hidden`}>
             <Router />
           </div>
         </main>
