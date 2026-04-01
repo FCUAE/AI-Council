@@ -288,10 +288,11 @@ async function initStripe() {
   } catch (error: unknown) {
     if (process.env.NODE_ENV === "production") {
       console.error('Failed to initialize Stripe:', safeErrorMessage(error));
+      throw error;
     } else {
       console.error('Failed to initialize Stripe:', error);
+      console.warn('[STARTUP] Stripe init failed in dev — continuing without Stripe');
     }
-    throw error;
   }
 }
 
