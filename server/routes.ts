@@ -14,6 +14,27 @@ import { authStorage } from "./replit_integrations/auth/storage";
 import { getAuth, clerkClient } from "@clerk/express";
 import { getUncachableStripeClient } from "./stripeClient";
 import { getCreditPackBySize } from "./creditPacks";
+import Stripe from 'stripe';
+
+async function verifyOrRecreateStripeCustomer(
+  stripe: Stripe,
+  customerId: string | null | undefined,
+  userId: string,
+  email: string | null | undefined,
+): Promise<string | null> {
+  if (!customerId) return null;
+  try {
+    const c = await stripe.customers.retrieve(customerId);
+    if ((c as any).deleted) return null;
+    return customerId;
+  } catch (e: any) {
+    if (e?.statusCode === 404 || e?.code === 'resource_missing') {
+      console.warn(`[Stripe] Customer ${customerId} not found, will re-create`);
+      return null;
+    }
+    throw e;
+  }
+}
 import { extractTextFromFile, renderPdfToImages, cleanupRenderedImages, getPdfPageCount } from "./documentParser";
 import { sendSupportMessage } from "./email";
 import path from "path";
@@ -2888,7 +2909,7 @@ export async function registerRoutes(
       
       const stripe = await getUncachableStripeClient();
       
-      let customerId = user.stripeCustomerId;
+      let customerId = await verifyOrRecreateStripeCustomer(stripe, user.stripeCustomerId, userId, user.email);
       if (!customerId) {
         const customer = await stripe.customers.create({
           email: user.email || undefined,
@@ -2939,13 +2960,14 @@ export async function registerRoutes(
       if (!userId) return res.status(401).json({ message: "Unauthorized" });
       
       const user = await storage.getUserById(userId);
-      if (!user?.stripeCustomerId) {
+      const stripe = await getUncachableStripeClient();
+      const verifiedId = await verifyOrRecreateStripeCustomer(stripe, user?.stripeCustomerId, userId, user?.email);
+      if (!verifiedId) {
         return res.status(400).json({ message: "No billing account found" });
       }
       
-      const stripe = await getUncachableStripeClient();
       const session = await stripe.billingPortal.sessions.create({
-        customer: user.stripeCustomerId,
+        customer: verifiedId,
         return_url: `${getBaseUrl(req)}/`,
       });
       
@@ -2963,13 +2985,14 @@ export async function registerRoutes(
       if (!userId) return res.status(401).json({ message: "Unauthorized" });
 
       const user = await storage.getUserById(userId);
-      if (!user?.stripeCustomerId) {
+      const stripe = await getUncachableStripeClient();
+      const verifiedPmCust = await verifyOrRecreateStripeCustomer(stripe, user?.stripeCustomerId, userId, user?.email);
+      if (!verifiedPmCust) {
         return res.json(null);
       }
 
-      const stripe = await getUncachableStripeClient();
       const paymentMethods = await stripe.paymentMethods.list({
-        customer: user.stripeCustomerId,
+        customer: verifiedPmCust,
         type: "card",
         limit: 1,
       });
@@ -2998,14 +3021,14 @@ export async function registerRoutes(
       if (!userId) return res.status(401).json({ message: "Unauthorized" });
 
       const user = await storage.getUserById(userId);
-      if (!user?.stripeCustomerId) {
+      const stripe = await getUncachableStripeClient();
+      const verifiedInvCust = await verifyOrRecreateStripeCustomer(stripe, user?.stripeCustomerId, userId, user?.email);
+      if (!verifiedInvCust) {
         return res.json([]);
       }
 
-      const stripe = await getUncachableStripeClient();
-
       const charges = await stripe.charges.list({
-        customer: user.stripeCustomerId,
+        customer: verifiedInvCust,
         limit: 20,
       });
 
@@ -3054,7 +3077,7 @@ export async function registerRoutes(
 
       const stripe = await getUncachableStripeClient();
 
-      let customerId = user.stripeCustomerId;
+      let customerId = await verifyOrRecreateStripeCustomer(stripe, user.stripeCustomerId, userId, user.email);
       if (!customerId) {
         const customer = await stripe.customers.create({
           email: user.email || undefined,
@@ -3093,12 +3116,13 @@ export async function registerRoutes(
       
       const stripe = await getUncachableStripeClient();
       const user = await storage.getUserById(userId);
-      if (!user?.stripeCustomerId) {
+      const verifiedRecCust = await verifyOrRecreateStripeCustomer(stripe, user?.stripeCustomerId, userId, user?.email);
+      if (!verifiedRecCust) {
         return res.json({ recovered: 0, debateCredits: user?.debateCredits || 0 });
       }
 
       const sessions = await stripe.checkout.sessions.list({
-        customer: user.stripeCustomerId,
+        customer: verifiedRecCust,
         limit: 10,
       });
 
