@@ -452,6 +452,13 @@ async function runAppMigrations(client: import('pg').PoolClient) {
       UPDATE support_messages SET user_id = 'unknown' WHERE user_id IS NULL;
       ALTER TABLE support_messages ALTER COLUMN user_id SET NOT NULL;
 
+      CREATE INDEX IF NOT EXISTS idx_credit_transactions_conversation_id
+        ON credit_transactions(conversation_id);
+      CREATE INDEX IF NOT EXISTS idx_credit_batches_stripe_session_id
+        ON credit_batches(stripe_session_id);
+      CREATE INDEX IF NOT EXISTS idx_conversations_status
+        ON conversations(status);
+
       INSERT INTO credit_batches (user_id, credits_remaining, credits_original, purchased_at, expires_at, pack_tier, status)
       SELECT
         id,

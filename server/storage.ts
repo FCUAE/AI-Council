@@ -13,7 +13,8 @@ import { eq, desc, sql, inArray, asc, and } from "drizzle-orm";
 export interface IStorage {
   createConversation(title: string, models?: string[], chairmanModel?: string, userId?: string): Promise<typeof conversations.$inferSelect>;
   getConversation(id: number): Promise<ConversationWithMessages | undefined>;
-  getConversations(userId?: string): Promise<(typeof conversations.$inferSelect)[]>;
+  getConversations(userId?: string, limit?: number, offset?: number): Promise<(typeof conversations.$inferSelect)[]>;
+  countConversationsByStatus(userId: string, status: string): Promise<number>;
   updateConversationStatus(id: number, status: string, errorReason?: string): Promise<void>;
   renameConversation(id: number, title: string): Promise<void>;
   deleteConversation(id: number): Promise<void>;
@@ -117,13 +118,21 @@ export class DatabaseStorage implements IStorage {
     return { ...conv, messages: messagesWithResponses };
   }
 
-  async getConversations(userId?: string): Promise<(typeof conversations.$inferSelect)[]> {
+  async getConversations(userId?: string, limit: number = 50, offset: number = 0): Promise<(typeof conversations.$inferSelect)[]> {
+    const query = db.select().from(conversations);
     if (userId) {
-      return db.select().from(conversations).where(eq(conversations.userId, userId)).orderBy(desc(conversations.createdAt));
+      return query.where(eq(conversations.userId, userId)).orderBy(desc(conversations.createdAt)).limit(limit).offset(offset);
     }
-    return db.select().from(conversations).orderBy(desc(conversations.createdAt));
+    return query.orderBy(desc(conversations.createdAt)).limit(limit).offset(offset);
   }
   
+  async countConversationsByStatus(userId: string, status: string): Promise<number> {
+    const result = await db.select({ count: sql<number>`count(*)` })
+      .from(conversations)
+      .where(and(eq(conversations.userId, userId), eq(conversations.status, status)));
+    return Number(result[0]?.count ?? 0);
+  }
+
   async refundDebateCredits(userId: string, amount: number, reason: string, conversationId?: number): Promise<boolean> {
     if (conversationId) {
       return await db.transaction(async (tx) => {

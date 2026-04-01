@@ -1976,7 +1976,9 @@ export async function registerRoutes(
 
   app.get(api.conversations.list.path, isAuthenticated, async (req, res) => {
     const userId = getUserId(req);
-    const convs = await storage.getConversations(userId);
+    const limit = Math.min(Math.max(parseInt(req.query.limit as string) || 50, 1), 200);
+    const offset = Math.max(parseInt(req.query.offset as string) || 0, 0);
+    const convs = await storage.getConversations(userId, limit, offset);
     res.json(convs);
   });
 
@@ -2562,8 +2564,7 @@ export async function registerRoutes(
       }
 
       const MAX_CONCURRENT_DEBATES = 3;
-      const userConversations = await storage.getConversations(userId);
-      const activeCount = userConversations.filter(c => c.status === "processing").length;
+      const activeCount = await storage.countConversationsByStatus(userId, "processing");
       if (activeCount >= MAX_CONCURRENT_DEBATES) {
         securityLog.rateLimitHit({ route: "conversations.concurrent", userId });
         return res.status(429).json({ message: `You already have ${activeCount} active debates. Please wait for one to finish before starting another.` });
