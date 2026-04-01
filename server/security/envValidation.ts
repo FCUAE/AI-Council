@@ -70,6 +70,10 @@ export function validateEnvironment(): ValidationResult {
     );
   }
 
+  if (!process.env.UNSUBSCRIBE_SECRET) {
+    errors.push("UNSUBSCRIBE_SECRET is not set");
+  }
+
   const adminResult = validateAdminUserIds();
   if (!adminResult.valid) {
     errors.push(adminResult.error!);

@@ -3,7 +3,10 @@ import crypto from 'crypto';
 
 const SUPPORT_EMAIL = process.env.SUPPORT_EMAIL || 'support@askaicouncil.com';
 const BASE_URL = 'https://askaicouncil.com';
-const UNSUBSCRIBE_SECRET = process.env.SESSION_SECRET || process.env.REPL_ID || 'council-email-secret';
+if (!process.env.UNSUBSCRIBE_SECRET) {
+  throw new Error('UNSUBSCRIBE_SECRET environment variable is required');
+}
+const UNSUBSCRIBE_SECRET = process.env.UNSUBSCRIBE_SECRET;
 
 function escapeHtml(str: string): string {
   return str
