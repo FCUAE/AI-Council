@@ -3,7 +3,8 @@ import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { ClerkProvider, useAuth as useClerkAuth, useClerk } from "@clerk/react";
 import Home from "@/pages/Home";
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, Component, ErrorInfo } from "react";
+import type { ReactNode } from "react";
 
 const Chat = lazy(() => import("@/pages/Chat"));
 const Credits = lazy(() => import("@/pages/Credits"));
@@ -41,6 +42,48 @@ import SupportWidget from "@/components/SupportWidget";
 import { setClerkTokenGetter, authFetch } from "@/lib/clerk-token";
 import { useToast } from "@/hooks/use-toast";
 import { trackRefgrowSignup } from "@/hooks/use-refgrow";
+
+interface ErrorBoundaryProps {
+  children: ReactNode;
+}
+
+interface ErrorBoundaryState {
+  hasError: boolean;
+}
+
+class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  constructor(props: ErrorBoundaryProps) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError(): ErrorBoundaryState {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error: Error, info: ErrorInfo) {
+    console.error("[ErrorBoundary] Uncaught error:", error, info.componentStack);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="flex flex-col items-center justify-center min-h-screen gap-4 bg-[#fafafa]" data-testid="error-boundary-fallback">
+          <p className="text-lg font-medium text-[#1a1a1a]">Something went wrong</p>
+          <p className="text-sm text-[#737373]">An unexpected error occurred.</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="px-4 py-2 text-sm font-medium text-white bg-[#1a1a1a] rounded-lg hover:bg-[#2b2b2b] transition-colors border-0 cursor-pointer"
+            data-testid="button-reload"
+          >
+            Reload page
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 function groupConversationsByDate(conversations: any[]) {
   const now = new Date();
@@ -627,17 +670,19 @@ function PageFallback() {
 
 function Router() {
   return (
-    <Suspense fallback={<PageFallback />}>
-      <Switch>
-        <Route path="/" component={Home} />
-        <Route path="/chat/:id" component={Chat} />
-        <Route path="/credits" component={Credits} />
-        <Route path="/profile" component={Profile} />
-        <Route path="/affiliate" component={Affiliate} />
-        <Route path="/admin" component={Admin} />
-        <Route component={NotFound} />
-      </Switch>
-    </Suspense>
+    <ErrorBoundary>
+      <Suspense fallback={<PageFallback />}>
+        <Switch>
+          <Route path="/" component={Home} />
+          <Route path="/chat/:id" component={Chat} />
+          <Route path="/credits" component={Credits} />
+          <Route path="/profile" component={Profile} />
+          <Route path="/affiliate" component={Affiliate} />
+          <Route path="/admin" component={Admin} />
+          <Route component={NotFound} />
+        </Switch>
+      </Suspense>
+    </ErrorBoundary>
   );
 }
 

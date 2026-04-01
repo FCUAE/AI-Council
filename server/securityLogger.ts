@@ -20,7 +20,7 @@ function redactId(id: string): string {
   return id.slice(0, 6) + "***";
 }
 
-function redactEmail(email: string): string {
+export function redactEmail(email: string): string {
   if (!email) return "***";
   const at = email.indexOf("@");
   if (at < 1) return "***";

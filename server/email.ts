@@ -1,5 +1,6 @@
 import { Resend } from 'resend';
 import crypto from 'crypto';
+import { redactEmail } from './securityLogger';
 
 const SUPPORT_EMAIL = process.env.SUPPORT_EMAIL || 'support@askaicouncil.com';
 const BASE_URL = 'https://askaicouncil.com';
@@ -141,7 +142,7 @@ export async function sendCreditExpiryWarning(
       `)
     });
 
-    console.log(`[email] Sent expiry warning to ${email} (${credits} credits, ${daysLeft} days left, ${packTier})`);
+    console.log(`[email] Sent expiry warning to ${redactEmail(email)} (${credits} credits, ${daysLeft} days left, ${packTier})`);
     return true;
   } catch (error: unknown) {
     logError('expiry warning', error);
@@ -191,7 +192,7 @@ export async function sendCreditExpiryFinalWarning(
       `)
     });
 
-    console.log(`[email] Sent final expiry warning to ${email} (${credits} credits, 48h left, ${packTier})`);
+    console.log(`[email] Sent final expiry warning to ${redactEmail(email)} (${credits} credits, 48h left, ${packTier})`);
     return true;
   } catch (error: unknown) {
     logError('final expiry warning', error);
@@ -225,7 +226,7 @@ export async function sendCreditExpiredNotice(email: string, userName: string | 
       `)
     });
 
-    console.log(`[email] Sent expiry notice to ${email} (${expiredCredits} credits expired, ${packTier})`);
+    console.log(`[email] Sent expiry notice to ${redactEmail(email)} (${expiredCredits} credits expired, ${packTier})`);
     return true;
   } catch (error: unknown) {
     logError('expiry notice', error);
@@ -275,7 +276,7 @@ export async function sendPurchaseConfirmation(
       `)
     });
 
-    console.log(`[email] Sent purchase confirmation to ${email} (${credits} credits, ${packTier})`);
+    console.log(`[email] Sent purchase confirmation to ${redactEmail(email)} (${credits} credits, ${packTier})`);
     return true;
   } catch (error: unknown) {
     logError('purchase confirmation', error);
@@ -319,7 +320,7 @@ export async function sendEngagementNudge(
       `)
     });
 
-    console.log(`[email] Sent engagement nudge to ${email} (${credits} credits, ${packTier})`);
+    console.log(`[email] Sent engagement nudge to ${redactEmail(email)} (${credits} credits, ${packTier})`);
     return true;
   } catch (error: unknown) {
     logError('engagement nudge', error);
@@ -359,7 +360,7 @@ export async function sendPostExpiryReengagement(
       `)
     });
 
-    console.log(`[email] Sent post-expiry re-engagement to ${email} (${packTier})`);
+    console.log(`[email] Sent post-expiry re-engagement to ${redactEmail(email)} (${packTier})`);
     return true;
   } catch (error: unknown) {
     logError('post-expiry re-engagement', error);
@@ -398,7 +399,7 @@ export async function sendDormancyFinalNotice(
       `)
     });
 
-    console.log(`[email] Sent dormancy final notice to ${email} (${credits} credits, ${packTier})`);
+    console.log(`[email] Sent dormancy final notice to ${redactEmail(email)} (${credits} credits, ${packTier})`);
     return true;
   } catch (error: unknown) {
     logError('dormancy final notice', error);
@@ -434,7 +435,7 @@ export async function sendFreeWelcome(email: string, userName: string | null, cr
       `)
     });
 
-    console.log(`[email] Sent free welcome to ${email} (${credits} credits)`);
+    console.log(`[email] Sent free welcome to ${redactEmail(email)} (${credits} credits)`);
     return true;
   } catch (error: unknown) {
     logError('free welcome', error);
@@ -467,7 +468,7 @@ export async function sendFreeExpiredConversion(email: string, userName: string 
       `)
     });
 
-    console.log(`[email] Sent free expired conversion to ${email}`);
+    console.log(`[email] Sent free expired conversion to ${redactEmail(email)}`);
     return true;
   } catch (error: unknown) {
     logError('free expired conversion', error);
@@ -510,7 +511,7 @@ export async function sendSupportMessage(senderEmail: string, message: string, i
       `)
     });
 
-    console.log(`[email] Sent support message from ${senderEmail}`);
+    console.log(`[email] Sent support message from ${redactEmail(senderEmail)}`);
     return true;
   } catch (error: unknown) {
     logError('support message', error);

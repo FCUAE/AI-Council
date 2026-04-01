@@ -443,6 +443,16 @@ async function sleep(ms: number, signal?: AbortSignal): Promise<void> {
 const modelRateLimitTracker = new Map<string, number>();
 const RATE_LIMIT_COOLDOWN_MS = 30000;
 
+const RATE_LIMIT_STALE_MS = 120000;
+setInterval(() => {
+  const now = Date.now();
+  modelRateLimitTracker.forEach((limitedAt, model) => {
+    if (now - limitedAt > RATE_LIMIT_STALE_MS) {
+      modelRateLimitTracker.delete(model);
+    }
+  });
+}, 60000).unref();
+
 function markModelRateLimited(model: string) {
   modelRateLimitTracker.set(model, Date.now());
   console.log(`[RATE LIMIT] Marked ${model} as rate-limited for ${RATE_LIMIT_COOLDOWN_MS / 1000}s`);

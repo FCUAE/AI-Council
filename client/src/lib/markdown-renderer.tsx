@@ -1,5 +1,17 @@
 import { Fragment, ReactNode } from "react";
 
+const DANGEROUS_TAG_RE = /<\/?(?:script|iframe|object|embed|form|input|textarea|button|select|style|link|meta|base|applet|svg|math)[\s>\/][^]*?>/gi;
+const EVENT_ATTR_RE = /<([a-z][a-z0-9]*)\s([^>]*?\s*on\w+\s*=\s*["'][^"']*["'][^>]*)>/gi;
+const JAVASCRIPT_URL_RE = /(?:href|src|action)\s*=\s*["']?\s*javascript\s*:/gi;
+
+function sanitizeContent(raw: string): string {
+  let result = raw;
+  result = result.replace(DANGEROUS_TAG_RE, "");
+  result = result.replace(EVENT_ATTR_RE, "<$1>");
+  result = result.replace(JAVASCRIPT_URL_RE, 'href="about:blank"');
+  return result;
+}
+
 interface MarkdownTheme {
   text: string;
   heading1: string;
@@ -90,19 +102,19 @@ function parseInlineMarkdown(text: string, theme: MarkdownTheme, keyPrefix: stri
     const k = `${keyPrefix}-${tokenIdx++}`;
     const boldItalicMatch = remaining.match(/^(\*\*\*|___)(.+?)\1/);
     if (boldItalicMatch) {
-      elements.push(<strong key={k} className={theme.bold}><em className="italic">{boldItalicMatch[2]}</em></strong>);
+      elements.push(<strong key={k} className={theme.bold}><em className="italic">{parseInlineMarkdown(boldItalicMatch[2], theme, `${k}-bi`)}</em></strong>);
       remaining = remaining.slice(boldItalicMatch[0].length);
       continue;
     }
     const boldMatch = remaining.match(/^(\*\*|__)(.+?)\1/);
     if (boldMatch) {
-      elements.push(<strong key={k} className={theme.bold}>{boldMatch[2]}</strong>);
+      elements.push(<strong key={k} className={theme.bold}>{parseInlineMarkdown(boldMatch[2], theme, `${k}-b`)}</strong>);
       remaining = remaining.slice(boldMatch[0].length);
       continue;
     }
     const italicMatch = remaining.match(/^(\*|_)(.+?)\1/);
     if (italicMatch) {
-      elements.push(<em key={k} className="italic">{italicMatch[2]}</em>);
+      elements.push(<em key={k} className="italic">{parseInlineMarkdown(italicMatch[2], theme, `${k}-i`)}</em>);
       remaining = remaining.slice(italicMatch[0].length);
       continue;
     }
@@ -161,7 +173,8 @@ function isHorizontalRule(line: string): boolean {
 }
 
 export function renderMarkdown(content: string, theme: MarkdownTheme): ReactNode {
-  const lines = content.split('\n');
+  const sanitized = sanitizeContent(content);
+  const lines = sanitized.split('\n');
   const elements: ReactNode[] = [];
   let currentParagraph: ReactNode[] = [];
   let blockIdx = 0;
