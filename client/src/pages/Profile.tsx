@@ -3,6 +3,15 @@ import { useAuth } from "@/hooks/use-auth";
 import { useUser, useClerk } from "@clerk/react";
 import { useLocation } from "wouter";
 import { FileText, Download, CreditCard, ArrowLeft, ExternalLink, Loader2, Trash2, Check, Shield, Eye, EyeOff, ChevronDown } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogCancel,
+} from "@/components/ui/alert-dialog";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { authFetch } from "@/lib/clerk-token";
@@ -266,8 +275,9 @@ export default function Profile() {
 
   if (authLoading) {
     return (
-      <div className="flex-1 flex items-center justify-center min-h-[60vh]">
+      <div className="flex-1 flex items-center justify-center min-h-[60vh]" role="status" aria-label="Loading" aria-busy="true">
         <div className="w-8 h-8 border-2 border-[#eaeaea] border-t-[#1a1a1a] rounded-full animate-spin" />
+        <span className="sr-only">Loading...</span>
       </div>
     );
   }
@@ -401,7 +411,7 @@ export default function Profile() {
                 data-testid="button-save-profile"
               >
                 {updateProfileMutation.isPending ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <><Loader2 className="w-4 h-4 animate-spin" role="status" aria-label="Loading" aria-busy="true" /><span className="sr-only">Loading...</span></>
                 ) : (
                   <Check className="w-4 h-4" />
                 )}
@@ -543,7 +553,7 @@ export default function Profile() {
                     className="px-5 py-2 bg-[#1a1a1a] text-white rounded-lg font-medium text-[13px] hover:bg-[#2b2b2b] transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2 border-0 cursor-pointer"
                     data-testid="button-submit-password"
                   >
-                    {isChangingPassword && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                    {isChangingPassword && <><Loader2 className="w-3.5 h-3.5 animate-spin" role="status" aria-label="Loading" aria-busy="true" /><span className="sr-only">Loading...</span></>}
                     Update Password
                   </button>
                 </div>
@@ -620,7 +630,7 @@ export default function Profile() {
                     className="px-5 py-2 bg-[#1a1a1a] text-white rounded-lg font-medium text-[13px] hover:bg-[#2b2b2b] transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2 border-0 cursor-pointer"
                     data-testid="button-submit-set-password"
                   >
-                    {isChangingPassword && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                    {isChangingPassword && <><Loader2 className="w-3.5 h-3.5 animate-spin" role="status" aria-label="Loading" aria-busy="true" /><span className="sr-only">Loading...</span></>}
                     Set Password
                   </button>
                 </div>
@@ -639,8 +649,9 @@ export default function Profile() {
             <div>
               <h3 className="text-[15px] font-semibold text-[#1a1a1a] mb-4">Payment Method</h3>
               {pmLoading ? (
-                <div className="flex items-center justify-center p-6 border border-[#eaeaea] rounded-xl">
+                <div className="flex items-center justify-center p-6 border border-[#eaeaea] rounded-xl" role="status" aria-label="Loading" aria-busy="true">
                   <Loader2 className="w-5 h-5 text-[#737373] animate-spin" />
+                  <span className="sr-only">Loading...</span>
                 </div>
               ) : paymentMethod ? (
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 border border-[#eaeaea] rounded-xl bg-white">
@@ -690,8 +701,9 @@ export default function Profile() {
               <h3 className="text-[15px] font-semibold text-[#1a1a1a] mb-4">Billing History</h3>
 
               {invoicesLoading ? (
-                <div className="flex items-center justify-center p-6">
+                <div className="flex items-center justify-center p-6" role="status" aria-label="Loading" aria-busy="true">
                   <Loader2 className="w-5 h-5 text-[#737373] animate-spin" />
+                  <span className="sr-only">Loading...</span>
                 </div>
               ) : invoices && invoices.length > 0 ? (
                 <div className="space-y-3">
@@ -804,66 +816,70 @@ export default function Profile() {
         </button>
       </div>
 
-      {showDeleteDialog && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => { if (!deleteAccountMutation.isPending) { setShowDeleteDialog(false); setDeleteConfirmation(""); } }}>
-          <div className="bg-white rounded-2xl shadow-xl max-w-md w-full mx-4 p-6" onClick={(e) => e.stopPropagation()} data-testid="dialog-delete-account">
-            <h3 className="text-[17px] font-semibold text-[#1a1a1a] mb-2">Delete Account</h3>
-            <p className="text-[14px] text-[#737373] mb-1">
-              Are you sure you want to delete your account? This action is <span className="font-semibold text-red-600">permanent and cannot be undone</span>.
-            </p>
-            <p className="text-[13px] text-[#a3a3a3] mb-4">
-              All your conversations, messages, and credit history will be permanently removed.
-            </p>
-
-            <div className="mb-4">
-              <label className="block text-[13px] text-[#737373] mb-1.5">
-                Type <span className="font-mono font-semibold text-red-600">DELETE</span> to confirm
-              </label>
-              <input
-                type="text"
-                value={deleteConfirmation}
-                onChange={(e) => setDeleteConfirmation(e.target.value)}
-                placeholder="Type DELETE here"
-                className="w-full px-3 py-2 text-[13px] border border-[#eaeaea] rounded-lg focus:outline-none focus:ring-2 focus:ring-red-200 focus:border-red-400"
-                data-testid="input-delete-confirmation"
-                autoComplete="off"
-              />
-            </div>
-
-            {deleteAccountMutation.isError && (
-              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-[13px] text-red-700" data-testid="text-delete-error">
-                {deleteAccountMutation.error?.message || "Something went wrong. Please try again."}
+      <AlertDialog open={showDeleteDialog} onOpenChange={(open) => { if (!deleteAccountMutation.isPending) { setShowDeleteDialog(open); if (!open) setDeleteConfirmation(""); } }}>
+        <AlertDialogContent className="rounded-2xl" data-testid="dialog-delete-account">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-[17px] font-semibold text-[#1a1a1a]">Delete Account</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div>
+                <p className="text-[14px] text-[#737373] mb-1">
+                  Are you sure you want to delete your account? This action is <span className="font-semibold text-red-600">permanent and cannot be undone</span>.
+                </p>
+                <p className="text-[13px] text-[#a3a3a3]">
+                  All your conversations, messages, and credit history will be permanently removed.
+                </p>
               </div>
-            )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
 
-            <div className="flex gap-3 justify-end">
-              <button
-                onClick={() => { setShowDeleteDialog(false); setDeleteConfirmation(""); }}
-                disabled={deleteAccountMutation.isPending}
-                className="px-4 py-2 bg-white border border-[#eaeaea] rounded-lg text-[13px] font-medium text-[#1a1a1a] hover:bg-[#fafafa] transition-colors cursor-pointer disabled:opacity-50"
-                data-testid="button-cancel-delete"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => deleteAccountMutation.mutate()}
-                disabled={deleteAccountMutation.isPending || deleteConfirmation !== "DELETE"}
-                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-[13px] font-medium transition-colors border-0 cursor-pointer disabled:opacity-50 flex items-center gap-2"
-                data-testid="button-confirm-delete"
-              >
-                {deleteAccountMutation.isPending ? (
-                  <>
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    Deleting...
-                  </>
-                ) : (
-                  "Delete Account"
-                )}
-              </button>
-            </div>
+          <div className="mb-4">
+            <label className="block text-[13px] text-[#737373] mb-1.5">
+              Type <span className="font-mono font-semibold text-red-600">DELETE</span> to confirm
+            </label>
+            <input
+              type="text"
+              value={deleteConfirmation}
+              onChange={(e) => setDeleteConfirmation(e.target.value)}
+              placeholder="Type DELETE here"
+              className="w-full px-3 py-2 text-[13px] border border-[#eaeaea] rounded-lg focus:outline-none focus:ring-2 focus:ring-red-200 focus:border-red-400"
+              data-testid="input-delete-confirmation"
+              autoComplete="off"
+            />
           </div>
-        </div>
-      )}
+
+          {deleteAccountMutation.isError && (
+            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-[13px] text-red-700" data-testid="text-delete-error">
+              {deleteAccountMutation.error?.message || "Something went wrong. Please try again."}
+            </div>
+          )}
+
+          <AlertDialogFooter>
+            <AlertDialogCancel
+              disabled={deleteAccountMutation.isPending}
+              className="px-4 py-2 bg-white border border-[#eaeaea] rounded-lg text-[13px] font-medium text-[#1a1a1a] hover:bg-[#fafafa] transition-colors cursor-pointer disabled:opacity-50"
+              data-testid="button-cancel-delete"
+            >
+              Cancel
+            </AlertDialogCancel>
+            <button
+              onClick={() => deleteAccountMutation.mutate()}
+              disabled={deleteAccountMutation.isPending || deleteConfirmation !== "DELETE"}
+              className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-[13px] font-medium transition-colors border-0 cursor-pointer disabled:opacity-50 flex items-center gap-2"
+              data-testid="button-confirm-delete"
+            >
+              {deleteAccountMutation.isPending ? (
+                <>
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" role="status" aria-label="Loading" aria-busy="true" />
+                  <span className="sr-only">Loading...</span>
+                  Deleting...
+                </>
+              ) : (
+                "Delete Account"
+              )}
+            </button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <div className="h-12" />
     </div>

@@ -662,8 +662,9 @@ function PendingPromptHandler() {
 
 function PageFallback() {
   return (
-    <div className="flex-1 flex items-center justify-center min-h-[40vh]">
+    <div className="flex-1 flex items-center justify-center min-h-[40vh]" role="status" aria-label="Loading" aria-busy="true">
       <div className="w-6 h-6 border-2 border-[#eaeaea] border-t-[#1a1a1a] rounded-full animate-spin" />
+      <span className="sr-only">Loading...</span>
     </div>
   );
 }
@@ -935,9 +936,10 @@ function App() {
 
   if (!clerkKey) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen gap-3">
+      <div className="flex flex-col items-center justify-center min-h-screen gap-3" role="status" aria-label="Loading" aria-busy="true">
         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
         <p className="text-sm text-muted-foreground" data-testid="text-connecting">Connecting to server…</p>
+        <span className="sr-only">Loading...</span>
       </div>
     );
   }

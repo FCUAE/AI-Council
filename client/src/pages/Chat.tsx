@@ -459,22 +459,24 @@ export default function Chat() {
   return (
     <div className="flex flex-col h-full relative">
       {isLoading ? (
-        <div className="flex-1 flex items-center justify-center">
+        <div className="flex-1 flex items-center justify-center" role="status" aria-label="Loading" aria-busy="true">
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col items-center gap-4">
             <div className="w-12 h-12 rounded-full bg-[#f5f5f5] border border-[#eaeaea] flex items-center justify-center">
               <Loader className="w-6 h-6 text-[#737373] animate-spin" />
             </div>
             <p className="text-[15px] text-[#737373]">Initializing council session...</p>
+            <span className="sr-only">Loading...</span>
           </motion.div>
         </div>
       ) : !conversation ? (
         !error ? (
-          <div className="flex-1 flex items-center justify-center">
+          <div className="flex-1 flex items-center justify-center" role="status" aria-label="Loading" aria-busy="true">
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col items-center gap-4">
               <div className="w-12 h-12 rounded-full bg-[#f5f5f5] border border-[#eaeaea] flex items-center justify-center">
                 <Loader className="w-6 h-6 text-[#737373] animate-spin" />
               </div>
               <p className="text-[15px] text-[#737373]">Loading council session...</p>
+              <span className="sr-only">Loading...</span>
             </motion.div>
           </div>
         ) : (
@@ -653,9 +655,10 @@ export default function Chat() {
 
                     {message.role === 'user' && message.status === 'processing' && !conversationStatus && (
                       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
-                        <div className="bg-white rounded-xl border border-[#eaeaea] p-6 shadow-sm flex flex-col items-center gap-4">
+                        <div className="bg-white rounded-xl border border-[#eaeaea] p-6 shadow-sm flex flex-col items-center gap-4" role="status" aria-label="Loading" aria-busy="true">
                           <Loader className="w-8 h-8 text-[#4f46e5] animate-spin" />
                           <p className="text-[15px] text-[#737373]">Preparing council session...</p>
+                          <span className="sr-only">Loading...</span>
                           <button
                             onClick={handleCancelRequest}
                             disabled={isCancelling}
@@ -868,7 +871,7 @@ export default function Chat() {
                       className="px-5 py-2.5 bg-[#1a1a1a] text-white rounded-lg font-medium hover:bg-[#2b2b2b] transition-colors border-0 cursor-pointer disabled:opacity-50 flex items-center gap-2 text-[13px]"
                       data-testid="button-retry-debate"
                     >
-                      {isRetrying ? <Loader className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+                      {isRetrying ? <><Loader className="w-4 h-4 animate-spin" role="status" aria-label="Loading" aria-busy="true" /><span className="sr-only">Loading...</span></> : <RefreshCw className="w-4 h-4" />}
                       {isRetrying ? 'Retrying...' : 'Retry This Debate'}
                     </button>
                     <Link
@@ -904,7 +907,7 @@ export default function Chat() {
                         data-testid={`pending-file-${file.id}`}
                         className={`flex items-center gap-2 px-3 py-2 bg-white border rounded-lg text-sm shrink-0 ${file.status === 'error' ? 'border-red-300' : 'border-[#eaeaea]'}`}
                       >
-                        {file.status === 'error' ? <X className="w-4 h-4 text-red-500" /> : <Loader className="w-4 h-4 text-[#737373] animate-spin" />}
+                        {file.status === 'error' ? <X className="w-4 h-4 text-red-500" /> : <><Loader className="w-4 h-4 text-[#737373] animate-spin" role="status" aria-label="Loading" aria-busy="true" /><span className="sr-only">Loading...</span></>}
                         <span className="truncate max-w-32 text-[#1a1a1a] text-[13px]">
                           {file.status === 'compressing' ? 'Compressing...' : file.status === 'error' ? 'Failed' : file.name}
                         </span>
@@ -914,7 +917,7 @@ export default function Chat() {
                       <div key={index} data-testid={`uploaded-file-${index}`} className="flex items-center gap-2 px-3 py-2 bg-white border border-[#eaeaea] rounded-lg text-sm shrink-0">
                         {file.type.startsWith('image/') ? <Image className="w-4 h-4 text-[#4f46e5]" /> : <FileText className="w-4 h-4 text-[#737373]" />}
                         <span className="truncate max-w-32 text-[#1a1a1a] text-[13px]">{file.name}</span>
-                        <button type="button" onClick={() => removeFile(index)} className="ml-1 p-0.5 rounded-full hover:bg-[#f5f5f5] transition-colors bg-transparent border-0 cursor-pointer" data-testid={`button-remove-file-${index}`}>
+                        <button type="button" onClick={() => removeFile(index)} className="ml-1 p-0.5 rounded-full hover:bg-[#f5f5f5] transition-colors bg-transparent border-0 cursor-pointer" data-testid={`button-remove-file-${index}`} aria-label="Remove file">
                           <X className="w-3 h-3 text-[#737373]" />
                         </button>
                       </div>
@@ -948,8 +951,9 @@ export default function Chat() {
                         className="absolute bottom-4 right-4 w-8 h-8 bg-[#1a1a1a] hover:bg-[#2b2b2b] rounded-lg flex items-center justify-center shadow-sm border-0 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                         data-testid="button-send"
                         title="Run Council"
+                        aria-label={addMessage.isPending ? "Sending" : "Run Council"}
                       >
-                        {addMessage.isPending ? <Loader className="w-4 h-4 text-white animate-spin" /> : <ArrowUp className="w-4 h-4 text-white" />}
+                        {addMessage.isPending ? <><Loader className="w-4 h-4 text-white animate-spin" role="status" aria-label="Loading" aria-busy="true" /><span className="sr-only">Loading...</span></> : <ArrowUp className="w-4 h-4 text-white" />}
                       </button>
                     </div>
 
@@ -961,8 +965,9 @@ export default function Chat() {
                             disabled={isProcessing || isUploading}
                             className="text-[#737373] hover:text-[#1a1a1a] transition-colors flex items-center justify-center w-7 h-7 rounded-md hover:bg-[#eaeaea] bg-transparent border-0 cursor-pointer disabled:opacity-50 shrink-0"
                             data-testid="button-upload"
+                            aria-label={isUploading ? "Uploading file" : "Attach file"}
                           >
-                            {isUploading ? <Loader className="w-[13px] h-[13px] animate-spin" /> : <Paperclip className="w-[13px] h-[13px]" />}
+                            {isUploading ? <><Loader className="w-[13px] h-[13px] animate-spin" role="status" aria-label="Loading" aria-busy="true" /><span className="sr-only">Loading...</span></> : <Paperclip className="w-[13px] h-[13px]" />}
                           </button>
                           <div className="h-4 w-px bg-[#d1d5db] shrink-0" />
                           <div className="flex items-center gap-1.5 min-w-0 flex-nowrap overflow-visible">
@@ -991,7 +996,7 @@ export default function Chat() {
                                 <TooltipProvider delayDuration={200}>
                                   <Tooltip>
                                     <TooltipTrigger asChild>
-                                      <button type="button" className="inline-flex items-center justify-center text-[#737373] hover:text-[#1a1a1a] transition-colors bg-transparent border-0 cursor-pointer p-0" data-testid="button-council-info">
+                                      <button type="button" className="inline-flex items-center justify-center text-[#737373] hover:text-[#1a1a1a] transition-colors bg-transparent border-0 cursor-pointer p-0" data-testid="button-council-info" aria-label="Credit cost info">
                                         <Info className="w-3 h-3" />
                                       </button>
                                     </TooltipTrigger>
@@ -1011,7 +1016,7 @@ export default function Chat() {
                                 <TooltipProvider delayDuration={200}>
                                   <Tooltip>
                                     <TooltipTrigger asChild>
-                                      <button type="button" className="inline-flex items-center justify-center text-current hover:opacity-70 transition-opacity bg-transparent border-0 cursor-pointer p-0" data-testid="button-council-info">
+                                      <button type="button" className="inline-flex items-center justify-center text-current hover:opacity-70 transition-opacity bg-transparent border-0 cursor-pointer p-0" data-testid="button-council-info" aria-label="Credit cost info">
                                         <Info className="w-3 h-3" />
                                       </button>
                                     </TooltipTrigger>
@@ -1048,6 +1053,7 @@ export default function Chat() {
               onClick={() => setLightboxImage(null)}
               className="absolute -top-10 right-0 text-white hover:text-gray-300 transition-colors"
               data-testid="lightbox-close"
+              aria-label="Close image preview"
             >
               <X className="w-6 h-6" />
             </button>
@@ -1094,7 +1100,7 @@ function PhaseSection({
           {state === 'complete' ? (
             <Check className="w-4 h-4 text-green-600" />
           ) : state === 'active' ? (
-            <Loader className="w-4 h-4 text-[#4f46e5] animate-spin" />
+            <><Loader className="w-4 h-4 text-[#4f46e5] animate-spin" role="status" aria-label="Loading" aria-busy="true" /><span className="sr-only">Loading...</span></>
           ) : phaseNum === 3 ? (
             <Star className="w-4 h-4 text-[#737373]" />
           ) : (
@@ -1127,7 +1133,7 @@ function PhaseSection({
                   ) : isComplete ? (
                     <><Check className="w-3.5 h-3.5 text-green-600" /><span>Analysis complete</span></>
                   ) : state === 'active' ? (
-                    <><Loader className="w-3.5 h-3.5 animate-spin text-[#4f46e5]" /><span>{(elapsed ?? 0) >= 90 ? "This model requires more time..." : "Analyzing..."}</span></>
+                    <><Loader className="w-3.5 h-3.5 animate-spin text-[#4f46e5]" role="status" aria-label="Loading" aria-busy="true" /><span className="sr-only">Loading...</span><span>{(elapsed ?? 0) >= 90 ? "This model requires more time..." : "Analyzing..."}</span></>
                   ) : (
                     <span>Waiting...</span>
                   )}

@@ -184,14 +184,16 @@ export default function SupportWidget() {
               onClick={handleClose}
               className="text-[#999] hover:text-[#333] transition-colors p-1 -mr-1"
               data-testid="button-close-support"
+              aria-label="Close support"
             >
               <X size={18} />
             </button>
           </div>
 
           {!authLoaded ? (
-            <div className="px-5 py-8 flex justify-center">
+            <div className="px-5 py-8 flex justify-center" role="status" aria-label="Loading" aria-busy="true">
               <div className="w-5 h-5 border-2 border-[#ddd] border-t-[#555] rounded-full animate-spin" />
+              <span className="sr-only">Loading...</span>
             </div>
           ) : !isSignedIn ? (
             <div className="px-5 py-8 text-center" data-testid="text-support-signin-required">
@@ -294,6 +296,7 @@ export default function SupportWidget() {
                         onClick={() => removeImage(i)}
                         className="absolute top-0.5 right-0.5 bg-black/60 text-white rounded-full w-4 h-4 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
                         data-testid={`button-remove-image-${i}`}
+                        aria-label="Remove image"
                       >
                         <X size={10} />
                       </button>
@@ -315,7 +318,7 @@ export default function SupportWidget() {
                 data-testid="button-submit-support"
               >
                 {sending ? (
-                  <span className="inline-block w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  <><span className="inline-block w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" role="status" aria-label="Loading" aria-busy="true" /><span className="sr-only">Loading...</span></>
                 ) : (
                   <>
                     <Send size={14} />

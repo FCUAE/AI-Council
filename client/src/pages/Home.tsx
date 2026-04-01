@@ -334,7 +334,7 @@ export default function Home() {
                     {file.status === 'error' ? (
                       <X className="w-3 h-3" />
                     ) : (
-                      <span className="w-3.5 h-3.5 border-2 border-[#eaeaea] border-t-[#4f46e5] rounded-full animate-spin" />
+                      <><span className="w-3.5 h-3.5 border-2 border-[#eaeaea] border-t-[#4f46e5] rounded-full animate-spin" role="status" aria-label="Loading" aria-busy="true" /><span className="sr-only">Loading...</span></>
                     )}
                     <span className="max-w-[120px] truncate">
                       {file.status === 'compressing' ? 'Compressing...' : 
@@ -420,7 +420,7 @@ export default function Home() {
                   title={costPending ? "Estimating cost..." : !canSubmit && isAuthenticated ? "Cost estimate required" : isAuthenticated ? "Run Council" : "Sign in to run the Council"}
                 >
                   {createConversation.isPending ? (
-                    <span className="w-4 h-4 border-2 border-transparent border-t-white rounded-full animate-spin" />
+                    <><span className="w-4 h-4 border-2 border-transparent border-t-white rounded-full animate-spin" role="status" aria-label="Loading" aria-busy="true" /><span className="sr-only">Loading...</span></>
                   ) : (
                     <ArrowUp className="w-4 h-4 text-white" />
                   )}

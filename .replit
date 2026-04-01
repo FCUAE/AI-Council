@@ -8,7 +8,7 @@ packages = ["glib", "nss", "nspr", "atk", "at-spi2-atk", "cups", "libdrm", "gtk3
 
 [[ports]]
 localPort = 5000
-externalPort = 80
+externalPort = 5000
 
 [env]
 PORT = "5000"

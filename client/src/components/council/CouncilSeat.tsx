@@ -52,9 +52,12 @@ export function CouncilSeat({
         <div className={cn(
           "w-8 h-8 rounded-full flex items-center justify-center",
           isActive ? colors.bg : "bg-white/10"
-        )}>
+        )} {...(isThinking ? { role: "status", "aria-label": "Loading", "aria-busy": "true" } : {})}>
           {isThinking ? (
-            <Loader2 className={cn("w-4 h-4 animate-spin", isActive ? colors.text : "text-muted-foreground")} />
+            <>
+              <Loader2 className={cn("w-4 h-4 animate-spin", isActive ? colors.text : "text-muted-foreground")} />
+              <span className="sr-only">Loading...</span>
+            </>
           ) : (
             <Bot className={cn("w-4 h-4", isActive ? colors.text : "text-muted-foreground")} />
           )}

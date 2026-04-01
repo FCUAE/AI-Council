@@ -145,8 +145,9 @@ export default function Credits() {
 
   if (authLoading) {
     return (
-      <div className="flex-1 flex items-center justify-center min-h-[60vh]">
+      <div className="flex-1 flex items-center justify-center min-h-[60vh]" role="status" aria-label="Loading" aria-busy="true">
         <div className="w-8 h-8 border-2 border-[#eaeaea] border-t-[#1a1a1a] rounded-full animate-spin" />
+        <span className="sr-only">Loading...</span>
       </div>
     );
   }
