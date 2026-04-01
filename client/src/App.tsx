@@ -456,7 +456,7 @@ function AppSidebar({ mobileOpen, setMobileOpen }: { mobileOpen: boolean; setMob
           </SheetContent>
         </Sheet>
       ) : (
-        <aside className="fixed top-3 left-3 w-[256px] h-[calc(100vh-24px)] bg-[#fafafa] border-r border-[#eaeaea] flex flex-col z-[8000] rounded-l-2xl" data-testid="sidebar">
+        <aside className="fixed top-3 left-3 w-[256px] h-[calc(100vh-24px)] bg-[#fafafa] flex flex-col z-[8000] rounded-l-2xl" data-testid="sidebar">
           {sidebarContent}
         </aside>
       )}
