@@ -755,6 +755,10 @@ export default function Profile() {
           {privacyOpen && (
             <div className="px-6 pb-6 border-t border-[#eaeaea]">
               <div className="prose prose-sm text-[#4a4a4a] space-y-4 pt-5">
+                <p className="text-[14px] leading-relaxed">
+                  Your privacy is important to us. This page outlines how AI Council collects,
+                  uses, and protects your information.
+                </p>
                 <h3 className="text-[15px] font-semibold text-[#1a1a1a]">Information We Collect</h3>
                 <p className="text-[14px] leading-relaxed">
                   We collect information you provide when creating an account, such as your
