@@ -803,9 +803,6 @@ function AppLayout() {
           <Router />
         </main>
       </div>
-      <footer className="text-center py-2">
-        <span className="text-[11px] text-[#999]">&copy; {new Date().getFullYear()} AI Council</span>
-      </footer>
       <SupportWidget />
     </div>
   );

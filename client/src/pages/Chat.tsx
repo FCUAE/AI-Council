@@ -1036,6 +1036,7 @@ export default function Chat() {
                 </form>
                 {errors.message && <p className="text-red-500 text-xs mt-2 px-2">{errors.message.message}</p>}
                 <p className="text-center text-[11px] text-[#737373] mt-4">AI models can make mistakes. Verify important information.</p>
+                <p className="text-center text-[11px] text-[#999] mt-1">&copy; {new Date().getFullYear()} AI Council</p>
               </div>
             </div>
           )}
