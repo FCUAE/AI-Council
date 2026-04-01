@@ -11,13 +11,12 @@ const Profile = lazy(() => import("@/pages/Profile"));
 const Affiliate = lazy(() => import("@/pages/Affiliate"));
 const Admin = lazy(() => import("@/pages/Admin"));
 const NotFound = lazy(() => import("@/pages/not-found"));
-const Privacy = lazy(() => import("@/pages/Privacy"));
 
 import { useAuth } from "@/hooks/use-auth";
 import { useUsage } from "@/hooks/use-usage";
 import { useConversations, useRenameConversation, useDeleteConversation } from "@/hooks/use-conversations";
 import { useEffect, useState, useRef } from "react";
-import { MessageSquare, Plus, Settings, LogOut, MoreHorizontal, Pencil, Trash2, Loader2, Send, Menu, X, Shield } from "lucide-react";
+import { MessageSquare, Plus, Settings, LogOut, MoreHorizontal, Pencil, Trash2, Loader2, Send, Menu, X } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
@@ -381,14 +380,6 @@ function AppSidebar({ mobileOpen, setMobileOpen }: { mobileOpen: boolean; setMob
                 Refer & Earn
               </button>
 
-              <button
-                onClick={() => handleNavigation("/privacy")}
-                className="w-full h-8 mb-2 bg-transparent border-0 rounded-lg font-normal text-[11px] text-[#999] cursor-pointer hover:text-[#737373] transition-colors flex items-center justify-center gap-1"
-                data-testid="link-privacy"
-              >
-                <Shield className="w-3 h-3" />
-                Privacy Policy
-              </button>
 
               {usage?.isSubscribed && (
                 <button
@@ -643,7 +634,6 @@ function Router() {
         <Route path="/credits" component={Credits} />
         <Route path="/profile" component={Profile} />
         <Route path="/affiliate" component={Affiliate} />
-        <Route path="/privacy" component={Privacy} />
         <Route path="/admin" component={Admin} />
         <Route component={NotFound} />
       </Switch>
@@ -768,9 +758,7 @@ function AppLayout() {
         </main>
       </div>
       <footer className="text-center py-2">
-        <a href="/privacy" className="text-[11px] text-[#999] hover:text-[#737373] transition-colors" data-testid="link-privacy-footer">
-          Privacy Policy
-        </a>
+        <span className="text-[11px] text-[#999]">&copy; {new Date().getFullYear()} AI Council</span>
       </footer>
       <SupportWidget />
     </div>

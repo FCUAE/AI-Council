@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { useUser, useClerk } from "@clerk/react";
 import { useLocation } from "wouter";
-import { FileText, Download, CreditCard, ArrowLeft, ExternalLink, Loader2, Trash2, Check, Shield, Eye, EyeOff } from "lucide-react";
+import { FileText, Download, CreditCard, ArrowLeft, ExternalLink, Loader2, Trash2, Check, Shield, Eye, EyeOff, ChevronDown } from "lucide-react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { authFetch } from "@/lib/clerk-token";
@@ -69,6 +69,7 @@ export default function Profile() {
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const [privacyOpen, setPrivacyOpen] = useState(false);
   const { toast } = useToast();
 
   const handleRecentAuthRequired = async () => {
@@ -737,6 +738,54 @@ export default function Profile() {
               )}
             </div>
           </div>
+        </section>
+
+        <section className="bg-white rounded-2xl border border-[#eaeaea] shadow-[0_1px_3px_rgba(0,0,0,0.02),0_4px_12px_rgba(0,0,0,0.04)] overflow-hidden" data-testid="section-privacy">
+          <button
+            onClick={() => setPrivacyOpen(!privacyOpen)}
+            className="w-full flex items-center justify-between p-6 bg-transparent border-0 cursor-pointer text-left hover:bg-[#fafafa] transition-colors"
+            data-testid="button-toggle-privacy"
+          >
+            <div className="flex items-center gap-3">
+              <Shield className="w-5 h-5 text-[#737373]" />
+              <h2 className="text-[17px] font-semibold text-[#1a1a1a]">Privacy Policy</h2>
+            </div>
+            <ChevronDown className={`w-5 h-5 text-[#737373] transition-transform duration-200 ${privacyOpen ? 'rotate-180' : ''}`} />
+          </button>
+          {privacyOpen && (
+            <div className="px-6 pb-6 border-t border-[#eaeaea]">
+              <div className="prose prose-sm text-[#4a4a4a] space-y-4 pt-5">
+                <h3 className="text-[15px] font-semibold text-[#1a1a1a]">Information We Collect</h3>
+                <p className="text-[14px] leading-relaxed">
+                  We collect information you provide when creating an account, such as your
+                  name and email address. We also collect conversation data you submit to the
+                  platform in order to provide the AI debate service.
+                </p>
+                <h3 className="text-[15px] font-semibold text-[#1a1a1a]">How We Use Your Information</h3>
+                <p className="text-[14px] leading-relaxed">
+                  Your information is used to operate the service, process payments, and
+                  improve the user experience. We do not sell your personal data to third
+                  parties.
+                </p>
+                <h3 className="text-[15px] font-semibold text-[#1a1a1a]">Data Retention</h3>
+                <p className="text-[14px] leading-relaxed">
+                  We retain your data for as long as your account is active or as needed to
+                  provide the service. You may request deletion of your data by contacting
+                  support.
+                </p>
+                <h3 className="text-[15px] font-semibold text-[#1a1a1a]">Contact</h3>
+                <p className="text-[14px] leading-relaxed">
+                  If you have questions about this privacy policy, please contact us at{" "}
+                  <a href="mailto:support@askaicouncil.com" className="text-[#4f46e5] underline" data-testid="link-privacy-email">
+                    support@askaicouncil.com
+                  </a>.
+                </p>
+                <p className="text-[12px] text-[#999] mt-6">
+                  This is a placeholder privacy policy. A comprehensive policy will be published soon.
+                </p>
+              </div>
+            </div>
+          )}
         </section>
       </div>
 
