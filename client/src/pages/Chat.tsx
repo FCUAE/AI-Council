@@ -529,7 +529,7 @@ export default function Chat() {
         )
       ) : (
         <>
-          <div className="flex-1 overflow-y-auto px-4 md:px-6 py-6 pb-4">
+          <div className="flex-1 overflow-y-auto px-4 md:px-6 py-6 pb-2">
             <div className="max-w-[1100px] mx-auto w-full space-y-6">
               <AnimatePresence>
                 {conversation.messages.map((message, index) => (
@@ -845,8 +845,8 @@ export default function Chat() {
           </div>
 
           {(conversation.status === 'error' || conversation.status === 'cancelled') && !isProcessing && (
-            <div className="shrink-0 w-full px-3 md:px-6 pb-2 flex justify-center">
-              <div className="w-full max-w-[960px]">
+            <div className="shrink-0 w-full px-4 md:px-6 pb-2 flex justify-center">
+              <div className="w-full max-w-[1100px]">
                 <div className="bg-white rounded-2xl border border-[#eaeaea] shadow-[0_1px_3px_rgba(0,0,0,0.02),0_4px_12px_rgba(0,0,0,0.04)] p-6 flex flex-col items-center gap-4">
                   <div className="flex items-center gap-2">
                     <div className={`w-2 h-2 rounded-full ${conversation.status === 'error' ? 'bg-red-500' : 'bg-amber-500'}`} />
@@ -894,8 +894,8 @@ export default function Chat() {
           )}
 
           {!isProcessing && conversation.status !== 'error' && conversation.status !== 'cancelled' && (
-            <div className="shrink-0 w-full bg-gradient-to-t from-white via-white to-transparent pt-6 md:pt-8 pb-4 md:pb-6 px-3 md:px-6 flex justify-center">
-              <div className="w-full max-w-[960px]">
+            <div className="shrink-0 w-full bg-gradient-to-t from-white via-white to-transparent pt-3 pb-4 md:pb-6 px-4 md:px-6 flex justify-center">
+              <div className="w-full max-w-[1100px]">
                 {(uploadedFiles.length > 0 || pendingFiles.length > 0) && (
                   <div className="flex gap-2 mb-2 px-1 overflow-x-auto scrollbar-hide" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
                     {pendingFiles.map((file) => (
